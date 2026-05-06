@@ -149,15 +149,16 @@ class Parser:
             self.eat(TokenType.SEMICOLON)
 
         return program
-    
+
+"""    
 if __name__ == "__main__":
 
     from core.lexer.lexer import Lexer
 
-    source = """
+    source = "
     A = 2 + 3 * 4;
     B = A + 10;
-    """
+    "
 
     lexer = Lexer(source)
 
@@ -168,3 +169,4 @@ if __name__ == "__main__":
     ast = parser.parse()
 
     print(ast)    
+"""
