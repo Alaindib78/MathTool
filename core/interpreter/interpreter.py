@@ -68,6 +68,24 @@ class Interpreter:
                 )
 
             return left / right
+        
+        elif node.operator == TokenType.EQ:
+            return left == right
+
+        elif node.operator == TokenType.NE:
+            return left != right
+
+        elif node.operator == TokenType.LT:
+            return left < right
+
+        elif node.operator == TokenType.GT:
+            return left > right
+
+        elif node.operator == TokenType.LE:
+            return left <= right
+
+        elif node.operator == TokenType.GE:
+            return left >= right
 
         raise Exception(
             f"Unknown operator {node.operator}"
@@ -122,24 +140,24 @@ class Interpreter:
 
         return self.visit(tree)
 
-"""    
+    
 if __name__ == "__main__":
 
     from core.lexer.lexer import Lexer
     from core.parser.parser import Parser
 
-    source = "
-    A = 14;
-    B = A + 10;
-    
-    println(B);
+    source = """
+        A = 10;
 
-    C = B - 2 * A;
+        println(A > 5);
+        println(A < 5);
 
-    println(C);
-    print("Done!");
-    end;    
-    "
+        println(A == 10);
+        println(A != 10);
+
+        println(A >= 10);
+        println(A <= 9);
+    """
 
     lexer = Lexer(source)
 
@@ -152,4 +170,3 @@ if __name__ == "__main__":
     interpreter = Interpreter()
 
     interpreter.interpret(tree)
-"""

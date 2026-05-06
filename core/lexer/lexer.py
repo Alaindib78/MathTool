@@ -109,7 +109,17 @@ class Lexer:
             result,
             line,
             column
-        )   
+        ) 
+
+    def peek(self):
+
+        peek_position = self.position + 1
+
+        if peek_position >= len(self.text):
+            return None
+
+        return self.text[peek_position]
+      
     def get_next_token(self):
 
         while self.current_char is not None:
@@ -212,11 +222,105 @@ class Lexer:
             if self.current_char == '"':
                 return self.string()
 
+            if (
+                self.current_char == "="
+                and self.peek() == "="
+            ):
+
+                token = Token(
+                    TokenType.EQ,
+                    "==",
+                    self.line,
+                    self.column
+                )
+
+                self.advance()
+                self.advance()
+
+                return token
+            
+            if (
+                self.current_char == "!"
+                and self.peek() == "="
+            ):
+
+                token = Token(
+                    TokenType.NE,
+                    "!=",
+                    self.line,
+                    self.column
+                )
+
+                self.advance()
+                self.advance()
+
+                return token
+            
+            if (
+                self.current_char == "<"
+                and self.peek() == "="
+            ):
+
+                token = Token(
+                    TokenType.LE,
+                    "<=",
+                    self.line,
+                    self.column
+                )
+
+                self.advance()
+                self.advance()
+
+                return token
+            
+            if (
+                self.current_char == ">"
+                and self.peek() == "="
+            ):
+
+                token = Token(
+                    TokenType.GE,
+                    ">=",
+                    self.line,
+                    self.column
+                )
+
+                self.advance()
+                self.advance()
+
+                return token
+            
+            if self.current_char == "<":
+
+                token = Token(
+                    TokenType.LT,
+                    "<",
+                    self.line,
+                    self.column
+                )
+
+                self.advance()
+
+                return token
+            
+            if self.current_char == ">":
+
+                token = Token(
+                    TokenType.GT,
+                    ">",
+                    self.line,
+                    self.column
+                )
+
+                self.advance()
+
+                return token
+
             raise Exception(
                 f"Invalid character '{self.current_char}' "
                 f"at line {self.line}, column {self.column}"
             )
-
+        
         return Token(
             TokenType.EOF,
             None,

@@ -122,6 +122,32 @@ class Parser:
 
         return node
     
+    def comparison(self):
+
+        node = self.expr()
+
+        while self.current_token.type in (
+
+            TokenType.EQ,
+            TokenType.NE,
+            TokenType.LT,
+            TokenType.GT,
+            TokenType.LE,
+            TokenType.GE
+        ):
+
+            operator = self.current_token
+
+            self.eat(operator.type)
+
+            node = BinaryOpNode(
+                left=node,
+                operator=operator.type,
+                right=self.expr()
+            )
+
+        return node
+
     def assignment(self):
 
         variable_token = self.current_token
@@ -130,7 +156,7 @@ class Parser:
 
         self.eat(TokenType.ASSIGN)
 
-        value_node = self.expr()
+        value_node = self.comparison()
 
         return AssignmentNode(
             variable=VariableNode(variable_token.value),
@@ -150,7 +176,7 @@ class Parser:
 
         self.eat(TokenType.LPAREN)
 
-        expression = self.expr()
+        expression = self.comparison()
 
         self.eat(TokenType.RPAREN)
 
