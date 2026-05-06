@@ -60,3 +60,33 @@ class CompoundNode(ASTNode):
     def __repr__(self):
         return f"CompoundNode({self.statements})"
     
+
+class PrintNode(ASTNode):
+
+    def __init__(self, expression, newline=False):
+        self.expression = expression
+        self.newline = newline
+
+    def __repr__(self):
+
+        return (
+            f"PrintNode("
+            f"{self.expression}, "
+            f"newline={self.newline}"
+            f")"
+        )
+    
+class PrintTextNode(ASTNode):
+
+    def __init__(self, text, newline=False):
+        self.text = text
+        self.newline = newline
+
+    def __repr__(self):
+
+        return (
+            f"PrintTextNode("
+            f"{self.text}, "
+            f"newline={self.newline}"
+            f")"
+        )

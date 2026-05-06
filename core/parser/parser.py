@@ -4,7 +4,9 @@ from core.parser.nodes import (
     VariableNode,
     BinaryOpNode,
     AssignmentNode,
-    CompoundNode
+    CompoundNode,
+    PrintNode,
+    PrintTextNode
 )
 
 class Parser:
@@ -59,6 +61,12 @@ class Parser:
             self.eat(TokenType.RPAREN)
 
             return node
+        
+        elif token.type == TokenType.STRING:
+
+            self.eat(TokenType.STRING)
+
+            return token.value
 
         raise Exception(
             f"Unexpected token {token.type}"
@@ -128,11 +136,69 @@ class Parser:
             variable=VariableNode(variable_token.value),
             value=value_node
         )
+
+    def print_statement(self):
+
+        newline = False
+
+        if self.current_token.type == TokenType.PRINT:
+            self.eat(TokenType.PRINT)
+
+        elif self.current_token.type == TokenType.PRINTLN:
+            newline = True
+            self.eat(TokenType.PRINTLN)
+
+        self.eat(TokenType.LPAREN)
+
+        expression = self.expr()
+
+        self.eat(TokenType.RPAREN)
+
+        return PrintNode(
+            expression,
+            newline
+        )
+
+    def print_text_statement(self):
+
+        newline = False
+
+        if self.current_token.type == TokenType.PRINTTEXT:
+            self.eat(TokenType.PRINTTEXT)
+
+        elif self.current_token.type == TokenType.PRINTLNTEXT:
+            newline = True
+            self.eat(TokenType.PRINTLNTEXT)
+
+        self.eat(TokenType.LPAREN)
+
+        token = self.current_token
+
+        self.eat(TokenType.STRING)
+
+        self.eat(TokenType.RPAREN)
+
+        return PrintTextNode(
+            token.value,
+            newline
+        )
     
     def statement(self):
 
         if self.current_token.type == TokenType.IDENTIFIER:
             return self.assignment()
+
+        elif self.current_token.type in (
+            TokenType.PRINT,
+            TokenType.PRINTLN
+        ):
+            return self.print_statement()
+
+        elif self.current_token.type in (
+            TokenType.PRINTTEXT,
+            TokenType.PRINTLNTEXT
+        ):
+            return self.print_text_statement()
 
         return self.expr()
     

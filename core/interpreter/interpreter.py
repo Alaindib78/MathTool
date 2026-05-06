@@ -5,7 +5,9 @@ from core.parser.nodes import (
     VariableNode,
     BinaryOpNode,
     AssignmentNode,
-    CompoundNode
+    CompoundNode,
+    PrintNode,
+    PrintTextNode
 )
 
 from core.runtime.context import Context
@@ -96,6 +98,26 @@ class Interpreter:
 
         return results
     
+    def visit_PrintNode(self, node):
+
+        value = self.visit(node.expression)
+
+        if node.newline:
+            print(value)
+        else:
+            print(value, end="")
+
+        return value
+    
+    def visit_PrintTextNode(self, node):
+
+        if node.newline:
+            print(node.text)
+        else:
+            print(node.text, end="")
+
+        return node.text
+    
     def interpret(self, tree):
 
         return self.visit(tree)
@@ -107,8 +129,16 @@ if __name__ == "__main__":
     from core.parser.parser import Parser
 
     source = "
-    A = 2 + 3 * 4;
+    A = 14;
     B = A + 10;
+    
+    println(B);
+
+    C = B - 2 * A;
+
+    println(C);
+    print("Done!");
+    end;    
     "
 
     lexer = Lexer(source)
@@ -121,11 +151,5 @@ if __name__ == "__main__":
 
     interpreter = Interpreter()
 
-    result = interpreter.interpret(tree)
-
-    print("Execution Results:")
-    print(result)
-
-    print("\nVariables:")
-    print(interpreter.context)
+    interpreter.interpret(tree)
 """

@@ -207,6 +207,10 @@ class Lexer:
                 )
                 self.advance()
                 return token
+            
+             # Strings
+            if self.current_char == '"':
+                return self.string()
 
             raise Exception(
                 f"Invalid character '{self.current_char}' "
@@ -233,6 +237,39 @@ class Lexer:
                 break
 
         return tokens
+    
+    def string(self):
+
+        result = ""
+
+        line = self.line
+        column = self.column
+
+        # Skip opening quote
+        self.advance()
+
+        while (
+            self.current_char is not None
+            and self.current_char != '"'
+        ):
+
+            result += self.current_char
+            self.advance()
+
+        if self.current_char != '"':
+            raise Exception(
+                f"Unterminated string at line {line}"
+            )
+
+        # Skip closing quote
+        self.advance()
+
+        return Token(
+            TokenType.STRING,
+            result,
+            line,
+            column
+        )
 
 """    
 if __name__ == "__main__":
