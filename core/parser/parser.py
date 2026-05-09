@@ -57,8 +57,80 @@ class Parser:
         )
 
     def expression(self):
-        return self.term()
+        return self.logical_or()
+#        return self.term()
 
+    def logical_or(self):
+        node = self.logical_and()
+
+        while self.match(TokenType.OR):
+            operator = self.previous()
+            right = self.logical_and()
+
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
+
+        return node
+
+
+    def logical_and(self):
+        node = self.equality()
+
+        while self.match(TokenType.AND):
+            operator = self.previous()
+            right = self.equality()
+
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
+
+        return node
+
+
+    def equality(self):
+        node = self.comparison()
+
+        while self.match(
+            TokenType.EQEQ,
+            TokenType.NEQ
+        ):
+            operator = self.previous()
+            right = self.comparison()
+
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
+
+        return node
+
+
+    def comparison(self):
+        node = self.term()
+
+        while self.match(
+            TokenType.LT,
+            TokenType.GT,
+            TokenType.LTE,
+            TokenType.GTE
+        ):
+            operator = self.previous()
+            right = self.term()
+
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
+
+        return node
+    
     def term(self):
         node = self.factor()
 
@@ -109,7 +181,11 @@ class Parser:
         return node
 
     def unary(self):
-        if self.match(TokenType.MINUS, TokenType.PLUS):
+        if self.match(
+            TokenType.MINUS,
+            TokenType.PLUS,
+            TokenType.NOT
+        ):
             operator = self.previous()
 
             operand = self.unary()
@@ -124,6 +200,12 @@ class Parser:
     def primary(self):
         if self.match(TokenType.NUMBER):
             return NumberNode(self.previous().value)
+        
+        if self.match(TokenType.TRUE):
+            return NumberNode(True)
+
+        if self.match(TokenType.FALSE):
+            return NumberNode(False)
 
         if self.match(TokenType.IDENTIFIER):
             return IdentifierNode(self.previous().value)

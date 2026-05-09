@@ -48,6 +48,93 @@ class Lexer:
                 tokens.append(self.identifier())
                 continue
 
+            # Multi-character operators
+            if char == "=" and self.peek_next() == "=":
+                tokens.append(
+                    Token(
+                        TokenType.EQEQ,
+                        "==",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue
+
+            if char == "!" and self.peek_next() == "=":
+                tokens.append(
+                    Token(
+                        TokenType.NEQ,
+                        "!=",
+                        self.line,
+                        self.column
+                    )
+                )
+
+
+                self.advance()
+                self.advance()
+                continue
+
+            if char == "<" and self.peek_next() == "=":
+                tokens.append(
+                    Token(
+                        TokenType.LTE,
+                        "<=",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue    
+
+            if char == ">" and self.peek_next() == "=":
+                tokens.append(
+                    Token(
+                        TokenType.GTE,
+                        ">=",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue    
+
+            if char == "&" and self.peek_next() == "&":
+                tokens.append(
+                    Token(
+                        TokenType.AND,
+                        "&&",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue
+
+
+            if char == "|" and self.peek_next() == "|":
+                tokens.append(
+                    Token(
+                        TokenType.OR,
+                        "||",
+                        self.line,
+                        self.column
+                    )
+                )   
+
+                self.advance()
+                self.advance()
+                continue
+
             # Single-character tokens
             single_char_tokens = {
                 "+": TokenType.PLUS,
@@ -57,10 +144,17 @@ class Lexer:
                 "^": TokenType.CARET,
                 "%": TokenType.MODULO,
                 "=": TokenType.EQUAL,
+
+                "<": TokenType.LT,
+                ">": TokenType.GT,
+                "!": TokenType.NOT,
+
                 "(": TokenType.LPAREN,
                 ")": TokenType.RPAREN,
+
                 "[": TokenType.LBRACKET,
                 "]": TokenType.RBRACKET,
+
                 ",": TokenType.COMMA,
                 ";": TokenType.SEMICOLON,
             }
@@ -127,6 +221,12 @@ class Lexer:
 
     def peek(self):
         return self.source[self.position]
+    
+    def peek_next(self):
+        if self.position + 1 >= len(self.source):
+            return "\0"
+
+        return self.source[self.position + 1]
 
     def advance(self):
         char = self.source[self.position]

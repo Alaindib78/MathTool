@@ -66,6 +66,9 @@ class Interpreter:
 
         if node.operator == TokenType.PLUS:
             return +value
+        
+        if node.operator == TokenType.NOT:
+            return not value
 
         raise Exception(
             f"Unsupported unary operator "
@@ -98,6 +101,30 @@ class Interpreter:
 
         if operator == TokenType.CARET:
             return left ** right
+        
+        if operator == TokenType.EQEQ:
+            return left == right
+
+        if operator == TokenType.NEQ:
+            return left != right
+
+        if operator == TokenType.LT:
+            return left < right
+
+        if operator == TokenType.GT:
+            return left > right
+
+        if operator == TokenType.LTE:
+            return left <= right
+
+        if operator == TokenType.GTE:
+            return left >= right
+
+        if operator == TokenType.AND:
+            return left and right
+
+        if operator == TokenType.OR:
+            return left or right
 
         raise Exception(
             f"Unsupported operator {operator}"
