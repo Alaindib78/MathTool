@@ -11,6 +11,7 @@ from core.ast.nodes import (
     WhileNode,
     RangeNode,
     ForNode,
+    FunctionCallNode,
 )
 
 
@@ -384,8 +385,34 @@ class Parser:
         if self.match(TokenType.FALSE):
             return NumberNode(False)
 
+#        if self.match(TokenType.IDENTIFIER):
+#            return IdentifierNode(self.previous().value)
+
         if self.match(TokenType.IDENTIFIER):
-            return IdentifierNode(self.previous().value)
+            identifier = self.previous()
+
+            # Function call
+            if self.match(TokenType.LPAREN):
+                arguments = []
+
+                if not self.check(TokenType.RPAREN):
+                    arguments.append(
+                        self.expression()
+                    )
+
+                while self.match(TokenType.COMMA):
+                    arguments.append(
+                        self.expression()
+                    )
+
+                self.consume(TokenType.RPAREN)
+
+                return FunctionCallNode(
+                    identifier.value,
+                    arguments
+                )
+
+            return IdentifierNode(identifier.value)
 
         if self.match(TokenType.LPAREN):
             expr = self.expression()

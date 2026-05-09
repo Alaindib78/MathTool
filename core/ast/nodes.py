@@ -128,3 +128,15 @@ class ForNode(ASTNode):
             f"iterable={self.iterable}, "
             f"body={self.body})"
         )
+    
+class FunctionCallNode(ASTNode):
+    def __init__(self, name, arguments):
+        self.name = name
+        self.arguments = arguments
+
+    def __repr__(self):
+        return (
+            f"FunctionCallNode("
+            f"name={self.name}, "
+            f"arguments={self.arguments})"
+        )

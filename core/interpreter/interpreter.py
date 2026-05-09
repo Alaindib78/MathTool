@@ -9,6 +9,7 @@ from core.ast.nodes import (
     WhileNode,
     RangeNode,
     ForNode,
+    FunctionCallNode,
 )
 
 from core.lexer.token import TokenType
@@ -216,3 +217,10 @@ class Interpreter:
                 result = self.evaluate(stmt)
 
         return result
+    
+    def visit_FunctionCallNode(self, node):
+        function = self.context.functions.get(node.name)
+
+        arguments = [self.evaluate(arg) for arg in node.arguments]
+
+        return function(*arguments)
