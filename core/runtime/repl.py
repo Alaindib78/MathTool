@@ -14,25 +14,43 @@ class REPL:
             self.context
         )
 
+#if first_line.strip().lower() in {"exit", "who", "clear"}:
+#            return first_line
+
     def read_input(self):
         lines = []
 
-        first_line = input(">> ")
-        lines.append(first_line)
+        block_depth = 0
 
+        first_line = input(">> ")
         if first_line.strip().lower() in {"exit", "who", "clear"}:
             return first_line
+
+        lines.append(first_line)
+
+        if self.starts_block(first_line):
+            block_depth += 1
+
+        if self.ends_block(first_line):
+            block_depth -= 1
 
         while True:
             current = lines[-1].rstrip()
 
-            # Continue if line does not end with semicolon
-            # and is not empty
-            if current.endswith(";") or current == "":
+            if block_depth <= 0 and (
+                current.endswith(";")
+                or current == ""
+            ):
                 break
 
             next_line = input(".. ")
             lines.append(next_line)
+
+            if self.starts_block(next_line):
+                block_depth += 1
+
+            if self.ends_block(next_line):
+                block_depth -= 1
 
         return "\n".join(lines)
 
@@ -62,6 +80,20 @@ class REPL:
 
             except Exception as e:
                 print(f"Error: {e}")
+
+
+    def starts_block(self, line):
+        stripped = line.strip()
+
+        return (
+            stripped.startswith("if ")
+            or stripped.startswith("for ")
+            or stripped.startswith("while ")
+            or stripped.startswith("function ")
+        )
+
+    def ends_block(self, line):
+        return line.strip() == "end"
 
     def execute(self, source):
         if source.strip() == "who":

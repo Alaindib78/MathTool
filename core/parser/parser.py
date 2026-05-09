@@ -7,6 +7,7 @@ from core.ast.nodes import (
     BinaryOpNode,
     UnaryOpNode,
     AssignmentNode,
+    IfNode,
 )
 
 
@@ -36,6 +37,10 @@ class Parser:
         return ProgramNode(statements)
 
     def statement(self):
+        # If statement
+        if self.match(TokenType.IF):
+            return self.if_statement()
+
         # Assignment
         if (
             self.peek().type == TokenType.IDENTIFIER
@@ -44,6 +49,90 @@ class Parser:
             return self.assignment()
 
         return self.expression()
+    
+    def if_statement(self):
+        condition = self.expression()
+
+        then_branch = []
+
+        while (
+            not self.check(TokenType.ELSEIF)
+            and not self.check(TokenType.ELSE)
+            and not self.check(TokenType.END)
+            and not self.is_at_end()
+        ):
+            while self.match(TokenType.SEMICOLON):
+                pass
+
+            if (
+                self.check(TokenType.ELSEIF)
+                or self.check(TokenType.ELSE)
+                or self.check(TokenType.END)
+            ):
+                break
+
+            then_branch.append(self.statement())
+
+            self.match(TokenType.SEMICOLON)
+
+        elseif_branches = []
+
+        while self.match(TokenType.ELSEIF):
+            elseif_condition = self.expression()
+
+            elseif_body = []
+
+            while (
+                not self.check(TokenType.ELSEIF)
+                and not self.check(TokenType.ELSE)
+                and not self.check(TokenType.END)
+                and not self.is_at_end()
+            ):
+                while self.match(TokenType.SEMICOLON):
+                    pass
+
+                if (
+                    self.check(TokenType.ELSEIF)
+                    or self.check(TokenType.ELSE)
+                    or self.check(TokenType.END)
+                ):
+                    break
+
+                elseif_body.append(self.statement())
+
+                self.match(TokenType.SEMICOLON)
+
+            elseif_branches.append(
+                (elseif_condition, elseif_body)
+            )
+
+        else_branch = None
+
+        if self.match(TokenType.ELSE):
+            else_branch = []
+
+            while (
+                not self.check(TokenType.END)
+                and not self.is_at_end()
+            ):
+                while self.match(TokenType.SEMICOLON):
+                    pass
+
+                if self.check(TokenType.END):
+                    break
+
+                else_branch.append(self.statement())
+
+                self.match(TokenType.SEMICOLON)
+
+        self.consume(TokenType.END)
+
+        return IfNode(
+            condition,
+            then_branch,
+            elseif_branches,
+            else_branch
+        )
 
     def assignment(self):
         identifier = self.consume(TokenType.IDENTIFIER)

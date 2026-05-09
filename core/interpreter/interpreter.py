@@ -5,6 +5,7 @@ from core.ast.nodes import (
     BinaryOpNode,
     UnaryOpNode,
     AssignmentNode,
+    IfNode,
 )
 
 from core.lexer.token import TokenType
@@ -129,3 +130,31 @@ class Interpreter:
         raise Exception(
             f"Unsupported operator {operator}"
         )
+    
+    def visit_IfNode(self, node):
+        if self.evaluate(node.condition):
+            result = None
+
+            for stmt in node.then_branch:
+                result = self.evaluate(stmt)
+
+            return result
+
+        for condition, body in node.elseif_branches:
+            if self.evaluate(condition):
+                result = None
+
+                for stmt in body:
+                    result = self.evaluate(stmt)
+
+                return result
+
+        if node.else_branch is not None:
+            result = None
+
+            for stmt in node.else_branch:
+                result = self.evaluate(stmt)
+
+            return result
+
+        return None

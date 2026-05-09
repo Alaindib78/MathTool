@@ -64,3 +64,25 @@ class AssignmentNode(ASTNode):
             f"{self.value})"
         )
     
+class IfNode(ASTNode):
+    def __init__(
+        self,
+        condition,
+        then_branch,
+        elseif_branches,
+        else_branch
+    ):
+        self.condition = condition
+        self.then_branch = then_branch
+        self.elseif_branches = elseif_branches
+        self.else_branch = else_branch
+
+    def __repr__(self):
+        return (
+            f"IfNode("
+            f"condition={self.condition}, "
+            f"then={self.then_branch}, "
+            f"elseif={self.elseif_branches}, "
+            f"else={self.else_branch}"
+            f")"
+        )
