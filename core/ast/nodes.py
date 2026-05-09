@@ -120,6 +120,13 @@ class RangeNode(ASTNode):
             f"step={self.step}, "
             f"end={self.end})"
         )
+    
+class MatrixNode(ASTNode):
+    def __init__(self, rows):
+        self.rows = rows
+
+    def __repr__(self):
+        return f"MatrixNode(rows={self.rows})"
 
 
 class ForNode(ASTNode):
@@ -148,3 +155,14 @@ class FunctionCallNode(ASTNode):
             f"arguments={self.arguments})"
         )
     
+class IndexNode(ASTNode):
+    def __init__(self, target, indices):
+        self.target = target
+        self.indices = indices
+
+    def __repr__(self):
+        return (
+            f"IndexNode("
+            f"target={self.target}, "
+            f"indices={self.indices})"
+        )

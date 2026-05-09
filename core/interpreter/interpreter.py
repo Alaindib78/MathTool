@@ -1,4 +1,7 @@
+from ast import operator
 from platform import node
+from turtle import right
+import numpy as np
 
 from core.ast.nodes import (
     ProgramNode,
@@ -11,8 +14,10 @@ from core.ast.nodes import (
     IfNode,
     WhileNode,
     RangeNode,
+    MatrixNode,
     ForNode,
     FunctionCallNode,
+    IndexNode,
 )
 
 from core.lexer.token import TokenType
@@ -98,14 +103,31 @@ class Interpreter:
         if operator == TokenType.MINUS:
             return left - right
 
+#        if operator == TokenType.STAR:
+#            return left * right
         if operator == TokenType.STAR:
-            return left * right
+            if (
+                isinstance(left, np.ndarray)
+                and isinstance(right, np.ndarray)
+            ):
+                return left @ right
 
+            return left * right
+        
         if operator == TokenType.SLASH:
             if right == 0:
                 raise Exception("Division by zero")
 
             return left / right
+        
+        if operator == TokenType.DOTSTAR:
+            return left * right
+
+        if operator == TokenType.DOTSLASH:
+            return left / right
+
+        if operator == TokenType.DOTCARET:
+            return left ** right
 
         if operator == TokenType.MODULO:
             return left % right
@@ -194,6 +216,23 @@ class Interpreter:
 
         return values
     
+    def visit_MatrixNode(self, node):
+        evaluated_rows = []
+
+        for row in node.rows:
+            evaluated_row = [
+                self.evaluate(value)
+                for value in row
+            ]
+
+            evaluated_rows.append(evaluated_row)
+
+        # Row vector simplification
+        if len(evaluated_rows) == 1:
+            return np.array(evaluated_rows[0])
+
+        return np.array(evaluated_rows)
+    
     def visit_WhileNode(self, node):
         result = None
 
@@ -230,3 +269,16 @@ class Interpreter:
         arguments = [self.evaluate(arg) for arg in node.arguments]
 
         return function(*arguments)
+    
+    def visit_IndexNode(self, node):
+        target = self.evaluate(node.target)
+
+        indices = [
+            int(self.evaluate(index)) - 1
+            for index in node.indices
+        ]
+
+        if len(indices) == 1:
+            return target[indices[0]]
+
+        return target[tuple(indices)]

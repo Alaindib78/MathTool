@@ -140,6 +140,49 @@ class Lexer:
                 self.advance()
                 continue
 
+            if char == "." and self.peek_next() == "*":
+                tokens.append(
+                    Token(
+                        TokenType.DOTSTAR,
+                        ".*",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue
+    
+
+            if char == "." and self.peek_next() == "/":
+                tokens.append(
+                    Token(
+                        TokenType.DOTSLASH,
+                        "./",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue
+
+            if char == "." and self.peek_next() == "^":
+                tokens.append(
+                    Token(
+                        TokenType.DOTCARET,
+                        ".^",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                self.advance()
+                continue
+
             # Single-character tokens
             single_char_tokens = {
                 "+": TokenType.PLUS,

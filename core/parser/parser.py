@@ -11,8 +11,10 @@ from core.ast.nodes import (
     IfNode,
     WhileNode,
     RangeNode,
+    MatrixNode,
     ForNode,
     FunctionCallNode,
+    IndexNode,
 )
 
 
@@ -331,7 +333,9 @@ class Parser:
         while self.match(
             TokenType.STAR,
             TokenType.SLASH,
-            TokenType.MODULO
+            TokenType.MODULO,
+            TokenType.DOTSTAR,
+            TokenType.DOTSLASH
         ):
             operator = self.previous()
             right = self.power()
@@ -347,7 +351,10 @@ class Parser:
     def power(self):
         node = self.unary()
 
-        while self.match(TokenType.CARET):
+        while self.match(
+            TokenType.CARET,
+            TokenType.DOTCARET
+        ):
             operator = self.previous()
             right = self.unary()
 
@@ -389,9 +396,6 @@ class Parser:
         if self.match(TokenType.FALSE):
             return NumberNode(False)
 
-#        if self.match(TokenType.IDENTIFIER):
-#            return IdentifierNode(self.previous().value)
-
         if self.match(TokenType.IDENTIFIER):
             identifier = self.previous()
 
@@ -404,12 +408,19 @@ class Parser:
                         self.expression()
                     )
 
-                while self.match(TokenType.COMMA):
-                    arguments.append(
-                        self.expression()
-                    )
+                    while self.match(TokenType.COMMA):
+                        arguments.append(
+                            self.expression()
+                        )
 
                 self.consume(TokenType.RPAREN)
+
+                # Indexing if variable exists syntax-style
+                if len(arguments) > 0:
+                    return IndexNode(
+                        IdentifierNode(identifier.value),
+                        arguments
+                    )
 
                 return FunctionCallNode(
                     identifier.value,
@@ -417,6 +428,9 @@ class Parser:
                 )
 
             return IdentifierNode(identifier.value)
+        
+        if self.match(TokenType.LBRACKET):
+            return self.matrix_literal()
 
         if self.match(TokenType.LPAREN):
             expr = self.expression()
@@ -426,6 +440,34 @@ class Parser:
         raise Exception(
             f"Unexpected token: {self.peek()}"
         )
+    
+    def matrix_literal(self):
+        rows = []
+        current_row = []
+
+        while (
+            not self.check(TokenType.RBRACKET)
+            and not self.is_at_end()
+        ):
+            value = self.expression()
+
+            current_row.append(value)
+
+            # New row
+            if self.match(TokenType.SEMICOLON):
+                rows.append(current_row)
+                current_row = []
+                continue
+
+            # Optional commas
+            self.match(TokenType.COMMA)
+
+        if current_row:
+            rows.append(current_row)
+
+        self.consume(TokenType.RBRACKET)
+
+        return MatrixNode(rows)
 
     # Utility methods
 
