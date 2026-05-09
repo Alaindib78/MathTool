@@ -1,56 +1,62 @@
 from enum import Enum, auto
 
-
 class TokenType(Enum):
+    # Special
+    EOF = auto()
 
-    # Data
+    # Literals
     NUMBER = auto()
     IDENTIFIER = auto()
     STRING = auto()
 
-    # Arithmetic Operators
+    # Operators
     PLUS = auto()
     MINUS = auto()
-    MUL = auto()
-    DIV = auto()
+    STAR = auto()
+    SLASH = auto()
+    CARET = auto()
+    MODULO = auto()
 
     # Assignment
-    ASSIGN = auto()
+    EQUAL = auto()
 
-    # Comparison Operators
-    EQ = auto()
-    NE = auto()
-    LT = auto()
-    GT = auto()
-    LE = auto()
-    GE = auto()
-
-    # Parentheses
+    # Delimiters
     LPAREN = auto()
     RPAREN = auto()
 
-    # Brackets
     LBRACKET = auto()
     RBRACKET = auto()
 
-    # Separators
-    SEMICOLON = auto()
     COMMA = auto()
+    SEMICOLON = auto()
+
+    # Comparison
+    EQEQ = auto()
+    NEQ = auto()
+    LT = auto()
+    GT = auto()
+    LTE = auto()
+    GTE = auto()
+
+    # Logical
+    AND = auto()
+    OR = auto()
+    NOT = auto()
 
     # Keywords
     IF = auto()
-    REPEAT = auto()
-    FUNC = auto()
+    ELSE = auto()
+    ELSEIF = auto()
     END = auto()
 
-    # Built-in Functions
-    PRINT = auto()
-    PRINTLN = auto()
-    PRINTTEXT = auto()
-    PRINTLNTEXT = auto()
+    FOR = auto()
+    WHILE = auto()
 
-    # End of File
-    EOF = auto()
+    FUNCTION = auto()
+    RETURN = auto()
+
+    TRUE = auto()
+    FALSE = auto()
 
 class Token:
     def __init__(self, token_type, value, line, column):
@@ -68,6 +74,7 @@ class Token:
             f"column={self.column}"
             f")"
         )
+    
 """        
 if __name__ == "__main__":
 

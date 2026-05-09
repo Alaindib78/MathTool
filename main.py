@@ -1,5 +1,10 @@
+from core.runtime.repl import REPL
+
+
 def main():
-    print("MathFlow Interpreter Starting...")
+    repl = REPL()
+    repl.start()
+
 
 if __name__ == "__main__":
     main()

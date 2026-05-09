@@ -1,28 +1,21 @@
-from core.lexer.token import TokenType
-
-from core.parser.nodes import (
+from core.ast.nodes import (
+    ProgramNode,
     NumberNode,
-    VariableNode,
+    IdentifierNode,
     BinaryOpNode,
+    UnaryOpNode,
     AssignmentNode,
-    CompoundNode,
-    PrintNode,
-    PrintTextNode
 )
 
-from core.runtime.context import Context
+from core.lexer.token import TokenType
+
 
 class Interpreter:
+    def __init__(self, context):
+        self.context = context
 
-    def __init__(self):
-
-        self.context = Context()
-
-    def visit(self, node):
-
-        method_name = (
-            f"visit_{type(node).__name__}"
-        )
+    def evaluate(self, node):
+        method_name = f"visit_{type(node).__name__}"
 
         method = getattr(
             self,
@@ -31,142 +24,81 @@ class Interpreter:
         )
 
         return method(node)
-    
+
     def no_visit_method(self, node):
-
         raise Exception(
-            f"No visit_{type(node).__name__} method defined"
+            f"No visit method for {type(node).__name__}"
         )
+
+    # -------------------------
+    # Node Visitors
+    # -------------------------
     
+    def visit_ProgramNode(self, node):
+        result = None
+
+        for statement in node.statements:
+            result = self.evaluate(statement)
+
+        return result
+
     def visit_NumberNode(self, node):
-
         return node.value
-    
-    def visit_VariableNode(self, node):
 
+    def visit_IdentifierNode(self, node):
         return self.context.get_variable(node.name)
-    
-    def visit_BinaryOpNode(self, node):
 
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-
-        if node.operator == TokenType.PLUS:
-            return left + right
-
-        elif node.operator == TokenType.MINUS:
-            return left - right
-
-        elif node.operator == TokenType.MUL:
-            return left * right
-
-        elif node.operator == TokenType.DIV:
-
-            if right == 0:
-                raise Exception(
-                    "Division by zero"
-                )
-
-            return left / right
-        
-        elif node.operator == TokenType.EQ:
-            return left == right
-
-        elif node.operator == TokenType.NE:
-            return left != right
-
-        elif node.operator == TokenType.LT:
-            return left < right
-
-        elif node.operator == TokenType.GT:
-            return left > right
-
-        elif node.operator == TokenType.LE:
-            return left <= right
-
-        elif node.operator == TokenType.GE:
-            return left >= right
-
-        raise Exception(
-            f"Unknown operator {node.operator}"
-        )
-    
     def visit_AssignmentNode(self, node):
-
-        variable_name = node.variable.name
-
-        value = self.visit(node.value)
+        value = self.evaluate(node.value)
 
         self.context.set_variable(
-            variable_name,
+            node.target.name,
             value
         )
 
         return value
-    
-    def visit_CompoundNode(self, node):
 
-        results = []
+    def visit_UnaryOpNode(self, node):
+        value = self.evaluate(node.operand)
 
-        for statement in node.statements:
+        if node.operator == TokenType.MINUS:
+            return -value
 
-            result = self.visit(statement)
+        if node.operator == TokenType.PLUS:
+            return +value
 
-            results.append(result)
+        raise Exception(
+            f"Unsupported unary operator "
+            f"{node.operator}"
+        )
 
-        return results
-    
-    def visit_PrintNode(self, node):
+    def visit_BinaryOpNode(self, node):
+        left = self.evaluate(node.left)
+        right = self.evaluate(node.right)
 
-        value = self.visit(node.expression)
+        operator = node.operator
 
-        if node.newline:
-            print(value)
-        else:
-            print(value, end="")
+        if operator == TokenType.PLUS:
+            return left + right
 
-        return value
-    
-    def visit_PrintTextNode(self, node):
+        if operator == TokenType.MINUS:
+            return left - right
 
-        if node.newline:
-            print(node.text)
-        else:
-            print(node.text, end="")
+        if operator == TokenType.STAR:
+            return left * right
 
-        return node.text
-    
-    def interpret(self, tree):
+        if operator == TokenType.SLASH:
+            if right == 0:
+                raise Exception("Division by zero")
 
-        return self.visit(tree)
+            return left / right
 
-    
-if __name__ == "__main__":
+        if operator == TokenType.MODULO:
+            return left % right
 
-    from core.lexer.lexer import Lexer
-    from core.parser.parser import Parser
+        if operator == TokenType.CARET:
+            return left ** right
 
-    source = """
-        A = 10;
-
-        println(A > 5);
-        println(A < 5);
-
-        println(A == 10);
-        println(A != 10);
-
-        println(A >= 10);
-        println(A <= 9);
-    """
-
-    lexer = Lexer(source)
-
-    tokens = lexer.tokenize()
-
-    parser = Parser(tokens)
-
-    tree = parser.parse()
-
-    interpreter = Interpreter()
-
-    interpreter.interpret(tree)
+        raise Exception(
+            f"Unsupported operator {operator}"
+        )

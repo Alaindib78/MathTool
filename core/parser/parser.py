@@ -1,264 +1,184 @@
 from core.lexer.token import TokenType
-from core.parser.nodes import (
+
+from core.ast.nodes import (
+    ProgramNode,
     NumberNode,
-    VariableNode,
+    IdentifierNode,
     BinaryOpNode,
+    UnaryOpNode,
     AssignmentNode,
-    CompoundNode,
-    PrintNode,
-    PrintTextNode
 )
 
+
 class Parser:
-
     def __init__(self, tokens):
-
         self.tokens = tokens
         self.position = 0
-        self.current_token = self.tokens[self.position]
 
-    def advance(self):
+    def parse(self):
+        statements = []
 
-        self.position += 1
+        while not self.is_at_end():
+            # Skip stray semicolons
+            while self.match(TokenType.SEMICOLON):
+                pass
 
-        if self.position < len(self.tokens):
-            self.current_token = self.tokens[self.position]
-        else:
-            self.current_token = None
+            if self.is_at_end():
+                break
 
-    def eat(self, token_type):
+            stmt = self.statement()
 
-        if self.current_token.type == token_type:
-            self.advance()
-        else:
-            raise Exception(
-                f"Expected {token_type}, "
-                f"got {self.current_token.type}"
-            )
-        
-    def factor(self):
+            statements.append(stmt)
 
-        token = self.current_token
+            # Optional semicolon
+            self.match(TokenType.SEMICOLON)
 
-        if token.type == TokenType.NUMBER:
+        return ProgramNode(statements)
 
-            self.eat(TokenType.NUMBER)
-
-            return NumberNode(token.value)
-
-        elif token.type == TokenType.IDENTIFIER:
-
-            self.eat(TokenType.IDENTIFIER)
-
-            return VariableNode(token.value)
-
-        elif token.type == TokenType.LPAREN:
-
-            self.eat(TokenType.LPAREN)
-
-            node = self.expr()
-
-            self.eat(TokenType.RPAREN)
-
-            return node
-        
-        elif token.type == TokenType.STRING:
-
-            self.eat(TokenType.STRING)
-
-            return token.value
-
-        raise Exception(
-            f"Unexpected token {token.type}"
-        )
-    
-    def term(self):
-
-        node = self.factor()
-
-        while self.current_token.type in (
-            TokenType.MUL,
-            TokenType.DIV
-        ):
-
-            operator = self.current_token
-
-            if operator.type == TokenType.MUL:
-                self.eat(TokenType.MUL)
-
-            elif operator.type == TokenType.DIV:
-                self.eat(TokenType.DIV)
-
-            node = BinaryOpNode(
-                left=node,
-                operator=operator.type,
-                right=self.factor()
-            )
-
-        return node
-    
-    def expr(self):
-
-        node = self.term()
-
-        while self.current_token.type in (
-            TokenType.PLUS,
-            TokenType.MINUS
-        ):
-
-            operator = self.current_token
-
-            if operator.type == TokenType.PLUS:
-                self.eat(TokenType.PLUS)
-
-            elif operator.type == TokenType.MINUS:
-                self.eat(TokenType.MINUS)
-
-            node = BinaryOpNode(
-                left=node,
-                operator=operator.type,
-                right=self.term()
-            )
-
-        return node
-    
-    def comparison(self):
-
-        node = self.expr()
-
-        while self.current_token.type in (
-
-            TokenType.EQ,
-            TokenType.NE,
-            TokenType.LT,
-            TokenType.GT,
-            TokenType.LE,
-            TokenType.GE
-        ):
-
-            operator = self.current_token
-
-            self.eat(operator.type)
-
-            node = BinaryOpNode(
-                left=node,
-                operator=operator.type,
-                right=self.expr()
-            )
-
-        return node
-
-    def assignment(self):
-
-        variable_token = self.current_token
-
-        self.eat(TokenType.IDENTIFIER)
-
-        self.eat(TokenType.ASSIGN)
-
-        value_node = self.comparison()
-
-        return AssignmentNode(
-            variable=VariableNode(variable_token.value),
-            value=value_node
-        )
-
-    def print_statement(self):
-
-        newline = False
-
-        if self.current_token.type == TokenType.PRINT:
-            self.eat(TokenType.PRINT)
-
-        elif self.current_token.type == TokenType.PRINTLN:
-            newline = True
-            self.eat(TokenType.PRINTLN)
-
-        self.eat(TokenType.LPAREN)
-
-        expression = self.comparison()
-
-        self.eat(TokenType.RPAREN)
-
-        return PrintNode(
-            expression,
-            newline
-        )
-
-    def print_text_statement(self):
-
-        newline = False
-
-        if self.current_token.type == TokenType.PRINTTEXT:
-            self.eat(TokenType.PRINTTEXT)
-
-        elif self.current_token.type == TokenType.PRINTLNTEXT:
-            newline = True
-            self.eat(TokenType.PRINTLNTEXT)
-
-        self.eat(TokenType.LPAREN)
-
-        token = self.current_token
-
-        self.eat(TokenType.STRING)
-
-        self.eat(TokenType.RPAREN)
-
-        return PrintTextNode(
-            token.value,
-            newline
-        )
-    
     def statement(self):
-
-        if self.current_token.type == TokenType.IDENTIFIER:
+        # Assignment
+        if (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek_next().type == TokenType.EQUAL
+        ):
             return self.assignment()
 
-        elif self.current_token.type in (
-            TokenType.PRINT,
-            TokenType.PRINTLN
+        return self.expression()
+
+    def assignment(self):
+        identifier = self.consume(TokenType.IDENTIFIER)
+        self.consume(TokenType.EQUAL)
+
+        value = self.expression()
+
+        return AssignmentNode(
+            IdentifierNode(identifier.value),
+            value
+        )
+
+    def expression(self):
+        return self.term()
+
+    def term(self):
+        node = self.factor()
+
+        while self.match(TokenType.PLUS, TokenType.MINUS):
+            operator = self.previous()
+            right = self.factor()
+
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
+
+        return node
+
+    def factor(self):
+        node = self.power()
+
+        while self.match(
+            TokenType.STAR,
+            TokenType.SLASH,
+            TokenType.MODULO
         ):
-            return self.print_statement()
+            operator = self.previous()
+            right = self.power()
 
-        elif self.current_token.type in (
-            TokenType.PRINTTEXT,
-            TokenType.PRINTLNTEXT
-        ):
-            return self.print_text_statement()
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
 
-        return self.expr()
-    
-    def parse(self):
+        return node
 
-        program = CompoundNode()
+    def power(self):
+        node = self.unary()
 
-        while self.current_token.type != TokenType.EOF:
+        while self.match(TokenType.CARET):
+            operator = self.previous()
+            right = self.unary()
 
-            statement = self.statement()
+            node = BinaryOpNode(
+                node,
+                operator.type,
+                right
+            )
 
-            program.add(statement)
+        return node
 
-            self.eat(TokenType.SEMICOLON)
+    def unary(self):
+        if self.match(TokenType.MINUS, TokenType.PLUS):
+            operator = self.previous()
 
-        return program
+            operand = self.unary()
 
-"""    
-if __name__ == "__main__":
+            return UnaryOpNode(
+                operator.type,
+                operand
+            )
 
-    from core.lexer.lexer import Lexer
+        return self.primary()
 
-    source = "
-    A = 2 + 3 * 4;
-    B = A + 10;
-    "
+    def primary(self):
+        if self.match(TokenType.NUMBER):
+            return NumberNode(self.previous().value)
 
-    lexer = Lexer(source)
+        if self.match(TokenType.IDENTIFIER):
+            return IdentifierNode(self.previous().value)
 
-    tokens = lexer.tokenize()
+        if self.match(TokenType.LPAREN):
+            expr = self.expression()
+            self.consume(TokenType.RPAREN)
+            return expr
 
-    parser = Parser(tokens)
+        raise Exception(
+            f"Unexpected token: {self.peek()}"
+        )
 
-    ast = parser.parse()
+    # Utility methods
 
-    print(ast)    
-"""
+    def match(self, *types):
+        for token_type in types:
+            if self.check(token_type):
+                self.advance()
+                return True
+
+        return False
+
+    def consume(self, token_type):
+        if self.check(token_type):
+            return self.advance()
+
+        raise Exception(
+            f"Expected token {token_type}, "
+            f"got {self.peek().type}"
+        )
+
+    def check(self, token_type):
+        if self.is_at_end():
+            return False
+
+        return self.peek().type == token_type
+
+    def advance(self):
+        if not self.is_at_end():
+            self.position += 1
+
+        return self.previous()
+
+    def is_at_end(self):
+        return self.peek().type == TokenType.EOF
+
+    def peek(self):
+        return self.tokens[self.position]
+
+    def peek_next(self):
+        if self.position + 1 >= len(self.tokens):
+            return self.tokens[-1]
+
+        return self.tokens[self.position + 1]
+
+    def previous(self):
+        return self.tokens[self.position - 1]
