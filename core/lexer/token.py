@@ -29,6 +29,7 @@ class TokenType(Enum):
 
     COMMA = auto()
     SEMICOLON = auto()
+    COLON = auto()
 
     # Comparison
     EQEQ = auto()

@@ -6,6 +6,9 @@ from core.ast.nodes import (
     UnaryOpNode,
     AssignmentNode,
     IfNode,
+    WhileNode,
+    RangeNode,
+    ForNode,
 )
 
 from core.lexer.token import TokenType
@@ -158,3 +161,58 @@ class Interpreter:
             return result
 
         return None
+    
+    def visit_RangeNode(self, node):
+        start = self.evaluate(node.start)
+        step = self.evaluate(node.step)
+        end = self.evaluate(node.end)
+
+        values = []
+
+        current = start
+
+        if step == 0:
+            raise Exception(
+                "Range step cannot be zero"
+            )
+
+        if step > 0:
+            while current <= end:
+                values.append(current)
+                current += step
+        else:
+            while current >= end:
+                values.append(current)
+                current += step
+
+        return values
+    
+    def visit_WhileNode(self, node):
+        result = None
+
+        while self.evaluate(node.condition):
+            for stmt in node.body:
+                result = self.evaluate(stmt)
+
+        return result
+    
+    def visit_ForNode(self, node):
+        iterable = self.evaluate(node.iterable)
+
+        if not isinstance(iterable, list):
+            raise Exception(
+                "For loop iterable must be a list"
+            )
+
+        result = None
+
+        for value in iterable:
+            self.context.set_variable(
+                node.variable.name,
+                value
+            )
+
+            for stmt in node.body:
+                result = self.evaluate(stmt)
+
+        return result

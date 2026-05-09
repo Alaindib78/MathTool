@@ -86,3 +86,45 @@ class IfNode(ASTNode):
             f"else={self.else_branch}"
             f")"
         )
+    
+class WhileNode(ASTNode):
+    def __init__(self, condition, body):
+        self.condition = condition
+        self.body = body
+
+    def __repr__(self):
+        return (
+            f"WhileNode("
+            f"condition={self.condition}, "
+            f"body={self.body})"
+        )
+
+
+class RangeNode(ASTNode):
+    def __init__(self, start, step, end):
+        self.start = start
+        self.step = step
+        self.end = end
+
+    def __repr__(self):
+        return (
+            f"RangeNode("
+            f"start={self.start}, "
+            f"step={self.step}, "
+            f"end={self.end})"
+        )
+
+
+class ForNode(ASTNode):
+    def __init__(self, variable, iterable, body):
+        self.variable = variable
+        self.iterable = iterable
+        self.body = body
+
+    def __repr__(self):
+        return (
+            f"ForNode("
+            f"variable={self.variable}, "
+            f"iterable={self.iterable}, "
+            f"body={self.body})"
+        )

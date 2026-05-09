@@ -8,6 +8,9 @@ from core.ast.nodes import (
     UnaryOpNode,
     AssignmentNode,
     IfNode,
+    WhileNode,
+    RangeNode,
+    ForNode,
 )
 
 
@@ -40,6 +43,12 @@ class Parser:
         # If statement
         if self.match(TokenType.IF):
             return self.if_statement()
+        
+        if self.match(TokenType.WHILE):
+            return self.while_statement()
+
+        if self.match(TokenType.FOR):
+            return self.for_statement()
 
         # Assignment
         if (
@@ -133,6 +142,62 @@ class Parser:
             elseif_branches,
             else_branch
         )
+    
+    def while_statement(self):
+        condition = self.expression()
+
+        body = []
+
+        while (
+            not self.check(TokenType.END)
+            and not self.is_at_end()
+        ):
+            while self.match(TokenType.SEMICOLON):
+                pass
+
+            if self.check(TokenType.END):
+                break
+
+            body.append(self.statement())
+
+            self.match(TokenType.SEMICOLON)
+
+        self.consume(TokenType.END)
+
+        return WhileNode(condition, body)
+    
+    def for_statement(self):
+        variable = self.consume(
+            TokenType.IDENTIFIER
+        )
+
+        self.consume(TokenType.EQUAL)
+
+        iterable = self.range_expression()
+
+        body = []
+
+        while (
+            not self.check(TokenType.END)
+            and not self.is_at_end()
+        ):
+            while self.match(TokenType.SEMICOLON):
+                pass
+
+            if self.check(TokenType.END):
+                break
+
+            body.append(self.statement())
+
+            self.match(TokenType.SEMICOLON)
+
+        self.consume(TokenType.END)
+
+        return ForNode(
+            IdentifierNode(variable.value),
+            iterable,
+            body
+        )
 
     def assignment(self):
         identifier = self.consume(TokenType.IDENTIFIER)
@@ -146,8 +211,31 @@ class Parser:
         )
 
     def expression(self):
-        return self.logical_or()
+        return self.range_expression()
 #        return self.term()
+
+    def range_expression(self):
+        start = self.logical_or()
+
+        if self.match(TokenType.COLON):
+            middle = self.logical_or()
+
+            if self.match(TokenType.COLON):
+                end = self.logical_or()
+
+                return RangeNode(
+                    start,
+                    middle,
+                    end
+                )
+
+            return RangeNode(
+                start,
+                NumberNode(1),
+                middle
+            )
+
+        return start
 
     def logical_or(self):
         node = self.logical_and()

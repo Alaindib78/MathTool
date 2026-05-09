@@ -157,6 +157,7 @@ class Lexer:
 
                 ",": TokenType.COMMA,
                 ";": TokenType.SEMICOLON,
+                ":": TokenType.COLON,
             }
 
             if char in single_char_tokens:
