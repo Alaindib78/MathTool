@@ -1,6 +1,9 @@
+from platform import node
+
 from core.ast.nodes import (
     ProgramNode,
     NumberNode,
+    StringNode,
     IdentifierNode,
     BinaryOpNode,
     UnaryOpNode,
@@ -46,6 +49,9 @@ class Interpreter:
             result = self.evaluate(statement)
 
         return result
+    
+    def visit_StringNode(self, node):
+        return node.value
 
     def visit_NumberNode(self, node):
         return node.value

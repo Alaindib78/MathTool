@@ -38,6 +38,11 @@ class Lexer:
                 self.advance_line()
                 continue
 
+            # Strings
+            if char == '"':
+                tokens.append(self.string())
+                continue
+
             # Numbers
             if char.isdigit():
                 tokens.append(self.number())
@@ -182,6 +187,37 @@ class Lexer:
         )
 
         return tokens
+    
+    def string(self):
+        start_column = self.column
+
+        # Skip opening quote
+        self.advance()
+
+        value = ""
+
+        while (
+            not self.is_at_end()
+            and self.peek() != '"'
+        ):
+            value += self.advance()
+
+        if self.is_at_end():
+            raise Exception(
+                f"Unterminated string at "
+                f"line {self.line}, "
+                f"column {start_column}"
+            )
+
+        # Skip closing quote
+        self.advance()
+
+        return Token(
+            TokenType.STRING,
+            value,
+            self.line,
+            start_column
+        )
 
     def number(self):
         start_column = self.column

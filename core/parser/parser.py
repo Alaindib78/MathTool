@@ -3,6 +3,7 @@ from core.lexer.token import TokenType
 from core.ast.nodes import (
     ProgramNode,
     NumberNode,
+    StringNode,
     IdentifierNode,
     BinaryOpNode,
     UnaryOpNode,
@@ -376,6 +377,9 @@ class Parser:
         return self.primary()
 
     def primary(self):
+        if self.match(TokenType.STRING):
+            return StringNode(self.previous().value)
+        
         if self.match(TokenType.NUMBER):
             return NumberNode(self.previous().value)
         

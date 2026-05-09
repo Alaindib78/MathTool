@@ -16,6 +16,13 @@ class NumberNode(ASTNode):
         return f"NumberNode({self.value})"
 
 
+class StringNode(ASTNode):
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return f'StringNode("{self.value}")'
+
 class IdentifierNode(ASTNode):
     def __init__(self, name):
         self.name = name
@@ -140,3 +147,4 @@ class FunctionCallNode(ASTNode):
             f"name={self.name}, "
             f"arguments={self.arguments})"
         )
+    
