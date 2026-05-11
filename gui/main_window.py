@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
-    QTextEdit,
+    QPlainTextEdit,
     QPushButton,
     QSplitter,
     QToolBar,
@@ -22,7 +22,13 @@ from core.interpreter.interpreter import (
     Interpreter
 )
 from core.runtime.context import RuntimeContext
+from gui.code_editor import (
+    CodeEditor
+)
 
+from gui.syntax_highlighter import (
+    MathToolSyntaxHighlighter
+)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -75,12 +81,26 @@ class MainWindow(QMainWindow):
         # Code Editor
         # ---------------------------------
 
-        self.editor = QTextEdit()
+        self.editor = CodeEditor()
+
+        self.highlighter = (
+            MathToolSyntaxHighlighter(
+                self.editor.document()
+            )
+        )
+
+        self.editor.setStyleSheet(
+            """
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+            border: none;
+            """
+        )
 
         self.editor.setPlaceholderText(
             "Write MathTool code here..."
         )
-        font = QFont("Consolas", 11)
+        font = QFont("Consolas", 12)
 
         self.editor.setFont(font)
 
@@ -90,11 +110,19 @@ class MainWindow(QMainWindow):
         # Output Console
         # ---------------------------------
 
-        self.console = QTextEdit()
+        self.console = QPlainTextEdit()
 
         self.console.setReadOnly(True)
 
         self.console.setFont(font)
+
+        self.console.setStyleSheet(
+            """
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+            border: none;
+            """
+        )
 
         splitter.addWidget(self.console)
 
@@ -144,16 +172,16 @@ class MainWindow(QMainWindow):
             )
 
             if result is not None:
-                self.console.append(
+                self.console.appendPlainText(
                     str(result)
                 )
 
         except Exception as e:
-            self.console.append(
+            self.console.appendPlainText(
                 str(e)
             )
     def write_output(self, text):
-        self.console.append(str(text))
+        self.console.appendPlainText(str(text))
 
     def setup_menu(self):
         menu = self.menuBar()
