@@ -53,6 +53,14 @@ class Lexer:
                 tokens.append(self.identifier())
                 continue
 
+            # ---------------------------------
+            # MATLAB-style comments
+            # ---------------------------------
+
+            if char == "%":
+                self.skip_comment()
+                continue
+
             # Multi-character operators
             if char == "=" and self.peek_next() == "=":
                 tokens.append(
@@ -190,7 +198,6 @@ class Lexer:
                 "*": TokenType.STAR,
                 "/": TokenType.SLASH,
                 "^": TokenType.CARET,
-                "%": TokenType.MODULO,
                 "=": TokenType.EQUAL,
 
                 "<": TokenType.LT,
@@ -323,3 +330,10 @@ class Lexer:
 
     def is_at_end(self):
         return self.position >= len(self.source)
+    
+    def skip_comment(self):
+        while (
+            not self.is_at_end()
+            and self.peek() != "\n"
+        ):
+            self.advance()

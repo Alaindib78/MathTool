@@ -36,6 +36,7 @@ class SemanticAnalyzer:
             "length",
             "size",
             "plot",
+            "mod",
             "title",
             "xlabel",
             "ylabel",

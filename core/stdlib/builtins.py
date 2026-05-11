@@ -63,6 +63,8 @@ def builtin_length(context,x):
 def builtin_plot(context, x, y):
     context.plot_engine.plot(x, y)
 
+def builtin_mod(context, a, b):
+    return np.mod(a, b)
 
 def builtin_title(context, text):
     context.plot_engine.title(text)
@@ -98,6 +100,7 @@ BUILTIN_FUNCTIONS = {
 
     "length": builtin_length,
     "plot": builtin_plot,
+    "mod": builtin_mod,
     "title": builtin_title,
     "xlabel": builtin_xlabel,
     "ylabel": builtin_ylabel,
