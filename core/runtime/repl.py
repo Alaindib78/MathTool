@@ -2,6 +2,7 @@ from core.lexer.lexer import Lexer
 from core.parser.parser import Parser
 from core.interpreter.interpreter import Interpreter
 from core.runtime.context import RuntimeContext
+from core.semantic.semantic_analyzer import SemanticAnalyzer
 
 
 class REPL:
@@ -12,6 +13,10 @@ class REPL:
 
         self.interpreter = Interpreter(
             self.context
+        )
+
+        self.semantic_analyzer = (
+            SemanticAnalyzer()
         )
 
 #if first_line.strip().lower() in {"exit", "who", "clear"}:
@@ -112,6 +117,8 @@ class REPL:
         parser = Parser(tokens)
 
         ast = parser.parse()
+
+        self.semantic_analyzer.analyze(ast)
 
         result = self.interpreter.evaluate(ast)
 
