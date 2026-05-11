@@ -1,3 +1,4 @@
+from core.lexer import token
 from core.lexer.token import TokenType
 
 from core.ast.nodes import (
@@ -17,6 +18,7 @@ from core.ast.nodes import (
     FunctionDeclarationNode,
     ReturnNode,
 )
+from core.errors.errors import ParserError
 
 
 class Parser:
@@ -516,8 +518,13 @@ class Parser:
             self.consume(TokenType.RPAREN)
             return expr
 
-        raise Exception(
-            f"Unexpected token: {self.peek()}"
+        token = self.peek()
+
+        raise ParserError(
+            "Unexpected token",
+            line=token.line,
+            column=token.column,
+            token=token.value,
         )
     
     def matrix_literal(self):
@@ -562,10 +569,16 @@ class Parser:
         if self.check(token_type):
             return self.advance()
 
-        raise Exception(
+        token = self.peek()
+
+        raise ParserError(
             f"Expected token {token_type}, "
-            f"got {self.peek().type}"
+            f"got {token.type}",
+            line=token.line,
+            column=token.column,
+            token=token.value,
         )
+ 
 
     def check(self, token_type):
         if self.is_at_end():

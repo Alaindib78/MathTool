@@ -1,5 +1,5 @@
 from core.lexer.token import TokenType, Token
-
+from core.errors.errors import LexerError
 
 KEYWORDS = {
     "if": TokenType.IF,
@@ -220,9 +220,11 @@ class Lexer:
                 self.advance()
                 continue
 
-            raise Exception(
-                f"Unexpected character '{char}' "
-                f"at line {self.line}, column {self.column}"
+            raise LexerError(
+                f"Unexpected character '{char}'",
+                line=self.line,
+                column=self.column,
+                token=char,
             )
 
         tokens.append(
@@ -246,7 +248,7 @@ class Lexer:
             value += self.advance()
 
         if self.is_at_end():
-            raise Exception(
+            raise LexerError(
                 f"Unterminated string at "
                 f"line {self.line}, "
                 f"column {start_column}"

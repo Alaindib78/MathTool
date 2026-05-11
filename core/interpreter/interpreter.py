@@ -23,6 +23,8 @@ from core.ast.nodes import (
 from core.lexer.token import TokenType
 from core.runtime.user_function import UserFunction
 from core.interpreter.return_exception import ReturnException
+from core.errors.errors import RuntimeError
+from core.runtime.call_stack import CallFrame
 
 class Interpreter:
     def __init__(self, context):
@@ -40,7 +42,7 @@ class Interpreter:
         return method(node)
 
     def no_visit_method(self, node):
-        raise Exception(
+        raise RuntimeError(
             f"No visit method for {type(node).__name__}"
         )
 
@@ -87,7 +89,7 @@ class Interpreter:
         if node.operator == TokenType.NOT:
             return not value
 
-        raise Exception(
+        raise RuntimeError(
             f"Unsupported unary operator "
             f"{node.operator}"
         )
@@ -117,7 +119,9 @@ class Interpreter:
         
         if operator == TokenType.SLASH:
             if right == 0:
-                raise Exception("Division by zero")
+                raise RuntimeError(
+                    "Division by zero"
+                )
 
             return left / right
         
@@ -160,7 +164,7 @@ class Interpreter:
         if operator == TokenType.OR:
             return left or right
 
-        raise Exception(
+        raise RuntimeError(
             f"Unsupported operator {operator}"
         )
     
@@ -297,7 +301,7 @@ class Interpreter:
                 if len(arguments) != len(
                     declaration.parameters
                 ):
-                    raise Exception(
+                    raise RuntimeError(
                         f"Function '{node.name}' "
                         f"expects "
                         f"{len(declaration.parameters)} "
@@ -321,6 +325,14 @@ class Interpreter:
                 local_context
             )
 
+            # -----------------------------
+            # Push call frame
+            # -----------------------------
+
+            self.context.call_stack.push(
+                CallFrame(node.name)
+            )
+
             try:
                 result = None
 
@@ -331,6 +343,12 @@ class Interpreter:
 
             except ReturnException as ret:
                 return ret.value
+            finally:
+                # -------------------------
+                # Always pop frame
+                # -------------------------
+
+                self.context.call_stack.pop()
 
             # Implicit return variable
             if declaration.return_variable:

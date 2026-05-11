@@ -84,7 +84,25 @@ class REPL:
                 break
 
             except Exception as e:
-                print(f"Error: {e}")
+                print()
+
+                print(e)
+
+                if hasattr(
+                    self.context,
+                    "call_stack"
+                ):
+                    stack = (
+                        self.context
+                        .call_stack
+                        .format_stack()
+                    )
+
+                    if stack:
+                        print()
+                        print(stack)
+
+                print()
 
 
     def starts_block(self, line):

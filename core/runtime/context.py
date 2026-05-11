@@ -1,6 +1,7 @@
 from core.stdlib.registery import FunctionRegistry
 from core.stdlib.builtins import BUILTIN_FUNCTIONS
 from core.plotting.engine import PlotEngine
+from core.runtime.call_stack import CallStack
 import math
 
 class RuntimeContext:
@@ -10,6 +11,8 @@ class RuntimeContext:
         self.functions = FunctionRegistry()
 
         self.plot_engine = PlotEngine()
+
+        self.call_stack = CallStack()
 
         for name, func in BUILTIN_FUNCTIONS.items():
             self.functions.register(name, func)

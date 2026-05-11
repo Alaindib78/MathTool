@@ -3,6 +3,7 @@ from core.semantic.symbol_table import (
 )
 
 from core.ast.nodes import *
+from core.errors.errors import SemanticError
 
 
 IMMUTABLE_CONSTANTS = {
@@ -92,20 +93,16 @@ class SemanticAnalyzer:
         if not self.current_scope.exists(
             node.name
         ):
-            raise Exception(
-                f"SemanticError: "
-                f"Undefined variable "
-                f"'{node.name}'"
+            raise SemanticError(
+                f"Undefined variable '{node.name}'"
             )
 
     def visit_AssignmentNode(self, node):
         name = node.target.name
 
         if name in IMMUTABLE_CONSTANTS:
-            raise Exception(
-                f"SemanticError: "
-                f"Cannot assign to "
-                f"constant '{name}'"
+            raise SemanticError(
+                f"Cannot assign to constant '{name}'"
             )
 
         self.analyze(node.value)
@@ -141,10 +138,8 @@ class SemanticAnalyzer:
         if not self.current_scope.exists(
             node.name
         ):
-            raise Exception(
-                f"SemanticError: "
-                f"Undefined function "
-                f"'{node.name}'"
+            raise SemanticError(
+                f"Undefined function '{node.name}'"
             )
 
         for arg in node.arguments:
