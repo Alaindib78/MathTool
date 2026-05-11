@@ -155,6 +155,34 @@ class FunctionCallNode(ASTNode):
             f"arguments={self.arguments})"
         )
 
+class FunctionDeclarationNode(ASTNode):
+    def __init__(
+        self,
+        name,
+        parameters,
+        body,
+        return_variable
+    ):
+        self.name = name
+        self.parameters = parameters
+        self.body = body
+        self.return_variable = return_variable
+
+    def __repr__(self):
+        return (
+            f"FunctionDeclarationNode("
+            f"name={self.name}, "
+            f"parameters={self.parameters})"
+        )
+
+
+class ReturnNode(ASTNode):
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return f"ReturnNode({self.value})"
+    
 """    
 class IndexNode(ASTNode):
     def __init__(self, target, indices):

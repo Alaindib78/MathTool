@@ -14,6 +14,8 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    FunctionDeclarationNode,
+    ReturnNode,
 )
 
 
@@ -52,6 +54,12 @@ class Parser:
 
         if self.match(TokenType.FOR):
             return self.for_statement()
+        
+        if self.match(TokenType.FUNCTION):
+            return self.function_declaration()
+
+        if self.match(TokenType.RETURN):
+            return self.return_statement()
 
         # Assignment
         if (
@@ -239,6 +247,78 @@ class Parser:
             )
 
         return start
+    
+    def return_statement(self):
+        value = self.expression()
+
+        return ReturnNode(value)
+    
+    def function_declaration(self):
+        return_variable = None
+
+        # Optional return variable
+        if self.check(TokenType.IDENTIFIER):
+            identifier = self.advance()
+
+            if self.match(TokenType.EQUAL):
+                return_variable = identifier.value
+
+                function_name = self.consume(
+                    TokenType.IDENTIFIER
+                )
+
+            else:
+                function_name = identifier
+
+        else:
+            raise Exception(
+                "Expected function name"
+            )
+
+        self.consume(TokenType.LPAREN)
+
+        parameters = []
+
+        if not self.check(TokenType.RPAREN):
+            param = self.consume(
+                TokenType.IDENTIFIER
+            )
+
+            parameters.append(param.value)
+
+            while self.match(TokenType.COMMA):
+                param = self.consume(
+                    TokenType.IDENTIFIER
+                )
+
+                parameters.append(param.value)
+
+        self.consume(TokenType.RPAREN)
+
+        body = []
+
+        while (
+            not self.check(TokenType.END)
+            and not self.is_at_end()
+        ):
+            while self.match(TokenType.SEMICOLON):
+                pass
+
+            if self.check(TokenType.END):
+                break
+
+            body.append(self.statement())
+
+            self.match(TokenType.SEMICOLON)
+
+        self.consume(TokenType.END)
+
+        return FunctionDeclarationNode(
+            function_name.value,
+            parameters,
+            body,
+            return_variable
+        )
 
     def logical_or(self):
         node = self.logical_and()

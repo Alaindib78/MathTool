@@ -29,6 +29,13 @@ class RuntimeContext:
             )
 
         return self.variables[name]
+    
+    def create_child_context(self):
+        child = RuntimeContext()
+
+        child.functions = self.functions
+
+        return child
 
     def clear(self):
         self.variables.clear()

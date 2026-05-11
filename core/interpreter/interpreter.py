@@ -17,9 +17,12 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    FunctionDeclarationNode,
+    ReturnNode,
 )
 from core.lexer.token import TokenType
-
+from core.runtime.user_function import UserFunction
+from core.interpreter.return_exception import ReturnException
 
 class Interpreter:
     def __init__(self, context):
@@ -280,11 +283,63 @@ class Interpreter:
                 node.name
             )
 
-            return function(
-                self.context,
-                *arguments
-        )
+            # Builtin Python function
+            if callable(function):
+                return function(
+                    self.context,
+                    *arguments
+                )
 
+            # User-defined function
+            if isinstance(function, UserFunction):
+                declaration = function.declaration
+
+                if len(arguments) != len(
+                    declaration.parameters
+                ):
+                    raise Exception(
+                        f"Function '{node.name}' "
+                        f"expects "
+                        f"{len(declaration.parameters)} "
+                        f"arguments"
+                    )
+
+            local_context = (
+                self.context.create_child_context()
+            )
+
+            for param, value in zip(
+                declaration.parameters,
+                arguments
+            ):
+                local_context.set_variable(
+                    param,
+                    value
+                )
+
+            local_interpreter = Interpreter(
+                local_context
+            )
+
+            try:
+                result = None
+
+                for stmt in declaration.body:
+                    result = local_interpreter.evaluate(
+                        stmt
+                    )
+
+            except ReturnException as ret:
+                return ret.value
+
+            # Implicit return variable
+            if declaration.return_variable:
+                return local_context.get_variable(
+                    declaration.return_variable
+                )
+
+            return result
+        
         # Otherwise treat as indexing
         target = self.context.get_variable(
             node.name
@@ -312,3 +367,21 @@ class Interpreter:
             return target[indices[0]]
 
         return target[tuple(indices)]
+    
+    def visit_FunctionDeclarationNode(self, node):
+        function = UserFunction(
+            node,
+            self.context
+        )
+
+        self.context.functions.register(
+            node.name,
+            function
+        )
+
+        return None
+    
+    def visit_ReturnNode(self, node):
+        value = self.evaluate(node.value)
+
+        raise ReturnException(value)
