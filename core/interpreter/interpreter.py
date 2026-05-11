@@ -19,6 +19,7 @@ from core.ast.nodes import (
     FunctionCallNode,
     FunctionDeclarationNode,
     ReturnNode,
+    TransposeNode,
 )
 from core.lexer.token import TokenType
 from core.runtime.user_function import UserFunction
@@ -403,3 +404,10 @@ class Interpreter:
         value = self.evaluate(node.value)
 
         raise ReturnException(value)
+    
+    def visit_TransposeNode(self, node):
+        operand = self.evaluate(
+            node.operand
+        )
+
+        return operand.T

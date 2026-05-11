@@ -1,3 +1,5 @@
+from platform import node
+
 from core.semantic.symbol_table import (
     SymbolTable
 )
@@ -119,6 +121,9 @@ class SemanticAnalyzer:
         self.analyze(node.right)
 
     def visit_UnaryOpNode(self, node):
+        self.analyze(node.operand)
+
+    def visit_TransposeNode(self, node):
         self.analyze(node.operand)
 
     def visit_RangeNode(self, node):

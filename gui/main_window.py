@@ -719,4 +719,4 @@ class MainWindow(QMainWindow):
             )
 
         else:
-            self.console.append(text)
+            self.console.appendPlainText(text)

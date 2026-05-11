@@ -199,6 +199,7 @@ class Lexer:
                 "/": TokenType.SLASH,
                 "^": TokenType.CARET,
                 "=": TokenType.EQUAL,
+                "'": TokenType.TRANSPOSE,
 
                 "<": TokenType.LT,
                 ">": TokenType.GT,

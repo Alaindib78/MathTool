@@ -17,6 +17,7 @@ from core.ast.nodes import (
     FunctionCallNode,
     FunctionDeclarationNode,
     ReturnNode,
+    TransposeNode,
 )
 from core.errors.errors import ParserError
 
@@ -446,6 +447,14 @@ class Parser:
             )
 
         return node
+    
+    def postfix(self):
+        expr = self.primary()
+
+        while self.match(TokenType.TRANSPOSE):
+            expr = TransposeNode(expr)
+
+        return expr
 
     def unary(self):
         if self.match(
@@ -462,7 +471,7 @@ class Parser:
                 operand
             )
 
-        return self.primary()
+        return self.postfix()
 
     def primary(self):
         if self.match(TokenType.STRING):
@@ -529,32 +538,93 @@ class Parser:
     
     def matrix_literal(self):
         rows = []
+
         current_row = []
 
         while (
             not self.check(TokenType.RBRACKET)
             and not self.is_at_end()
         ):
-            value = self.expression()
+            # -----------------------------
+            # Matrix element
+            # -----------------------------
+
+            value = self.matrix_expression()
 
             current_row.append(value)
 
-            # New row
-            if self.match(TokenType.SEMICOLON):
-                rows.append(current_row)
-                current_row = []
+            # -----------------------------
+            # Comma-separated
+            # -----------------------------
+
+            if self.match(TokenType.COMMA):
                 continue
 
-            # Optional commas
-            self.match(TokenType.COMMA)
+            # -----------------------------
+            # Row separator
+            # -----------------------------
+
+            if self.match(TokenType.SEMICOLON):
+                rows.append(current_row)
+
+                current_row = []
+
+                continue
+
+            # -----------------------------
+            # Stop row on closing bracket
+            # -----------------------------
+
+            if self.check(TokenType.RBRACKET):
+                break
+
+            # -----------------------------
+            # MATLAB whitespace-separated
+            # elements
+            # -----------------------------
+
+            next_token = self.peek()
+
+            if next_token.type in (
+                TokenType.NUMBER,
+                TokenType.IDENTIFIER,
+                TokenType.MINUS,
+                TokenType.STRING,
+                TokenType.LPAREN,
+            ):
+                continue
 
         if current_row:
             rows.append(current_row)
 
         self.consume(TokenType.RBRACKET)
 
-        return MatrixNode(rows)
+        return MatrixNode(rows)    
+    
+    def matrix_expression(self):
+        # Unary negative literal
+        if self.match(TokenType.MINUS):
+            operand = self.postfix()
 
+            return UnaryOpNode(
+                TokenType.MINUS,
+                operand
+            )
+
+        return self.postfix()
+
+    def matrix_element(self):
+        # Unary minus support
+        if self.match(TokenType.MINUS):
+            operand = self.primary()
+
+            return UnaryOpNode(
+                TokenType.MINUS,
+                operand
+            )
+
+        return self.expression()
+    
     # Utility methods
 
     def match(self, *types):

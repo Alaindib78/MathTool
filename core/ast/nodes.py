@@ -182,7 +182,16 @@ class ReturnNode(ASTNode):
 
     def __repr__(self):
         return f"ReturnNode({self.value})"
-    
+
+class TransposeNode(ASTNode):
+    def __init__(self, operand):
+        self.operand = operand
+
+    def __repr__(self):
+        return (
+            f"TransposeNode("
+            f"{self.operand})"
+        )    
 """    
 class IndexNode(ASTNode):
     def __init__(self, target, indices):

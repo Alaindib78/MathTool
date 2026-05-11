@@ -1,4 +1,6 @@
 % Matricial Calculations
-M = [1 -1; 2 2];
-TM = sin(M);
+M1 = [1 -1;2 2];
+M2 = [1; -1];
+TM = M1' * M2;
+
 print(TM);
