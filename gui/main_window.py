@@ -6,6 +6,10 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QToolBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QDockWidget,
+    QHeaderView,
 )
 
 from PySide6.QtCore import Qt
@@ -21,7 +25,7 @@ from core.semantic.semantic_analyzer import (
 from core.interpreter.interpreter import (
     Interpreter
 )
-from core.runtime.context import RuntimeContext
+from core.runtime.context import RESERVED_CONSTANTS, RuntimeContext 
 from gui.code_editor import (
     CodeEditor
 )
@@ -51,6 +55,8 @@ class MainWindow(QMainWindow):
         self.semantic = SemanticAnalyzer()
 
         self.setup_ui()
+
+        self.setup_workspace_panel()
 
         self.setup_toolbar()
 
@@ -153,6 +159,18 @@ class MainWindow(QMainWindow):
 
         toolbar.addWidget(run_button)
 
+        clear_workspace_button = QPushButton(
+            "Clear Workspace"
+        )
+
+        clear_workspace_button.clicked.connect(
+            self.clear_workspace
+        )
+
+        toolbar.addWidget(
+            clear_workspace_button
+        )
+
     def run_code(self):
         source = self.editor.toPlainText()
 
@@ -170,6 +188,8 @@ class MainWindow(QMainWindow):
             result = (
                 self.interpreter.evaluate(ast)
             )
+
+            self.refresh_workspace()
 
             if result is not None:
                 self.console.appendPlainText(
@@ -195,3 +215,178 @@ class MainWindow(QMainWindow):
         )
 
         file_menu.addAction(run_action)
+
+    def setup_workspace_panel(self):
+        dock = QDockWidget(
+            "Workspace",
+            self
+        )
+
+        self.workspace_table = (
+            QTableWidget()
+        )
+
+        self.workspace_table.setColumnCount(4)
+
+        self.workspace_table.setHorizontalHeaderLabels(
+            [
+                "Name",
+                "Type",
+                "Size",
+                "Value",
+            ]
+        )
+
+        dock.setWidget(
+            self.workspace_table
+        )
+
+        self.addDockWidget(
+            Qt.RightDockWidgetArea,
+            dock,
+        )
+
+        self.workspace_table.setAlternatingRowColors(
+            True
+        )
+
+        self.workspace_table.setSelectionBehavior(
+            QTableWidget.SelectRows
+        )
+
+        self.workspace_table.setEditTriggers(
+            QTableWidget.NoEditTriggers
+        )
+        
+        header = (
+            self.workspace_table.horizontalHeader()
+        )
+
+        header.setSectionResizeMode(
+            QHeaderView.Stretch
+        )
+
+        self.workspace_table.cellDoubleClicked.connect(
+            self.inspect_variable
+        )
+
+    def refresh_workspace(self):
+        variables = {
+            name: value
+            for name, value in (
+                self.context.variables.items()
+            )
+            if name not in RESERVED_CONSTANTS
+        }
+
+        self.workspace_table.setRowCount(
+            len(variables)
+        )
+
+        for row, (name, value) in enumerate(
+            variables.items()
+        ):
+            # -----------------------------
+            # Name
+            # -----------------------------
+
+            self.workspace_table.setItem(
+                row,
+                0,
+                QTableWidgetItem(name),
+            )
+
+            # -----------------------------
+            # Type
+            # -----------------------------
+
+            type_name = type(value).__name__
+
+            self.workspace_table.setItem(
+                row,
+                1,
+                QTableWidgetItem(type_name),
+            )
+
+            # -----------------------------
+            # Size
+            # -----------------------------
+
+            size_text = self.get_size_text(
+                value
+            )
+
+            self.workspace_table.setItem(
+                row,
+                2,
+                QTableWidgetItem(size_text),
+            )
+
+            # -----------------------------
+            # Value Preview
+            # -----------------------------
+
+            preview = self.get_preview_text(
+                value
+            )
+
+            self.workspace_table.setItem(
+                row,
+                3,
+                QTableWidgetItem(preview),
+            )
+
+        self.workspace_table.resizeColumnsToContents()
+
+    def get_size_text(self, value):
+        try:
+            import numpy as np
+
+            if isinstance(value, np.ndarray):
+                return "x".join(
+                    str(x)
+                    for x in value.shape
+                )
+
+        except Exception:
+            pass
+
+        if isinstance(value, str):
+            return str(len(value))
+
+        return "1x1"
+    
+    def get_preview_text(self, value):
+        text = str(value)
+
+        if len(text) > 40:
+            text = text[:40] + "..."
+
+        return text
+    
+    def inspect_variable(self, row, column):
+        name_item = (
+            self.workspace_table.item(row, 0)
+        )
+
+        if not name_item:
+            return
+
+        name = name_item.text()
+
+        value = self.context.variables.get(
+            name
+        )
+
+        self.console.appendPlainText(
+            f"\n{name} =\n{value}\n"
+        )
+
+    def clear_workspace(self):
+        self.context.clear()
+
+        self.refresh_workspace()
+
+        self.console.appendPlainText(
+            "Workspace cleared"
+        )
