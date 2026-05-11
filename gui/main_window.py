@@ -1,3 +1,4 @@
+import ast
 import os
 from tkinter import font
 
@@ -25,6 +26,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtGui import QAction
 from matplotlib import text
 
+from core.lexer import lexer
 from core.lexer.lexer import Lexer
 from core.parser.parser import Parser
 from core.semantic.semantic_analyzer import (
@@ -42,6 +44,10 @@ from gui.syntax_highlighter import (
     MathToolSyntaxHighlighter
 )
 
+from gui.command_window import (
+    CommandWindow
+)
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -53,7 +59,7 @@ class MainWindow(QMainWindow):
         self.context = RuntimeContext()
 
         self.context.output_callback = (
-            self.write_output
+            self.route_output
         )
 
         self.interpreter = Interpreter(
@@ -66,9 +72,13 @@ class MainWindow(QMainWindow):
 
         self.setup_workspace_panel()
 
+        self.setup_command_window()
+
         self.setup_toolbar()
 
         self.setup_menu()
+
+
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -633,3 +643,80 @@ class MainWindow(QMainWindow):
                 return
 
         self.tabs.removeTab(index)
+
+    def setup_command_window(self):
+        dock = QDockWidget(
+            "Command Window",
+            self
+        )
+
+        self.command_window = (
+            CommandWindow(
+                self.execute_repl_code
+            )
+        )
+
+        dock.setWidget(
+            self.command_window
+        )
+
+        self.addDockWidget(
+            Qt.BottomDockWidgetArea,
+            dock
+        )
+
+    def execute_repl_code(self, source):
+        if source.strip() in (
+            "exit",
+            "quit",
+        ):
+            self.close()
+            return None
+        
+        if source.strip() == "clear":
+            self.clear_workspace()
+            return None
+        
+        if source.strip() == "clc":
+            self.command_window.clear()
+
+            self.command_window.insert_prompt()
+
+            return None
+
+        lexer = Lexer(source)
+
+        tokens = lexer.tokenize()
+
+        parser = Parser(tokens)
+
+        ast = parser.parse()
+
+        self.semantic.analyze(ast)
+
+        result = (
+            self.interpreter.evaluate(ast)
+        )
+
+        self.refresh_workspace()
+
+        return result
+    
+    def route_output(self, text):
+        text = str(text)
+
+        # REPL active
+        if (
+            hasattr(self, "command_window")
+            and self.command_window.hasFocus()
+        ):
+            self.command_window.insertPlainText(
+                text
+            )
+
+            self.command_window.insertPlainText(
+                "\n"
+            )
+
+        else:
+            self.console.append(text)
