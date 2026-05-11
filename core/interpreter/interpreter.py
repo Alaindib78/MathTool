@@ -1,4 +1,4 @@
-from ast import operator
+from ast import arg, operator
 from platform import node
 from turtle import right
 import numpy as np
@@ -17,9 +17,7 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
-    IndexNode,
 )
-
 from core.lexer.token import TokenType
 
 
@@ -263,12 +261,44 @@ class Interpreter:
 
         return result
     
+#    def visit_FunctionCallNode(self, node):
+#        function = self.context.functions.get(node.name)
+#
+#        arguments = [self.evaluate(arg) for arg in node.arguments]
+#
+#        return function(self.context, *arguments)
+
     def visit_FunctionCallNode(self, node):
-        function = self.context.functions.get(node.name)
+        arguments = [
+            self.evaluate(arg)
+            for arg in node.arguments
+        ]
 
-        arguments = [self.evaluate(arg) for arg in node.arguments]
+        # Built-in/user function
+        if self.context.functions.exists(node.name):
+            function = self.context.functions.get(
+                node.name
+            )
 
-        return function(*arguments)
+            return function(
+                self.context,
+                *arguments
+        )
+
+        # Otherwise treat as indexing
+        target = self.context.get_variable(
+            node.name
+        )
+
+        indices = [
+            int(arg) - 1
+            for arg in arguments
+        ]
+
+        if len(indices) == 1:
+            return target[indices[0]]
+
+        return target[tuple(indices)]
     
     def visit_IndexNode(self, node):
         target = self.evaluate(node.target)

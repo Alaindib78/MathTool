@@ -14,7 +14,6 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
-    IndexNode,
 )
 
 
@@ -416,11 +415,11 @@ class Parser:
                 self.consume(TokenType.RPAREN)
 
                 # Indexing if variable exists syntax-style
-                if len(arguments) > 0:
-                    return IndexNode(
-                        IdentifierNode(identifier.value),
-                        arguments
-                    )
+#                if len(arguments) > 0:
+#                    return IndexNode(
+#                        IdentifierNode(identifier.value),
+#                        arguments
+#                    )
 
                 return FunctionCallNode(
                     identifier.value,

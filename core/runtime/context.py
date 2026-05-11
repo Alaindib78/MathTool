@@ -1,5 +1,7 @@
 from core.stdlib.registery import FunctionRegistry
 from core.stdlib.builtins import BUILTIN_FUNCTIONS
+from core.plotting.engine import PlotEngine
+import math
 
 class RuntimeContext:
     def __init__(self):
@@ -7,8 +9,15 @@ class RuntimeContext:
 
         self.functions = FunctionRegistry()
 
+        self.plot_engine = PlotEngine()
+
         for name, func in BUILTIN_FUNCTIONS.items():
             self.functions.register(name, func)
+
+        self.variables["pi"] = math.pi
+        self.variables["e"] = math.e
+        self.variables["true"] = True
+        self.variables["false"] = False
 
     def set_variable(self, name, value):
         self.variables[name] = value

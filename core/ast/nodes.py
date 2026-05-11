@@ -154,7 +154,8 @@ class FunctionCallNode(ASTNode):
             f"name={self.name}, "
             f"arguments={self.arguments})"
         )
-    
+
+"""    
 class IndexNode(ASTNode):
     def __init__(self, target, indices):
         self.target = target
@@ -166,3 +167,4 @@ class IndexNode(ASTNode):
             f"target={self.target}, "
             f"indices={self.indices})"
         )
+"""
