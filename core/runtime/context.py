@@ -22,6 +22,8 @@ class RuntimeContext:
         self.variables["true"] = True
         self.variables["false"] = False
 
+        self.output_callback = None
+
     def set_variable(self, name, value):
         self.variables[name] = value
 

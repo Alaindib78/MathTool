@@ -1,14 +1,31 @@
 import math
+from pydoc import text
 import numpy as np
 
 
 def builtin_print(context,*args):
-    print(*args)
+    text = " ".join(
+        str(arg)
+        for arg in args
+    )
+
+    if context.output_callback:
+        context.output_callback(text)
+    else:
+        print(text)
     return None
 
 
 def builtin_println(context,*args):
-    print(*args)
+    text = " ".join(
+        str(arg)
+        for arg in args
+    )
+
+    if context.output_callback:
+        context.output_callback(text)
+    else:
+        print(text)
     return None
 
 
