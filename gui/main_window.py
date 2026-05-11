@@ -1,3 +1,6 @@
+import os
+from tkinter import font
+
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -10,7 +13,12 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QDockWidget,
     QHeaderView,
+    QTabWidget,
+    QFileDialog,
+    QMessageBox,
 )
+
+from PySide6.QtGui import QAction, QKeySequence
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -84,33 +92,20 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter)
 
         # ---------------------------------
-        # Code Editor
+        # Tabbed Editor
         # ---------------------------------
 
-        self.editor = CodeEditor()
+        self.tabs = QTabWidget()
 
-        self.highlighter = (
-            MathToolSyntaxHighlighter(
-                self.editor.document()
-            )
+        self.tabs.setTabsClosable(True)
+
+        self.tabs.tabCloseRequested.connect(
+            self.close_tab
         )
 
-        self.editor.setStyleSheet(
-            """
-            background-color: #1E1E1E;
-            color: #D4D4D4;
-            border: none;
-            """
-        )
+        splitter.addWidget(self.tabs)
 
-        self.editor.setPlaceholderText(
-            "Write MathTool code here..."
-        )
-        font = QFont("Consolas", 12)
-
-        self.editor.setFont(font)
-
-        splitter.addWidget(self.editor)
+        self.create_new_tab()
 
         # ---------------------------------
         # Output Console
@@ -120,6 +115,7 @@ class MainWindow(QMainWindow):
 
         self.console.setReadOnly(True)
 
+        font = QFont("Consolas", 12)
         self.console.setFont(font)
 
         self.console.setStyleSheet(
@@ -172,7 +168,12 @@ class MainWindow(QMainWindow):
         )
 
     def run_code(self):
-        source = self.editor.toPlainText()
+        editor = self.current_editor()
+
+        if editor is None:
+            return
+
+        source = editor.toPlainText()
 
         try:
             lexer = Lexer(source)
@@ -215,6 +216,57 @@ class MainWindow(QMainWindow):
         )
 
         file_menu.addAction(run_action)
+
+        new_action = QAction("New", self)
+
+        new_action.triggered.connect(
+            self.new_file
+        )
+
+        file_menu.addAction(new_action)
+
+        open_action = QAction("Open", self)
+
+        open_action.triggered.connect(
+            self.open_file
+        )
+
+        file_menu.addAction(open_action)
+
+        save_action = QAction("Save", self)
+
+        save_action.triggered.connect(
+            self.save_file
+        )
+
+        file_menu.addAction(save_action)
+
+        save_as_action = QAction(
+            "Save As",
+            self
+        )
+
+        save_as_action.triggered.connect(
+            self.save_file_as
+        )
+
+        file_menu.addAction(save_as_action)
+
+        new_action.setShortcut(
+            QKeySequence.New
+        )
+
+        open_action.setShortcut(
+            QKeySequence.Open
+        )
+
+        save_action.setShortcut(
+            QKeySequence.Save
+        )
+
+        save_as_action.setShortcut(
+            QKeySequence.SaveAs
+        )
 
     def setup_workspace_panel(self):
         dock = QDockWidget(
@@ -390,3 +442,194 @@ class MainWindow(QMainWindow):
         self.console.appendPlainText(
             "Workspace cleared"
         )
+
+    def create_new_tab(
+        self,
+        content="",
+        filename="Untitled"
+    ):
+        editor = CodeEditor()
+
+        editor.file_path = None
+
+        font = QFont("Consolas", 12)
+
+        editor.setFont(font)
+
+        editor.setPlainText(content)
+
+        editor.setStyleSheet(
+            """
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+            border: none;
+            """
+        )
+
+        highlighter = (
+            MathToolSyntaxHighlighter(
+                editor.document()
+            )
+        )
+
+        index = self.tabs.addTab(
+            editor,
+            filename
+        )
+
+        self.tabs.setCurrentIndex(index)
+
+        editor.document().modificationChanged.connect(
+            lambda changed, e=editor:
+            self.update_tab_title(e, changed)
+        )
+
+        return editor
+    
+    def current_editor(self):
+        return self.tabs.currentWidget()
+    
+    def close_tab(self, index):
+        if self.tabs.count() == 1:
+            return
+
+        self.tabs.removeTab(index)
+
+    def new_file(self):
+        self.create_new_tab()
+
+    def open_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open File",
+            "",
+            "MathTool Files (*.m);;All Files (*)",
+        )
+
+        if not path:
+            return
+
+        with open(
+            path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            content = f.read()
+
+        filename = os.path.basename(path)
+
+        editor = self.create_new_tab(
+            content,
+            filename
+        )
+
+        editor.file_path = path
+
+    def save_file(self):
+        editor = self.current_editor()
+
+        if editor is None:
+            return
+
+        if not editor.file_path:
+            self.save_file_as()
+            return
+
+        with open(
+            editor.file_path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+            f.write(
+                editor.toPlainText()
+            )
+
+        self.console.appendPlainText(
+            f"Saved: {editor.file_path}"
+        )
+
+        editor.document().setModified(False)
+
+    def save_file_as(self):
+        editor = self.current_editor()
+
+        if editor is None:
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save File As",
+            "",
+            "MathTool Files (*.m);;All Files (*)",
+        )
+
+        if not path:
+            return
+
+        with open(
+            path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+            f.write(
+                editor.toPlainText()
+            )
+
+        editor.file_path = path
+
+        filename = os.path.basename(path)
+
+        index = self.tabs.currentIndex()
+
+        self.tabs.setTabText(
+            index,
+            filename
+        )
+
+        self.console.appendPlainText(
+            f"Saved: {path}"
+        )
+
+        editor.document().setModified(False)
+
+    def update_tab_title(
+        self,
+        editor,
+        changed
+    ):
+        index = self.tabs.indexOf(editor)
+
+        if index == -1:
+            return
+
+        title = self.tabs.tabText(index)
+
+        if changed:
+            if not title.endswith("*"):
+                title += "*"
+        else:
+            title = title.rstrip("*")
+
+        self.tabs.setTabText(
+            index,
+            title
+        )
+
+    def close_tab(self, index):
+        if self.tabs.count() == 1:
+            return
+
+        editor = self.tabs.widget(index)
+
+        if editor.document().isModified():
+            result = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "This tab has unsaved changes. "
+                "Close anyway?",
+            )
+
+            if result != QMessageBox.Yes:
+                return
+
+        self.tabs.removeTab(index)
