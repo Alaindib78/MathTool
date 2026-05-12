@@ -81,15 +81,3 @@ class Token:
             f")"
         )
     
-"""        
-if __name__ == "__main__":
-
-    token = Token(
-        TokenType.NUMBER,
-        3.14,
-        1,
-        5
-    )
-
-    print(token)
-"""

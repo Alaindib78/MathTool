@@ -40,6 +40,23 @@ def builtin_cos(context,x):
 def builtin_tan(context,x):
     return np.tan(x)
 
+def builtin_asin(context,x):
+    return np.arcsin(x)
+
+
+def builtin_acos(context,x):
+    return np.arccos(x)
+
+
+def builtin_atan(context,x):
+    return np.arctan(x)
+
+def builtin_log(context,x):
+    return np.log(x)
+
+def builtin_log10(context,x):
+    return np.log10(x)
+
 
 def builtin_sqrt(context,x):
     return np.sqrt(x)
@@ -48,6 +65,17 @@ def builtin_sqrt(context,x):
 def builtin_abs(context,x):
     return np.abs(x)
 
+def builtin_floor(context,x):
+    return np.floor(x)
+
+def builtin_ceil(context,x):
+    return np.ceil(x)
+
+def builtin_round(context,x):
+    return np.round(x)
+
+def builtin_sign(context,x):
+    return np.sign(x)   
 
 def builtin_zeros(context,n):
     return np.zeros(int(n))
@@ -92,8 +120,20 @@ BUILTIN_FUNCTIONS = {
     "cos": builtin_cos,
     "tan": builtin_tan,
 
+    "asin": builtin_sin,
+    "acos": builtin_acos,
+    "atan": builtin_atan,
+
+    "log": builtin_log,
+    "log10": builtin_log10,
+
     "sqrt": builtin_sqrt,
     "abs": builtin_abs,
+
+    "floor": builtin_floor,
+    "ceil": builtin_ceil,
+    "round": builtin_round,
+    "sign": builtin_sign,
 
     "zeros": builtin_zeros,
     "ones": builtin_ones,

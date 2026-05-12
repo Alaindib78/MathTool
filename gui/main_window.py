@@ -48,6 +48,10 @@ from gui.command_window import (
     CommandWindow
 )
 
+from gui.variable_editor import (
+    VariableEditor
+)
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -175,6 +179,18 @@ class MainWindow(QMainWindow):
 
         toolbar.addWidget(
             clear_workspace_button
+        )
+
+        workspace_button = QPushButton(
+            "Workspace"
+        )
+
+        workspace_button.clicked.connect(
+            self.refresh_workspace
+        )
+
+        toolbar.addWidget(
+            workspace_button
         )
 
     def run_code(self):
@@ -440,9 +456,29 @@ class MainWindow(QMainWindow):
             name
         )
 
-        self.console.appendPlainText(
-            f"\n{name} =\n{value}\n"
+        dock = QDockWidget(
+            f"Variable: {name}",
+            self,
         )
+
+        editor = VariableEditor(
+            name,
+            value,
+            self.update_variable,
+        )
+
+        dock.setWidget(editor)
+
+        self.addDockWidget(
+            Qt.RightDockWidgetArea,
+            dock,
+        )
+
+    def update_variable(self, name, value):
+        self.context.variables[name] = value
+
+        self.refresh_workspace()
+
 
     def clear_workspace(self):
         self.context.clear()
