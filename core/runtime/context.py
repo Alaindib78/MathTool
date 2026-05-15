@@ -30,6 +30,8 @@ class RuntimeContext:
 
         self.output_callback = None
 
+        self.debugger = None
+
     def set_variable(self, name, value):
         self.variables[name] = value
 

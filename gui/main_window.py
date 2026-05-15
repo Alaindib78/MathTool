@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QPlainTextEdit,
     QPushButton,
     QSplitter,
@@ -17,13 +18,21 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QFileDialog,
     QMessageBox,
+    QInputDialog,
+    QLabel,
+    QStatusBar,
 )
 
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import (
+    QAction,
+    QKeySequence,
+    QIcon,
+    QFont,
+    QColor,
+)
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
-from PySide6.QtGui import QAction
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtWidgets import QSizePolicy
 from matplotlib import text
 
 from core.lexer import lexer
@@ -52,13 +61,18 @@ from gui.variable_editor import (
     VariableEditor
 )
 
+from core.debugger.debugger import (
+    Debugger
+)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("MathTool")
 
-        self.resize(1200, 800)
+        self.resize(1400, 900)
 
         self.context = RuntimeContext()
 
@@ -66,11 +80,24 @@ class MainWindow(QMainWindow):
             self.route_output
         )
 
+        self.debugger = Debugger()
+
+        self.context.debugger = (
+            self.debugger
+        )
+
+        self.debugger.pause_callback = (
+            self.on_debug_pause
+        )
+
         self.interpreter = Interpreter(
             self.context
         )
 
         self.semantic = SemanticAnalyzer()
+
+        # Apply modern styling
+        self.apply_stylesheet()
 
         self.setup_ui()
 
@@ -82,16 +109,208 @@ class MainWindow(QMainWindow):
 
         self.setup_menu()
 
+        self.setup_status_bar()
 
+    def apply_stylesheet(self):
+        """Apply a modern dark theme stylesheet"""
+        stylesheet = """
+        QMainWindow {
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+        }
+        
+        QMenuBar {
+            background-color: #252526;
+            color: #D4D4D4;
+            border-bottom: 1px solid #3E3E42;
+            padding: 2px;
+        }
+        
+        QMenuBar::item:selected {
+            background-color: #3E3E42;
+        }
+        
+        QMenuBar::item:pressed {
+            background-color: #007ACC;
+        }
+        
+        QMenu {
+            background-color: #252526;
+            color: #D4D4D4;
+            border: 1px solid #3E3E42;
+        }
+        
+        QMenu::item:selected {
+            background-color: #007ACC;
+        }
+        
+        QMenu::item:pressed {
+            background-color: #005A9E;
+        }
+        
+        QMenu::separator {
+            background-color: #3E3E42;
+            height: 1px;
+            margin: 4px 0px;
+        }
+        
+        QToolBar {
+            background-color: #252526;
+            border-bottom: 1px solid #3E3E42;
+            spacing: 3px;
+            padding: 5px;
+        }
+        
+        QToolBar::separator {
+            background-color: #3E3E42;
+            width: 1px;
+            margin: 0px 3px;
+        }
+        
+        QPushButton {
+            background-color: #007ACC;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 16px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        QPushButton:hover {
+            background-color: #1084D7;
+        }
+        
+        QPushButton:pressed {
+            background-color: #005A9E;
+        }
+        
+        QPushButton:disabled {
+            background-color: #3E3E42;
+            color: #6A6A6A;
+        }
+        
+        QPushButton#secondaryButton {
+            background-color: #3E3E42;
+            color: #D4D4D4;
+        }
+        
+        QPushButton#secondaryButton:hover {
+            background-color: #4E4E54;
+        }
+        
+        QPushButton#secondaryButton:pressed {
+            background-color: #2E2E32;
+        }
+        
+        QPlainTextEdit {
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+            border: 1px solid #3E3E42;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+        }
+        
+        QTableWidget {
+            background-color: #1E1E1E;
+            alternate-background-color: #252526;
+            color: #D4D4D4;
+            border: 1px solid #3E3E42;
+            gridline-color: #3E3E42;
+        }
+        
+        QTableWidget::item {
+            padding: 4px;
+            border-bottom: 1px solid #3E3E42;
+        }
+        
+        QTableWidget::item:selected {
+            background-color: #007ACC;
+        }
+        
+        QHeaderView::section {
+            background-color: #252526;
+            color: #D4D4D4;
+            padding: 4px;
+            border: none;
+            border-right: 1px solid #3E3E42;
+            border-bottom: 1px solid #3E3E42;
+            font-weight: bold;
+        }
+        
+        QDockWidget {
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+            border: 1px solid #3E3E42;
+            titlebar-close-icon: url(close.png);
+        }
+        
+        QDockWidget::title {
+            background-color: #252526;
+            padding: 6px;
+            border-bottom: 1px solid #3E3E42;
+        }
+        
+        QTabWidget::pane {
+            border: 1px solid #3E3E42;
+        }
+        
+        QTabBar::tab {
+            background-color: #2E2E32;
+            color: #A0A0A0;
+            padding: 8px 16px;
+            border-right: 1px solid #3E3E42;
+            margin-right: 2px;
+        }
+        
+        QTabBar::tab:selected {
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+            border-bottom: 2px solid #007ACC;
+        }
+        
+        QTabBar::tab:hover {
+            background-color: #3E3E42;
+        }
+        
+        QTabBar::close-button {
+            margin-left: 8px;
+        }
+        
+        QStatusBar {
+            background-color: #252526;
+            color: #D4D4D4;
+            border-top: 1px solid #3E3E42;
+        }
+        
+        QInputDialog {
+            background-color: #1E1E1E;
+            color: #D4D4D4;
+        }
+        
+        QMessageBox {
+            background-color: #1E1E1E;
+        }
+        
+        QMessageBox QLabel {
+            color: #D4D4D4;
+        }
+        
+        QMessageBox QPushButton {
+            min-width: 60px;
+        }
+        """
+        self.setStyleSheet(stylesheet)
 
     def setup_ui(self):
         central_widget = QWidget()
 
-        self.setCentralWidget(
-            central_widget
-        )
+        self.setCentralWidget(central_widget)
 
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         central_widget.setLayout(layout)
 
@@ -99,9 +318,15 @@ class MainWindow(QMainWindow):
         # Splitter
         # ---------------------------------
 
-        splitter = QSplitter(
-            Qt.Vertical
-        )
+        splitter = QSplitter(Qt.Vertical)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #3E3E42;
+            }
+            QSplitter::handle:hover {
+                background-color: #007ACC;
+            }
+        """)
 
         layout.addWidget(splitter)
 
@@ -110,9 +335,7 @@ class MainWindow(QMainWindow):
         # ---------------------------------
 
         self.tabs = QTabWidget()
-
         self.tabs.setTabsClosable(True)
-
         self.tabs.tabCloseRequested.connect(
             self.close_tab
         )
@@ -125,73 +348,131 @@ class MainWindow(QMainWindow):
         # Output Console
         # ---------------------------------
 
-        self.console = QPlainTextEdit()
+        console_container = QWidget()
+        console_layout = QVBoxLayout()
+        console_layout.setContentsMargins(0, 0, 0, 0)
+        console_layout.setSpacing(0)
 
+        console_label = QLabel("Output")
+        console_label.setStyleSheet("""
+            color: #D4D4D4;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 6px 8px;
+            background-color: #252526;
+            border-bottom: 1px solid #3E3E42;
+        """)
+        console_layout.addWidget(console_label)
+
+        self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
 
-        font = QFont("Consolas", 12)
+        font = QFont("Consolas", 11)
         self.console.setFont(font)
 
-        self.console.setStyleSheet(
-            """
-            background-color: #1E1E1E;
-            color: #D4D4D4;
-            border: none;
-            """
-        )
+        console_layout.addWidget(self.console)
+        console_container.setLayout(console_layout)
 
-        splitter.addWidget(self.console)
+        splitter.addWidget(console_container)
 
-        splitter.setSizes([600, 200])
-
-        # ---------------------------------
-        # Run Button
-        # ---------------------------------
-
-        run_button = QPushButton("Run")
-
-        run_button.clicked.connect(
-            self.run_code
-        )
-
-        layout.addWidget(run_button)
+        splitter.setSizes([650, 250])
 
     def setup_toolbar(self):
         toolbar = QToolBar()
+        toolbar.setMovable(False)
+        toolbar.setIconSize(QSize(16, 16))
 
         self.addToolBar(toolbar)
 
-        run_button = QPushButton("Run")
-
-        run_button.clicked.connect(
-            self.run_code
-        )
-
+        # Run section
+        run_button = QPushButton("▶ Run")
+        run_button.setStyleSheet("""
+            QPushButton {
+                background-color: #107C10;
+                padding: 6px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #107C10;
+                opacity: 0.8;
+            }
+        """)
+        run_button.clicked.connect(self.run_code)
         toolbar.addWidget(run_button)
 
-        clear_workspace_button = QPushButton(
-            "Clear Workspace"
-        )
+        toolbar.addSeparator()
 
+        # File operations
+        new_button = QPushButton("+ New")
+        new_button.setObjectName("secondaryButton")
+        new_button.clicked.connect(self.new_file)
+        toolbar.addWidget(new_button)
+
+        open_button = QPushButton("📂 Open")
+        open_button.setObjectName("secondaryButton")
+        open_button.clicked.connect(self.open_file)
+        toolbar.addWidget(open_button)
+
+        save_button = QPushButton("💾 Save")
+        save_button.setObjectName("secondaryButton")
+        save_button.clicked.connect(self.save_file)
+        toolbar.addWidget(save_button)
+
+        toolbar.addSeparator()
+
+        # Workspace operations
+        refresh_workspace_button = QPushButton("🔄 Workspace")
+        refresh_workspace_button.setObjectName("secondaryButton")
+        refresh_workspace_button.clicked.connect(
+            self.refresh_workspace
+        )
+        toolbar.addWidget(refresh_workspace_button)
+
+        clear_workspace_button = QPushButton("🗑️ Clear")
+        clear_workspace_button.setObjectName("secondaryButton")
         clear_workspace_button.clicked.connect(
             self.clear_workspace
         )
+        toolbar.addWidget(clear_workspace_button)
 
-        toolbar.addWidget(
-            clear_workspace_button
-        )
+        toolbar.addSeparator()
 
-        workspace_button = QPushButton(
-            "Workspace"
+        # Debug operations
+        continue_button = QPushButton("▶ Continue")
+        continue_button.setObjectName("secondaryButton")
+        continue_button.clicked.connect(
+            self.debug_continue
         )
+        toolbar.addWidget(continue_button)
 
-        workspace_button.clicked.connect(
-            self.refresh_workspace
-        )
+        step_button = QPushButton("↓ Step")
+        step_button.setObjectName("secondaryButton")
+        step_button.clicked.connect(self.debug_step)
+        toolbar.addWidget(step_button)
 
-        toolbar.addWidget(
-            workspace_button
+        breakpoint_button = QPushButton("🔴 Breakpoint")
+        breakpoint_button.setObjectName("secondaryButton")
+        breakpoint_button.clicked.connect(
+            self.add_breakpoint_dialog
         )
+        toolbar.addWidget(breakpoint_button)
+
+        # Spacer
+ #       spacer = QWidget()
+ #       spacer.setSizePolicy(
+ #           spacer.sizePolicy().Expanding,
+ #           spacer.sizePolicy().Expanding,
+ #       )
+ #       toolbar.addWidget(spacer)
+
+        # Spacer
+        spacer = QWidget()
+ #       from PySide6.QtWidgets import QSizePolicy
+        spacer.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding,
+        )
+        toolbar.addWidget(spacer)
 
     def run_code(self):
         editor = self.current_editor()
@@ -225,84 +506,174 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.console.appendPlainText(
-                str(e)
+                f"Error: {str(e)}"
             )
+
     def write_output(self, text):
         self.console.appendPlainText(str(text))
+
+    def debug_continue(self):
+        self.debugger.continue_execution()
+
+    def debug_step(self):
+        self.debugger.step()
+
+    def on_debug_pause(self, node):
+        line = getattr(node, "line", None)
+
+        if line is None:
+            return
+
+        editor = self.current_editor()
+
+        if editor is None:
+            return
+
+        block = (
+            editor.document()
+            .findBlockByLineNumber(line - 1)
+        )
+
+        cursor = editor.textCursor()
+
+        cursor.setPosition(
+            block.position()
+        )
+
+        editor.setTextCursor(cursor)
+
+        editor.setFocus()
 
     def setup_menu(self):
         menu = self.menuBar()
 
+        # File Menu
         file_menu = menu.addMenu("File")
 
-        run_action = QAction("Run", self)
-
-        run_action.triggered.connect(
-            self.run_code
-        )
-
-        file_menu.addAction(run_action)
-
         new_action = QAction("New", self)
-
-        new_action.triggered.connect(
-            self.new_file
-        )
-
+        new_action.setShortcut(QKeySequence.New)
+        new_action.triggered.connect(self.new_file)
         file_menu.addAction(new_action)
 
         open_action = QAction("Open", self)
-
-        open_action.triggered.connect(
-            self.open_file
-        )
-
+        open_action.setShortcut(QKeySequence.Open)
+        open_action.triggered.connect(self.open_file)
         file_menu.addAction(open_action)
 
         save_action = QAction("Save", self)
-
-        save_action.triggered.connect(
-            self.save_file
-        )
-
+        save_action.setShortcut(QKeySequence.Save)
+        save_action.triggered.connect(self.save_file)
         file_menu.addAction(save_action)
 
-        save_as_action = QAction(
-            "Save As",
-            self
-        )
-
-        save_as_action.triggered.connect(
-            self.save_file_as
-        )
-
+        save_as_action = QAction("Save As", self)
+        save_as_action.setShortcut(QKeySequence.SaveAs)
+        save_as_action.triggered.connect(self.save_file_as)
         file_menu.addAction(save_as_action)
 
-        new_action.setShortcut(
-            QKeySequence.New
-        )
+        file_menu.addSeparator()
 
-        open_action.setShortcut(
-            QKeySequence.Open
-        )
+        exit_action = QAction("Exit", self)
+        exit_action.setShortcut(QKeySequence.Quit)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
 
-        save_action.setShortcut(
-            QKeySequence.Save
-        )
+        # Edit Menu
+        edit_menu = menu.addMenu("Edit")
 
-        save_as_action.setShortcut(
-            QKeySequence.SaveAs
-        )
+        undo_action = QAction("Undo", self)
+        undo_action.setShortcut(QKeySequence.Undo)
+        edit_menu.addAction(undo_action)
 
-    def setup_workspace_panel(self):
-        dock = QDockWidget(
-            "Workspace",
+        redo_action = QAction("Redo", self)
+        redo_action.setShortcut(QKeySequence.Redo)
+        edit_menu.addAction(redo_action)
+
+        edit_menu.addSeparator()
+
+        select_all_action = QAction("Select All", self)
+        select_all_action.setShortcut(QKeySequence.SelectAll)
+        edit_menu.addAction(select_all_action)
+
+        # Run Menu
+        run_menu = menu.addMenu("Run")
+
+        run_action = QAction("Run Code", self)
+        run_action.setShortcut(QKeySequence("Ctrl+Return"))
+        run_action.triggered.connect(self.run_code)
+        run_menu.addAction(run_action)
+
+        run_menu.addSeparator()
+
+        clear_workspace_action = QAction(
+            "Clear Workspace",
             self
         )
-
-        self.workspace_table = (
-            QTableWidget()
+        clear_workspace_action.triggered.connect(
+            self.clear_workspace
         )
+        run_menu.addAction(clear_workspace_action)
+
+        # Debug Menu
+        debug_menu = menu.addMenu("Debug")
+
+        continue_action = QAction("Continue", self)
+        continue_action.setShortcut(
+            QKeySequence("F5")
+        )
+        continue_action.triggered.connect(
+            self.debug_continue
+        )
+        debug_menu.addAction(continue_action)
+
+        step_action = QAction("Step", self)
+        step_action.setShortcut(QKeySequence("F10"))
+        step_action.triggered.connect(self.debug_step)
+        debug_menu.addAction(step_action)
+
+        debug_menu.addSeparator()
+
+        breakpoint_action = QAction(
+            "Add Breakpoint",
+            self
+        )
+        breakpoint_action.setShortcut(
+            QKeySequence("F9")
+        )
+        breakpoint_action.triggered.connect(
+            self.add_breakpoint_dialog
+        )
+        debug_menu.addAction(breakpoint_action)
+
+        # Tools Menu
+        tools_menu = menu.addMenu("Tools")
+
+        options_action = QAction("Options", self)
+        tools_menu.addAction(options_action)
+
+        # Help Menu
+        help_menu = menu.addMenu("Help")
+
+        about_action = QAction("About MathTool", self)
+        help_menu.addAction(about_action)
+
+        documentation_action = QAction(
+            "Documentation",
+            self
+        )
+        help_menu.addAction(documentation_action)
+
+    def setup_workspace_panel(self):
+        dock = QDockWidget("Workspace", self)
+        dock.setStyleSheet("""
+            QDockWidget {
+                color: #D4D4D4;
+            }
+            QDockWidget::title {
+                background-color: #252526;
+            }
+        """)
+
+        self.workspace_table = QTableWidget()
 
         self.workspace_table.setColumnCount(4)
 
@@ -315,9 +686,7 @@ class MainWindow(QMainWindow):
             ]
         )
 
-        dock.setWidget(
-            self.workspace_table
-        )
+        dock.setWidget(self.workspace_table)
 
         self.addDockWidget(
             Qt.RightDockWidgetArea,
@@ -335,7 +704,7 @@ class MainWindow(QMainWindow):
         self.workspace_table.setEditTriggers(
             QTableWidget.NoEditTriggers
         )
-        
+
         header = (
             self.workspace_table.horizontalHeader()
         )
@@ -364,20 +733,14 @@ class MainWindow(QMainWindow):
         for row, (name, value) in enumerate(
             variables.items()
         ):
-            # -----------------------------
             # Name
-            # -----------------------------
-
             self.workspace_table.setItem(
                 row,
                 0,
                 QTableWidgetItem(name),
             )
 
-            # -----------------------------
             # Type
-            # -----------------------------
-
             type_name = type(value).__name__
 
             self.workspace_table.setItem(
@@ -386,13 +749,8 @@ class MainWindow(QMainWindow):
                 QTableWidgetItem(type_name),
             )
 
-            # -----------------------------
             # Size
-            # -----------------------------
-
-            size_text = self.get_size_text(
-                value
-            )
+            size_text = self.get_size_text(value)
 
             self.workspace_table.setItem(
                 row,
@@ -400,13 +758,8 @@ class MainWindow(QMainWindow):
                 QTableWidgetItem(size_text),
             )
 
-            # -----------------------------
             # Value Preview
-            # -----------------------------
-
-            preview = self.get_preview_text(
-                value
-            )
+            preview = self.get_preview_text(value)
 
             self.workspace_table.setItem(
                 row,
@@ -433,7 +786,7 @@ class MainWindow(QMainWindow):
             return str(len(value))
 
         return "1x1"
-    
+
     def get_preview_text(self, value):
         text = str(value)
 
@@ -441,7 +794,7 @@ class MainWindow(QMainWindow):
             text = text[:40] + "..."
 
         return text
-    
+
     def inspect_variable(self, row, column):
         name_item = (
             self.workspace_table.item(row, 0)
@@ -479,7 +832,6 @@ class MainWindow(QMainWindow):
 
         self.refresh_workspace()
 
-
     def clear_workspace(self):
         self.context.clear()
 
@@ -504,14 +856,6 @@ class MainWindow(QMainWindow):
 
         editor.setPlainText(content)
 
-        editor.setStyleSheet(
-            """
-            background-color: #1E1E1E;
-            color: #D4D4D4;
-            border: none;
-            """
-        )
-
         highlighter = (
             MathToolSyntaxHighlighter(
                 editor.document()
@@ -531,13 +875,26 @@ class MainWindow(QMainWindow):
         )
 
         return editor
-    
+
     def current_editor(self):
         return self.tabs.currentWidget()
-    
+
     def close_tab(self, index):
         if self.tabs.count() == 1:
             return
+
+        editor = self.tabs.widget(index)
+
+        if editor.document().isModified():
+            result = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "This tab has unsaved changes. "
+                "Close anyway?",
+            )
+
+            if result != QMessageBox.Yes:
+                return
 
         self.tabs.removeTab(index)
 
@@ -661,30 +1018,20 @@ class MainWindow(QMainWindow):
             title
         )
 
-    def close_tab(self, index):
-        if self.tabs.count() == 1:
-            return
-
-        editor = self.tabs.widget(index)
-
-        if editor.document().isModified():
-            result = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                "This tab has unsaved changes. "
-                "Close anyway?",
-            )
-
-            if result != QMessageBox.Yes:
-                return
-
-        self.tabs.removeTab(index)
-
     def setup_command_window(self):
         dock = QDockWidget(
             "Command Window",
             self
         )
+
+        dock.setStyleSheet("""
+            QDockWidget {
+                color: #D4D4D4;
+            }
+            QDockWidget::title {
+                background-color: #252526;
+            }
+        """)
 
         self.command_window = (
             CommandWindow(
@@ -708,11 +1055,11 @@ class MainWindow(QMainWindow):
         ):
             self.close()
             return None
-        
+
         if source.strip() == "clear":
             self.clear_workspace()
             return None
-        
+
         if source.strip() == "clc":
             self.command_window.clear()
 
@@ -737,7 +1084,7 @@ class MainWindow(QMainWindow):
         self.refresh_workspace()
 
         return result
-    
+
     def route_output(self, text):
         text = str(text)
 
@@ -756,3 +1103,40 @@ class MainWindow(QMainWindow):
 
         else:
             self.console.appendPlainText(text)
+
+    def add_breakpoint_dialog(self):
+        line, ok = (
+            QInputDialog.getInt(
+                self,
+                "Add Breakpoint",
+                "Line number:",
+                1,
+                1,
+                100000,
+            )
+        )
+
+        if ok:
+            self.debugger.add_breakpoint(
+                line
+            )
+
+            self.console.appendPlainText(
+                f"Breakpoint added at line {line}"
+            )
+
+    def setup_status_bar(self):
+        """Setup status bar at the bottom"""
+        status_bar = self.statusBar()
+        status_bar.setStyleSheet("""
+            QStatusBar {
+                background-color: #252526;
+                color: #D4D4D4;
+                border-top: 1px solid #3E3E42;
+            }
+        """)
+        
+        status_label = QLabel("Ready")
+        status_bar.addWidget(status_label)
+        
+        self.status_label = status_label

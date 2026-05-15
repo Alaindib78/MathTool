@@ -40,6 +40,14 @@ class Interpreter:
             self.no_visit_method
         )
 
+        if (
+            self.context.debugger
+            and node is not None
+        ):
+            self.context.debugger.before_node(
+                node
+            )
+
         return method(node)
 
     def no_visit_method(self, node):

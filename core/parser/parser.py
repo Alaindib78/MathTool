@@ -208,9 +208,11 @@ class Parser:
         self.consume(TokenType.END)
 
         return ForNode(
-            IdentifierNode(variable.value),
+            IdentifierNode(variable.value, variable.line, variable.column),
             iterable,
-            body
+            body,
+            variable.line,
+            variable.column
         )
 
     def assignment(self):
@@ -220,13 +222,14 @@ class Parser:
         value = self.expression()
 
         return AssignmentNode(
-            IdentifierNode(identifier.value),
-            value
+            IdentifierNode(identifier.value, identifier.line, identifier.column),
+            value,
+            identifier.line,
+            identifier.column
         )
 
     def expression(self):
         return self.range_expression()
-#        return self.term()
 
     def range_expression(self):
         start = self.logical_or()
@@ -236,17 +239,24 @@ class Parser:
 
             if self.match(TokenType.COLON):
                 end = self.logical_or()
+                colon = self.previous()
 
                 return RangeNode(
                     start,
                     middle,
-                    end
+                    end,
+                    colon.line,
+                    colon.column
                 )
+            
+            colon = self.previous()
 
             return RangeNode(
                 start,
                 NumberNode(1),
-                middle
+                middle,
+                colon.line,
+                colon.column
             )
 
         return start
@@ -333,7 +343,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line,
+                operator.column
             )
 
         return node
@@ -349,7 +361,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line,
+                operator.column
             )
 
         return node
@@ -368,7 +382,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line, 
+                operator.column
             )
 
         return node
@@ -389,7 +405,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line,
+                operator.column
             )
 
         return node
@@ -404,7 +422,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line,
+                operator.column
             )
 
         return node
@@ -425,7 +445,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line,
+                operator.column
             )
 
         return node
@@ -443,7 +465,9 @@ class Parser:
             node = BinaryOpNode(
                 node,
                 operator.type,
-                right
+                right,
+                operator.line,
+                operator.column
             )
 
         return node
@@ -452,7 +476,8 @@ class Parser:
         expr = self.primary()
 
         while self.match(TokenType.TRANSPOSE):
-            expr = TransposeNode(expr)
+            operator = self.previous()
+            expr = TransposeNode(expr, operator.line, operator.column)
 
         return expr
 
@@ -468,23 +493,31 @@ class Parser:
 
             return UnaryOpNode(
                 operator.type,
-                operand
+                operand,
+                operator.line,
+                operator.column
             )
 
         return self.postfix()
 
     def primary(self):
         if self.match(TokenType.STRING):
-            return StringNode(self.previous().value)
+            token = self.previous()
+
+            return StringNode(token.value, token.line, token.column)
         
         if self.match(TokenType.NUMBER):
-            return NumberNode(self.previous().value)
+            token = self.previous()
+
+            return NumberNode(token.value,token.line, token.column )
         
         if self.match(TokenType.TRUE):
-            return NumberNode(True)
+            token = self.previous()
+            return NumberNode(True, token.line, token.column)
 
         if self.match(TokenType.FALSE):
-            return NumberNode(False)
+            token = self.previous()
+            return NumberNode(False, token.line, token.column)
 
         if self.match(TokenType.IDENTIFIER):
             identifier = self.previous()
@@ -514,10 +547,12 @@ class Parser:
 
                 return FunctionCallNode(
                     identifier.value,
-                    arguments
+                    arguments,
+                    identifier.line,
+                    identifier.column
                 )
 
-            return IdentifierNode(identifier.value)
+            return IdentifierNode(identifier.value, identifier.line, identifier.column)
         
         if self.match(TokenType.LBRACKET):
             return self.matrix_literal()
@@ -599,7 +634,9 @@ class Parser:
 
         self.consume(TokenType.RBRACKET)
 
-        return MatrixNode(rows)    
+        token = self.previous()
+
+        return MatrixNode(rows, token.line, token.column)    
     
     def matrix_expression(self):
         # Unary negative literal

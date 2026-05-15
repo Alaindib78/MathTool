@@ -1,15 +1,40 @@
 class ASTNode:
-    pass
+    def __init__(
+        self,
+        line=None,
+        column=None,
+    ):
+        self.line = line
+        self.column = column
 
 class ProgramNode(ASTNode):
-    def __init__(self, statements):
+    def __init__(
+            self, 
+            statements,
+            line=None,
+            column=None,
+        ):
+        super().__init__(
+            line,
+            column,
+        )
         self.statements = statements
 
     def __repr__(self):
         return f"ProgramNode({self.statements})"
     
 class NumberNode(ASTNode):
-    def __init__(self, value):
+    def __init__(
+        self,
+        value,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
         self.value = value
 
     def __repr__(self):
@@ -17,14 +42,33 @@ class NumberNode(ASTNode):
 
 
 class StringNode(ASTNode):
-    def __init__(self, value):
+    def __init__(
+            self, 
+            value,
+            line=None,
+            column=None,
+        ):
+        super().__init__(
+            line,
+            column,
+        )
         self.value = value
 
     def __repr__(self):
         return f'StringNode("{self.value}")'
 
 class IdentifierNode(ASTNode):
-    def __init__(self, name):
+    def __init__(
+        self,
+        name,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
         self.name = name
 
     def __repr__(self):
@@ -32,7 +76,19 @@ class IdentifierNode(ASTNode):
 
 
 class BinaryOpNode(ASTNode):
-    def __init__(self, left, operator, right):
+    def __init__(
+        self,
+        left,
+        operator,
+        right,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
         self.left = left
         self.operator = operator
         self.right = right
@@ -47,7 +103,18 @@ class BinaryOpNode(ASTNode):
 
 
 class UnaryOpNode(ASTNode):
-    def __init__(self, operator, operand):
+    def __init__(
+        self,
+        operator,
+        operand,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
         self.operator = operator
         self.operand = operand
 
@@ -60,7 +127,18 @@ class UnaryOpNode(ASTNode):
 
 
 class AssignmentNode(ASTNode):
-    def __init__(self, target, value):
+    def __init__(
+        self,
+        target,
+        value,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
         self.target = target
         self.value = value
 
@@ -77,8 +155,14 @@ class IfNode(ASTNode):
         condition,
         then_branch,
         elseif_branches,
-        else_branch
+        else_branch,
+        line=None,
+        column=None,
     ):
+        super().__init__(
+            line,
+            column,
+        )
         self.condition = condition
         self.then_branch = then_branch
         self.elseif_branches = elseif_branches
@@ -95,7 +179,17 @@ class IfNode(ASTNode):
         )
     
 class WhileNode(ASTNode):
-    def __init__(self, condition, body):
+    def __init__(
+            self, 
+            condition, 
+            body,
+            line=None,
+            column=None,
+        ):
+        super().__init__(
+            line,
+            column,
+        )
         self.condition = condition
         self.body = body
 
@@ -108,7 +202,18 @@ class WhileNode(ASTNode):
 
 
 class RangeNode(ASTNode):
-    def __init__(self, start, step, end):
+    def __init__(
+            self, 
+            start, 
+            step, 
+            end,
+            line=None,
+            column=None,
+        ):
+        super().__init__(
+            line,
+            column,
+        )
         self.start = start
         self.step = step
         self.end = end
@@ -122,7 +227,16 @@ class RangeNode(ASTNode):
         )
     
 class MatrixNode(ASTNode):
-    def __init__(self, rows):
+    def __init__(
+            self, 
+            rows,
+            line=None,
+            column=None,
+        ):
+        super().__init__(
+            line,
+            column,
+        )
         self.rows = rows
 
     def __repr__(self):
@@ -130,7 +244,18 @@ class MatrixNode(ASTNode):
 
 
 class ForNode(ASTNode):
-    def __init__(self, variable, iterable, body):
+    def __init__(
+        self,
+        variable,
+        iterable,
+        body,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
         self.variable = variable
         self.iterable = iterable
         self.body = body
@@ -144,7 +269,18 @@ class ForNode(ASTNode):
         )
     
 class FunctionCallNode(ASTNode):
-    def __init__(self, name, arguments):
+    def __init__(
+        self,
+        name,
+        arguments,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
         self.name = name
         self.arguments = arguments
 
@@ -161,8 +297,14 @@ class FunctionDeclarationNode(ASTNode):
         name,
         parameters,
         body,
-        return_variable
+        return_variable,
+        line=None,
+        column=None,    
     ):
+        super().__init__(
+            line,
+            column,
+        )
         self.name = name
         self.parameters = parameters
         self.body = body
@@ -177,14 +319,16 @@ class FunctionDeclarationNode(ASTNode):
 
 
 class ReturnNode(ASTNode):
-    def __init__(self, value):
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value
 
     def __repr__(self):
         return f"ReturnNode({self.value})"
 
 class TransposeNode(ASTNode):
-    def __init__(self, operand):
+    def __init__(self, operand, line=None, column=None):
+        super().__init__(line, column)
         self.operand = operand
 
     def __repr__(self):
