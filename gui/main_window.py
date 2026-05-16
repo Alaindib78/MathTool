@@ -39,6 +39,7 @@ from matplotlib import text
 from PySide6.QtCore import (
     Qt,
     QThread,
+    QSettings,
     Signal,
 )
 
@@ -74,6 +75,14 @@ from core.debugger.debugger import (
 
 from gui.execution_worker import (
     ExecutionWorker
+)
+
+from gui.preferences import (
+    OptionsDialog,
+    build_stylesheet,
+    load_preferences,
+    save_preference,
+    theme_for_preferences,
 )
 
 
@@ -113,6 +122,17 @@ class MainWindow(QMainWindow):
 
         self.semantic = SemanticAnalyzer()
 
+        self.settings = QSettings(
+            "MathTool",
+            "MathTool",
+        )
+
+        self.preferences = load_preferences(
+            self.settings
+        )
+
+        self.options_dialog = None
+
         # Apply modern styling
         self.apply_stylesheet()
 
@@ -134,8 +154,19 @@ class MainWindow(QMainWindow):
 
         self.execution_editor = None
 
+        self.apply_preferences()
+
     def apply_stylesheet(self):
         """Apply a modern dark theme stylesheet"""
+        if hasattr(self, "preferences"):
+            self.setStyleSheet(
+                build_stylesheet(
+                    self.preferences
+                )
+            )
+
+            return
+
         stylesheet = """
         QMainWindow {
             background-color: #1E1E1E;
@@ -147,6 +178,14 @@ class MainWindow(QMainWindow):
             color: #D4D4D4;
             border-bottom: 1px solid #3E3E42;
             padding: 2px;
+            spacing: 0px;
+        }
+
+        QMenuBar::item {
+            background: transparent;
+            padding: 6px 12px;
+            margin: 0px;
+            min-height: 18px;
         }
         
         QMenuBar::item:selected {
@@ -161,6 +200,13 @@ class MainWindow(QMainWindow):
             background-color: #252526;
             color: #D4D4D4;
             border: 1px solid #3E3E42;
+            padding: 4px 0px;
+        }
+
+        QMenu::item {
+            padding: 6px 40px 6px 28px;
+            min-width: 180px;
+            min-height: 20px;
         }
         
         QMenu::item:selected {
@@ -174,7 +220,7 @@ class MainWindow(QMainWindow):
         QMenu::separator {
             background-color: #3E3E42;
             height: 1px;
-            margin: 4px 0px;
+            margin: 5px 8px;
         }
         
         QToolBar {
@@ -326,6 +372,194 @@ class MainWindow(QMainWindow):
         """
         self.setStyleSheet(stylesheet)
 
+    def apply_preferences(self):
+        self.apply_stylesheet()
+
+        colors = theme_for_preferences(
+            self.preferences
+        )
+
+        if hasattr(self, "main_splitter"):
+            self.main_splitter.setStyleSheet(
+                f"""
+                QSplitter::handle {{
+                    background-color: {colors["border"]};
+                }}
+                QSplitter::handle:hover {{
+                    background-color: {colors["accent"]};
+                }}
+                """
+            )
+
+        if hasattr(self, "console_label"):
+            self.console_label.setStyleSheet(
+                f"""
+                color: {colors["text"]};
+                font-weight: bold;
+                font-size: 11px;
+                padding: 6px 8px;
+                background-color: {colors["panel_background"]};
+                border-bottom: 1px solid {colors["border"]};
+                """
+            )
+
+        if hasattr(self, "run_button"):
+            self.run_button.setStyleSheet(
+                f"""
+                QPushButton {{
+                    background-color: {colors["success"]};
+                    color: #FFFFFF;
+                    padding: 6px 16px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {colors["success"]};
+                }}
+                QPushButton:disabled {{
+                    background-color: {colors["hover_background"]};
+                    color: {colors["disabled_text"]};
+                }}
+                """
+            )
+
+        if hasattr(self, "workspace_dock"):
+            self.workspace_dock.setStyleSheet("")
+
+        if hasattr(self, "command_dock"):
+            self.command_dock.setStyleSheet("")
+
+        if hasattr(self, "status_label"):
+            self.statusBar().setStyleSheet(
+                f"""
+                QStatusBar {{
+                    background-color: {colors["panel_background"]};
+                    color: {colors["text"]};
+                    border-top: 1px solid {colors["border"]};
+                }}
+                """
+            )
+
+        for editor in self.all_code_editors():
+            self.apply_editor_preferences(editor)
+
+        if hasattr(self, "console"):
+            self.apply_plain_text_preferences(
+                self.console,
+                self.preferences["output_font_size"],
+            )
+
+        if hasattr(self, "command_window"):
+            self.apply_plain_text_preferences(
+                self.command_window,
+                self.preferences["output_font_size"],
+                border="none",
+            )
+
+    def all_code_editors(self):
+        if not hasattr(self, "tabs"):
+            return []
+
+        return [
+            self.tabs.widget(index)
+            for index in range(self.tabs.count())
+            if isinstance(
+                self.tabs.widget(index),
+                CodeEditor,
+            )
+        ]
+
+    def apply_editor_preferences(self, editor):
+        colors = theme_for_preferences(
+            self.preferences
+        )
+
+        editor.apply_editor_preferences(
+            self.preferences,
+            colors,
+        )
+
+        if hasattr(editor, "highlighter"):
+            editor.highlighter.set_theme(
+                self.preferences["theme"]
+            )
+
+    def apply_plain_text_preferences(
+        self,
+        widget,
+        font_size,
+        border=None,
+    ):
+        colors = theme_for_preferences(
+            self.preferences
+        )
+
+        font = QFont(
+            self.preferences["editor_font_family"],
+            int(font_size),
+        )
+
+        widget.setFont(font)
+
+        border_style = (
+            border
+            if border is not None
+            else f"1px solid {colors['editor_border']}"
+        )
+
+        widget.setStyleSheet(
+            f"""
+            QPlainTextEdit {{
+                background-color: {colors["editor_background"]};
+                color: {colors["editor_foreground"]};
+                border: {border_style};
+                border-radius: 3px;
+                font-family: '{font.family()}';
+                font-size: {font.pointSize()}pt;
+            }}
+            """
+        )
+
+    def set_preference(self, key, value):
+        self.preferences[key] = value
+
+        save_preference(
+            self.settings,
+            key,
+            value,
+        )
+
+        self.apply_preferences()
+
+    def show_options_dialog(self):
+        if (
+            self.options_dialog is not None
+            and self.options_dialog.isVisible()
+        ):
+            self.options_dialog.raise_()
+
+            self.options_dialog.activateWindow()
+
+            return
+
+        self.options_dialog = OptionsDialog(
+            self.preferences,
+            self,
+        )
+
+        self.options_dialog.preference_changed.connect(
+            self.set_preference
+        )
+
+        self.options_dialog.finished.connect(
+            lambda _: setattr(
+                self,
+                "options_dialog",
+                None,
+            )
+        )
+
+        self.options_dialog.show()
+
     def setup_ui(self):
         central_widget = QWidget()
 
@@ -342,6 +576,9 @@ class MainWindow(QMainWindow):
         # ---------------------------------
 
         splitter = QSplitter(Qt.Vertical)
+
+        self.main_splitter = splitter
+
         splitter.setStyleSheet("""
             QSplitter::handle {
                 background-color: #3E3E42;
@@ -380,6 +617,9 @@ class MainWindow(QMainWindow):
         console_layout.setSpacing(0)
 
         console_label = QLabel("Output")
+
+        self.console_label = console_label
+
         console_label.setStyleSheet("""
             color: #D4D4D4;
             font-weight: bold;
@@ -392,6 +632,12 @@ class MainWindow(QMainWindow):
 
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
+        self.console.setContextMenuPolicy(
+            Qt.CustomContextMenu
+        )
+        self.console.customContextMenuRequested.connect(
+            self.show_output_context_menu
+        )
 
         font = QFont("Consolas", 11)
         self.console.setFont(font)
@@ -745,7 +991,8 @@ class MainWindow(QMainWindow):
         menu = self.menuBar()
 
         # File Menu
-        file_menu = menu.addMenu("File")
+        self.file_menu = menu.addMenu("File")
+        file_menu = self.file_menu
 
         new_action = QAction("New", self)
         new_action.setShortcut(QKeySequence.New)
@@ -775,7 +1022,8 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
         # Edit Menu
-        edit_menu = menu.addMenu("Edit")
+        self.edit_menu = menu.addMenu("Edit")
+        edit_menu = self.edit_menu
 
         undo_action = QAction("Undo", self)
         undo_action.setShortcut(QKeySequence.Undo)
@@ -792,7 +1040,8 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(select_all_action)
 
         # Run Menu
-        run_menu = menu.addMenu("Run")
+        self.run_menu = menu.addMenu("Run")
+        run_menu = self.run_menu
 
         run_action = QAction("Run Code", self)
         run_action.setShortcut(QKeySequence("Ctrl+Return"))
@@ -811,7 +1060,8 @@ class MainWindow(QMainWindow):
         run_menu.addAction(clear_workspace_action)
 
         # Debug Menu
-        debug_menu = menu.addMenu("Debug")
+        self.debug_menu = menu.addMenu("Debug")
+        debug_menu = self.debug_menu
 
         start_debug_action = QAction(
             "Start Debugging",
@@ -853,13 +1103,18 @@ class MainWindow(QMainWindow):
         debug_menu.addAction(breakpoint_action)
 
         # Tools Menu
-        tools_menu = menu.addMenu("Tools")
+        self.tools_menu = menu.addMenu("Tools")
+        tools_menu = self.tools_menu
 
         options_action = QAction("Options", self)
+        options_action.triggered.connect(
+            self.show_options_dialog
+        )
         tools_menu.addAction(options_action)
 
         # Help Menu
-        help_menu = menu.addMenu("Help")
+        self.help_menu = menu.addMenu("Help")
+        help_menu = self.help_menu
 
         about_action = QAction("About MathTool", self)
         help_menu.addAction(about_action)
@@ -872,6 +1127,9 @@ class MainWindow(QMainWindow):
 
     def setup_workspace_panel(self):
         dock = QDockWidget("Workspace", self)
+
+        self.workspace_dock = dock
+
         dock.setStyleSheet("""
             QDockWidget {
                 color: #D4D4D4;
@@ -1075,9 +1333,12 @@ class MainWindow(QMainWindow):
 
         editor.highlighter = (
             MathToolSyntaxHighlighter(
-                editor.document()
+                editor.document(),
+                self.preferences["theme"],
             )
         )
+
+        self.apply_editor_preferences(editor)
 
         index = self.tabs.addTab(
             editor,
@@ -1241,6 +1502,8 @@ class MainWindow(QMainWindow):
             self
         )
 
+        self.command_dock = dock
+
         dock.setStyleSheet("""
             QDockWidget {
                 color: #D4D4D4;
@@ -1286,8 +1549,6 @@ class MainWindow(QMainWindow):
         if source.strip() == "clc":
             self.command_window.clear()
 
-            self.command_window.insert_prompt()
-
             return None
 
         lexer = Lexer(source)
@@ -1326,6 +1587,23 @@ class MainWindow(QMainWindow):
 
         else:
             self.console.appendPlainText(text)
+
+    def show_output_context_menu(self, position):
+        menu = self.console.createStandardContextMenu()
+
+        menu.addSeparator()
+
+        clear_action = menu.addAction("Clear Output")
+
+        clear_action.triggered.connect(
+            self.console.clear
+        )
+
+        menu.exec(
+            self.console.mapToGlobal(position)
+        )
+
+        menu.deleteLater()
 
     def on_editor_breakpoint_toggled(
         self,

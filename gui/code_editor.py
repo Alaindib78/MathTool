@@ -23,6 +23,21 @@ from PySide6.QtCore import (
 )
 
 
+DEFAULT_EDITOR_THEME = {
+    "editor_background": "#1E1E1E",
+    "editor_foreground": "#D4D4D4",
+    "editor_border": "#3E3E42",
+    "gutter_background": "#252526",
+    "line_number": "#858585",
+    "current_line_number": "#CCCCCC",
+    "current_line_background": "#2A2D2E",
+    "debug_line_background": "#3A3320",
+    "breakpoint": "#E51400",
+    "breakpoint_border": "#F14C4C",
+    "execution_arrow": "#DCDCAA",
+}
+
+
 class LineNumberArea(QWidget):
     def __init__(self, editor):
         super().__init__(editor)
@@ -57,6 +72,14 @@ class CodeEditor(QPlainTextEdit):
         self.breakpoints = set()
 
         self.debug_line = None
+
+        self.theme = DEFAULT_EDITOR_THEME.copy()
+
+        self.highlight_current_line_enabled = True
+
+        self.auto_indent_enabled = True
+
+        self.show_line_numbers = True
 
         self.marker_margin_width = 30
 
@@ -95,17 +118,92 @@ class CodeEditor(QPlainTextEdit):
             )
         )
 
-        digit_width = (
-            self.fontMetrics()
-            .horizontalAdvance("9")
-            * digits
-        )
+        digit_width = 0
+
+        if self.show_line_numbers:
+            digit_width = (
+                self.fontMetrics()
+                .horizontalAdvance("9")
+                * digits
+            )
 
         return (
             self.marker_margin_width
             + digit_width
             + 12
         )
+
+    def apply_editor_preferences(
+        self,
+        preferences,
+        theme,
+    ):
+        self.theme = {
+            **DEFAULT_EDITOR_THEME,
+            **theme,
+        }
+
+        font = self.font()
+
+        font.setFamily(
+            preferences.get(
+                "editor_font_family",
+                font.family(),
+            )
+        )
+
+        font.setPointSize(
+            int(
+                preferences.get(
+                    "editor_font_size",
+                    font.pointSize(),
+                )
+            )
+        )
+
+        self.setFont(font)
+
+        self.setLineWrapMode(
+            QPlainTextEdit.WidgetWidth
+            if preferences.get("word_wrap", False)
+            else QPlainTextEdit.NoWrap
+        )
+
+        self.setTabStopDistance(
+            self.fontMetrics().horizontalAdvance(" ")
+            * int(preferences.get("tab_width", 4))
+        )
+
+        self.auto_indent_enabled = bool(
+            preferences.get("auto_indent", True)
+        )
+
+        self.highlight_current_line_enabled = bool(
+            preferences.get("highlight_current_line", True)
+        )
+
+        self.show_line_numbers = bool(
+            preferences.get("show_line_numbers", True)
+        )
+
+        self.setStyleSheet(
+            f"""
+            QPlainTextEdit {{
+                background-color: {self.theme["editor_background"]};
+                color: {self.theme["editor_foreground"]};
+                border: 1px solid {self.theme["editor_border"]};
+                border-radius: 3px;
+                font-family: '{font.family()}';
+                font-size: {font.pointSize()}pt;
+            }}
+            """
+        )
+
+        self.update_line_number_area_width(0)
+
+        self.highlight_current_line()
+
+        self.line_number_area.update()
 
     def update_line_number_area_width(self, _):
         self.setViewportMargins(
@@ -156,7 +254,7 @@ class CodeEditor(QPlainTextEdit):
 
         painter.fillRect(
             event.rect(),
-            QColor("#252526"),
+            QColor(self.theme["gutter_background"]),
         )
 
         block = self.firstVisibleBlock()
@@ -198,10 +296,16 @@ class CodeEditor(QPlainTextEdit):
                         top,
                         self.line_number_area.width(),
                         height,
-                        QColor("#3A3320"),
+                        QColor(
+                            self.theme[
+                                "debug_line_background"
+                            ]
+                        ),
                     )
 
                 elif (
+                    self.highlight_current_line_enabled
+                    and
                     self.textCursor().blockNumber()
                     == block_number
                 ):
@@ -210,7 +314,11 @@ class CodeEditor(QPlainTextEdit):
                         top,
                         self.line_number_area.width(),
                         height,
-                        QColor("#2A2D2E"),
+                        QColor(
+                            self.theme[
+                                "current_line_background"
+                            ]
+                        ),
                     )
 
                 self._paint_breakpoint(
@@ -227,28 +335,38 @@ class CodeEditor(QPlainTextEdit):
                     height,
                 )
 
-                if (
-                    self.textCursor().blockNumber()
-                    == block_number
-                    or self.debug_line == line_number
-                ):
-                    painter.setPen(
-                        QColor("#CCCCCC")
-                    )
+                if self.show_line_numbers:
+                    if (
+                        (
+                            self.highlight_current_line_enabled
+                            and self.textCursor().blockNumber()
+                            == block_number
+                        )
+                        or self.debug_line == line_number
+                    ):
+                        painter.setPen(
+                            QColor(
+                                self.theme[
+                                    "current_line_number"
+                                ]
+                            )
+                        )
 
-                else:
-                    painter.setPen(
-                        QColor("#858585")
-                    )
+                    else:
+                        painter.setPen(
+                            QColor(
+                                self.theme["line_number"]
+                            )
+                        )
 
-                painter.drawText(
-                    self.marker_margin_width,
-                    top,
-                    line_number_width,
-                    self.fontMetrics().height(),
-                    Qt.AlignRight,
-                    str(line_number),
-                )
+                    painter.drawText(
+                        self.marker_margin_width,
+                        top,
+                        line_number_width,
+                        self.fontMetrics().height(),
+                        Qt.AlignRight,
+                        str(line_number),
+                    )
 
             block = block.next()
 
@@ -275,13 +393,17 @@ class CodeEditor(QPlainTextEdit):
 
         painter.setPen(
             QPen(
-                QColor("#F14C4C"),
+                QColor(
+                    self.theme["breakpoint_border"]
+                ),
                 1,
             )
         )
 
         painter.setBrush(
-            QBrush(QColor("#E51400"))
+            QBrush(
+                QColor(self.theme["breakpoint"])
+            )
         )
 
         painter.drawEllipse(
@@ -313,7 +435,9 @@ class CodeEditor(QPlainTextEdit):
         painter.setPen(Qt.NoPen)
 
         painter.setBrush(
-            QBrush(QColor("#DCDCAA"))
+            QBrush(
+                QColor(self.theme["execution_arrow"])
+            )
         )
 
         painter.drawPolygon(arrow)
@@ -442,13 +566,16 @@ class CodeEditor(QPlainTextEdit):
     def highlight_current_line(self):
         extra_selections = []
 
-        if not self.isReadOnly():
+        if (
+            self.highlight_current_line_enabled
+            and not self.isReadOnly()
+        ):
             selection = (
                 QTextEdit.ExtraSelection()
             )
 
             line_color = QColor(
-                "#2A2D2E"
+                self.theme["current_line_background"]
             )
 
             selection.format.setBackground(
@@ -484,7 +611,11 @@ class CodeEditor(QPlainTextEdit):
                 )
 
                 selection.format.setBackground(
-                    QColor("#3A3320")
+                    QColor(
+                        self.theme[
+                            "debug_line_background"
+                        ]
+                    )
                 )
 
                 selection.format.setProperty(
@@ -506,6 +637,9 @@ class CodeEditor(QPlainTextEdit):
 
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
+
+        if not self.auto_indent_enabled:
+            return
 
         if event.key() in (
             Qt.Key_Return,

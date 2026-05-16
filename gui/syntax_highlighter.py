@@ -8,11 +8,50 @@ from PySide6.QtGui import (
 from PySide6.QtCore import QRegularExpression
 
 
+SYNTAX_THEMES = {
+    "Dark": {
+        "keyword": "#569CD6",
+        "number": "#B5CEA8",
+        "string": "#CE9178",
+        "comment": "#6A9955",
+        "function": "#DCDCAA",
+    },
+    "Light": {
+        "keyword": "#0000FF",
+        "number": "#098658",
+        "string": "#A31515",
+        "comment": "#008000",
+        "function": "#795E26",
+    },
+    "High Contrast": {
+        "keyword": "#00BFFF",
+        "number": "#7FFF00",
+        "string": "#FFB86C",
+        "comment": "#A6E22E",
+        "function": "#FFFF00",
+    },
+}
+
+
 class MathToolSyntaxHighlighter(
     QSyntaxHighlighter
 ):
-    def __init__(self, document):
+    def __init__(self, document, theme_name="Dark"):
         super().__init__(document)
+
+        self.theme_name = theme_name
+
+        self.rules = []
+
+        self.set_theme(theme_name)
+
+    def set_theme(self, theme_name):
+        self.theme_name = theme_name
+
+        colors = SYNTAX_THEMES.get(
+            theme_name,
+            SYNTAX_THEMES["Dark"],
+        )
 
         self.rules = []
 
@@ -23,7 +62,7 @@ class MathToolSyntaxHighlighter(
         keyword_format = QTextCharFormat()
 
         keyword_format.setForeground(
-            QColor("#569CD6")
+            QColor(colors["keyword"])
         )
 
         keyword_format.setFontWeight(
@@ -61,7 +100,7 @@ class MathToolSyntaxHighlighter(
         number_format = QTextCharFormat()
 
         number_format.setForeground(
-            QColor("#B5CEA8")
+            QColor(colors["number"])
         )
 
         self.rules.append(
@@ -80,7 +119,7 @@ class MathToolSyntaxHighlighter(
         string_format = QTextCharFormat()
 
         string_format.setForeground(
-            QColor("#CE9178")
+            QColor(colors["string"])
         )
 
         self.rules.append(
@@ -99,7 +138,7 @@ class MathToolSyntaxHighlighter(
         comment_format = QTextCharFormat()
 
         comment_format.setForeground(
-            QColor("#6A9955")
+            QColor(colors["comment"])
         )
 
         self.rules.append(
@@ -118,7 +157,7 @@ class MathToolSyntaxHighlighter(
         function_format = QTextCharFormat()
 
         function_format.setForeground(
-            QColor("#DCDCAA")
+            QColor(colors["function"])
         )
 
         self.rules.append(
@@ -129,6 +168,8 @@ class MathToolSyntaxHighlighter(
                 function_format,
             )
         )
+
+        self.rehighlight()
 
     def highlightBlock(self, text):
         for pattern, fmt in self.rules:
