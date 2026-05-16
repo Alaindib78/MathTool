@@ -85,6 +85,96 @@ def builtin_ones(context,n):
     return np.ones(int(n))
 
 
+def _as_array(value):
+    return np.asarray(value)
+
+
+def builtin_eye(context, rows, cols=None):
+    rows = int(rows)
+
+    if cols is None:
+        return np.eye(rows)
+
+    return np.eye(rows, int(cols))
+
+
+def builtin_det(context, value):
+    array = _as_array(value)
+
+    try:
+        return float(np.round(np.linalg.det(array), 12))
+    except np.linalg.LinAlgError as error:
+        raise Exception(str(error))
+
+
+def builtin_inv(context, value):
+    array = _as_array(value)
+
+    try:
+        return np.linalg.inv(array)
+    except np.linalg.LinAlgError as error:
+        raise Exception(str(error))
+
+
+def builtin_size(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is not None:
+        axis = int(dim) - 1
+
+        if axis < 0:
+            raise Exception("Dimension must be positive")
+
+        if array.ndim == 0:
+            return 1 if axis == 0 else 1
+
+        if axis >= array.ndim:
+            return 1
+
+        return int(array.shape[axis])
+
+    if array.ndim == 0:
+        return np.array([1, 1])
+
+    return np.array(array.shape)
+
+
+def builtin_sum(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return np.sum(array)
+
+    return np.sum(array, axis=int(dim) - 1)
+
+
+def builtin_mean(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return np.mean(array)
+
+    return np.mean(array, axis=int(dim) - 1)
+
+
+def builtin_max(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return np.max(array)
+
+    return np.max(array, axis=int(dim) - 1)
+
+
+def builtin_min(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return np.min(array)
+
+    return np.min(array, axis=int(dim) - 1)
+
+
 def builtin_length(context,x):
     return len(x)
 
@@ -137,6 +227,14 @@ BUILTIN_FUNCTIONS = {
 
     "zeros": builtin_zeros,
     "ones": builtin_ones,
+    "eye": builtin_eye,
+    "det": builtin_det,
+    "inv": builtin_inv,
+    "size": builtin_size,
+    "sum": builtin_sum,
+    "mean": builtin_mean,
+    "max": builtin_max,
+    "min": builtin_min,
 
     "length": builtin_length,
     "plot": builtin_plot,

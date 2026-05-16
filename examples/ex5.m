@@ -15,7 +15,7 @@ function y = sum1(n)
     y = sum;
 end
 
-N = 5;
+N = 20;
 s1 =  sum_cubes(N);
 s2 = (sum1(N))^2;
 

@@ -76,6 +76,38 @@ transpose = M';
     )
 
 
+def test_interpreter_supports_matrix_builtins(execute):
+    _, context = execute(
+        """
+M = [1 2;
+     3 4];
+d = det(M);
+i = inv(M);
+s = size(M);
+u = sum(M);
+v = mean(M);
+mx = max(M);
+mn = min(M);
+e = eye(3);
+"""
+    )
+
+    assert context.variables["d"] == -2.0
+    np.testing.assert_allclose(
+        context.variables["i"],
+        np.array([[-2.0, 1.0], [1.5, -0.5]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["s"],
+        np.array([2, 2]),
+    )
+    assert context.variables["u"] == 10
+    assert context.variables["v"] == 2.5
+    assert context.variables["mx"] == 4
+    assert context.variables["mn"] == 1
+    np.testing.assert_array_equal(context.variables["e"], np.eye(3))
+
+
 def test_interpreter_supports_implicit_and_explicit_function_returns(execute):
     _, context = execute(
         """
