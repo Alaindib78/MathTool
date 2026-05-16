@@ -1,3 +1,7 @@
+from PySide6.QtCore import (
+    QThread
+)
+
 class Debugger:
     def __init__(self):
         self.breakpoints = set()
@@ -49,8 +53,9 @@ class Debugger:
             if self.pause_callback:
                 self.pause_callback(node)
 
+
             while self.paused:
-                pass
+                QThread.msleep(10)
 
     # ---------------------------------
     # Controls

@@ -1,6 +1,7 @@
 import ast
 import os
 from tkinter import font
+from unittest import result
 
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -35,6 +36,11 @@ from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import QSizePolicy
 from matplotlib import text
 
+from PySide6.QtCore import (
+    Qt,
+    QThread,
+)
+
 from core.lexer import lexer
 from core.lexer.lexer import Lexer
 from core.parser.parser import Parser
@@ -63,6 +69,10 @@ from gui.variable_editor import (
 
 from core.debugger.debugger import (
     Debugger
+)
+
+from gui.execution_worker import (
+    ExecutionWorker
 )
 
 
@@ -110,6 +120,10 @@ class MainWindow(QMainWindow):
         self.setup_menu()
 
         self.setup_status_bar()
+
+        self.execution_thread = None
+
+        self.execution_worker = None
 
     def apply_stylesheet(self):
         """Apply a modern dark theme stylesheet"""
@@ -385,8 +399,8 @@ class MainWindow(QMainWindow):
         self.addToolBar(toolbar)
 
         # Run section
-        run_button = QPushButton("▶ Run")
-        run_button.setStyleSheet("""
+        self.run_button = QPushButton("▶ Run")
+        self.run_button.setStyleSheet("""
             QPushButton {
                 background-color: #107C10;
                 padding: 6px 16px;
@@ -397,16 +411,16 @@ class MainWindow(QMainWindow):
                 opacity: 0.8;
             }
         """)
-        run_button.clicked.connect(self.run_code)
-        toolbar.addWidget(run_button)
+        self.run_button.clicked.connect(self.run_code)
+        toolbar.addWidget(self.run_button)
 
         toolbar.addSeparator()
 
         # File operations
-        new_button = QPushButton("+ New")
-        new_button.setObjectName("secondaryButton")
-        new_button.clicked.connect(self.new_file)
-        toolbar.addWidget(new_button)
+        self.new_button = QPushButton("+ New")
+        self.new_button.setObjectName("secondaryButton")
+        self.new_button.clicked.connect(self.new_file)
+        toolbar.addWidget(self.new_button)
 
         open_button = QPushButton("📂 Open")
         open_button.setObjectName("secondaryButton")
@@ -474,6 +488,16 @@ class MainWindow(QMainWindow):
         )
         toolbar.addWidget(spacer)
 
+        stop_button = QPushButton(
+            "Stop"
+        )
+
+        stop_button.clicked.connect(
+            self.stop_execution
+        )
+
+        toolbar.addWidget(stop_button)
+
     def run_code(self):
         editor = self.current_editor()
 
@@ -482,32 +506,118 @@ class MainWindow(QMainWindow):
 
         source = editor.toPlainText()
 
-        try:
-            lexer = Lexer(source)
-
-            tokens = lexer.tokenize()
-
-            parser = Parser(tokens)
-
-            ast = parser.parse()
-
-            self.semantic.analyze(ast)
-
-            result = (
-                self.interpreter.evaluate(ast)
-            )
-
-            self.refresh_workspace()
-
-            if result is not None:
-                self.console.appendPlainText(
-                    str(result)
-                )
-
-        except Exception as e:
+        # Prevent multiple executions
+        if (
+            self.execution_thread
+            and self.execution_thread.isRunning()
+        ):
             self.console.appendPlainText(
-                f"Error: {str(e)}"
+                "Execution already running"
             )
+
+            return
+        
+        self.console.appendPlainText(
+            "Running..."
+        )
+
+        self.run_button.setEnabled(False)
+
+        # ---------------------------------
+        # Create thread
+        # ---------------------------------
+
+        self.execution_thread = QThread()
+
+        self.execution_worker = (
+            ExecutionWorker(
+                source,
+                self.semantic,
+                self.interpreter,
+            )
+        )
+
+        self.execution_worker.moveToThread(
+            self.execution_thread
+        )
+
+        # ---------------------------------
+        # Signals
+        # ---------------------------------
+
+        self.execution_thread.started.connect(
+            self.execution_worker.run
+        )
+
+        self.execution_worker.finished.connect(
+            self.on_execution_finished
+        )
+
+        self.execution_worker.error.connect(
+            self.on_execution_error
+        )
+
+        self.execution_worker.output.connect(
+            self.route_output
+        )
+
+        self.execution_worker.workspace_updated.connect(
+            self.refresh_workspace
+        )
+
+        self.execution_worker.finished.connect(
+            self.execution_thread.quit
+        )
+
+        self.execution_worker.error.connect(
+            self.execution_thread.quit
+        )
+
+        self.execution_worker.finished.connect(
+            self.execution_worker.deleteLater
+        )
+
+        self.execution_worker.error.connect(
+            self.execution_worker.deleteLater
+        )
+
+        self.execution_thread.finished.connect(
+            self.execution_thread.deleteLater
+        )
+
+        self.execution_thread.finished.connect(
+            self.on_execution_thread_finished
+        )
+
+        # ---------------------------------
+        # Start
+        # ---------------------------------
+
+        self.execution_thread.start()
+
+    def on_execution_finished(self, result):
+        if result is not None:
+            self.console.appendPlainText(str(result))
+
+        self.refresh_workspace()
+
+        self.console.appendPlainText(
+            "Execution finished"
+        )
+
+        self.run_button.setEnabled(True)
+
+
+    def on_execution_error(self, message):
+        self.console.appendPlainText(message)
+
+        self.refresh_workspace()
+
+        self.run_button.setEnabled(True)
+
+    def on_execution_thread_finished(self):
+        self.execution_thread = None
+        self.execution_worker = None
 
     def write_output(self, text):
         self.console.appendPlainText(str(text))
@@ -1049,6 +1159,12 @@ class MainWindow(QMainWindow):
         )
 
     def execute_repl_code(self, source):
+        if (
+            self.execution_thread
+            and self.execution_thread.isRunning()
+        ):
+            return "Execution already running"        
+        
         if source.strip() in (
             "exit",
             "quit",
@@ -1140,3 +1256,11 @@ class MainWindow(QMainWindow):
         status_bar.addWidget(status_label)
         
         self.status_label = status_label
+
+    def stop_execution(self):
+        if self.execution_worker:
+            self.execution_worker.cancel()
+
+            self.console.appendPlainText(
+                "Execution cancelled"
+            )
