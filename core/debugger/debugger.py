@@ -6,11 +6,15 @@ class Debugger:
     def __init__(self):
         self.breakpoints = set()
 
+        self.enabled = False
+
         self.stepping = False
 
         self.paused = False
 
         self.current_node = None
+
+        self.resume_line = None
 
         self.pause_callback = None
 
@@ -27,18 +31,38 @@ class Debugger:
     def has_breakpoint(self, line):
         return line in self.breakpoints
 
+    def set_breakpoints(self, lines):
+        self.breakpoints = {
+            int(line)
+            for line in lines
+            if int(line) > 0
+        }
+
+    def clear_breakpoints(self):
+        self.breakpoints.clear()
+
     # ---------------------------------
     # Execution Hooks
     # ---------------------------------
 
     def before_node(self, node):
+        if not self.enabled:
+            return
+
         line = getattr(node, "line", None)
+
+        if line is None:
+            return
+
+        if self.resume_line == line:
+            return
+
+        self.resume_line = None
 
         should_pause = False
 
         if (
-            line is not None
-            and self.has_breakpoint(line)
+            self.has_breakpoint(line)
         ):
             should_pause = True
 
@@ -61,12 +85,50 @@ class Debugger:
     # Controls
     # ---------------------------------
 
+    def start_session(self):
+        self.enabled = True
+
+        self.stepping = False
+
+        self.paused = False
+
+        self.current_node = None
+
+        self.resume_line = None
+
+    def stop_session(self):
+        self.enabled = False
+
+        self.stepping = False
+
+        self.paused = False
+
+        self.current_node = None
+
+        self.resume_line = None
+
     def continue_execution(self):
+        if self.current_node is not None:
+            self.resume_line = getattr(
+                self.current_node,
+                "line",
+                None,
+            )
+
         self.stepping = False
 
         self.paused = False
 
     def step(self):
+        if self.current_node is not None:
+            self.resume_line = getattr(
+                self.current_node,
+                "line",
+                None,
+            )
+
+        self.enabled = True
+
         self.stepping = True
 
         self.paused = False

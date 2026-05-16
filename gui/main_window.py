@@ -39,6 +39,7 @@ from matplotlib import text
 from PySide6.QtCore import (
     Qt,
     QThread,
+    Signal,
 )
 
 from core.lexer import lexer
@@ -77,6 +78,8 @@ from gui.execution_worker import (
 
 
 class MainWindow(QMainWindow):
+    debug_pause_requested = Signal(int)
+
     def __init__(self):
         super().__init__()
 
@@ -91,6 +94,10 @@ class MainWindow(QMainWindow):
         )
 
         self.debugger = Debugger()
+
+        self.debug_pause_requested.connect(
+            self.handle_debug_pause
+        )
 
         self.context.debugger = (
             self.debugger
@@ -124,6 +131,8 @@ class MainWindow(QMainWindow):
         self.execution_thread = None
 
         self.execution_worker = None
+
+        self.execution_editor = None
 
     def apply_stylesheet(self):
         """Apply a modern dark theme stylesheet"""
@@ -353,6 +362,9 @@ class MainWindow(QMainWindow):
         self.tabs.tabCloseRequested.connect(
             self.close_tab
         )
+        self.tabs.currentChanged.connect(
+            self.sync_breakpoints
+        )
 
         splitter.addWidget(self.tabs)
 
@@ -413,6 +425,13 @@ class MainWindow(QMainWindow):
         """)
         self.run_button.clicked.connect(self.run_code)
         toolbar.addWidget(self.run_button)
+
+        self.debug_button = QPushButton("Debug")
+        self.debug_button.setObjectName("secondaryButton")
+        self.debug_button.clicked.connect(
+            self.start_debugging
+        )
+        toolbar.addWidget(self.debug_button)
 
         toolbar.addSeparator()
 
@@ -499,6 +518,12 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(stop_button)
 
     def run_code(self):
+        self.start_execution(debug=False)
+
+    def start_debugging(self):
+        self.start_execution(debug=True)
+
+    def start_execution(self, debug=False):
         editor = self.current_editor()
 
         if editor is None:
@@ -516,12 +541,31 @@ class MainWindow(QMainWindow):
             )
 
             return
+
+        self.clear_debug_highlights()
+
+        if debug:
+            self.sync_breakpoints()
+
+            self.debugger.start_session()
+
+            self.execution_editor = editor
+
+        else:
+            self.debugger.stop_session()
+
+            self.execution_editor = None
         
         self.console.appendPlainText(
-            "Running..."
+            "Debugging..."
+            if debug
+            else "Running..."
         )
 
         self.run_button.setEnabled(False)
+
+        if hasattr(self, "debug_button"):
+            self.debug_button.setEnabled(False)
 
         # ---------------------------------
         # Create thread
@@ -596,6 +640,10 @@ class MainWindow(QMainWindow):
         self.execution_thread.start()
 
     def on_execution_finished(self, result):
+        self.clear_debug_highlights()
+
+        self.debugger.stop_session()
+
         if result is not None:
             self.console.appendPlainText(str(result))
 
@@ -607,23 +655,36 @@ class MainWindow(QMainWindow):
 
         self.run_button.setEnabled(True)
 
+        if hasattr(self, "debug_button"):
+            self.debug_button.setEnabled(True)
+
 
     def on_execution_error(self, message):
+        self.clear_debug_highlights()
+
+        self.debugger.stop_session()
+
         self.console.appendPlainText(message)
 
         self.refresh_workspace()
 
         self.run_button.setEnabled(True)
 
+        if hasattr(self, "debug_button"):
+            self.debug_button.setEnabled(True)
+
     def on_execution_thread_finished(self):
         self.execution_thread = None
         self.execution_worker = None
+        self.execution_editor = None
 
     def write_output(self, text):
         self.console.appendPlainText(str(text))
 
     def debug_continue(self):
         self.debugger.continue_execution()
+
+        self.clear_debug_highlights()
 
     def debug_step(self):
         self.debugger.step()
@@ -634,15 +695,34 @@ class MainWindow(QMainWindow):
         if line is None:
             return
 
-        editor = self.current_editor()
+        self.debug_pause_requested.emit(
+            int(line)
+        )
+
+    def handle_debug_pause(self, line):
+        editor = (
+            self.execution_editor
+            if self.execution_editor is not None
+            else self.current_editor()
+        )
 
         if editor is None:
             return
+
+        index = self.tabs.indexOf(editor)
+
+        if index != -1:
+            self.tabs.setCurrentIndex(index)
+
+        editor.highlight_debug_line(line)
 
         block = (
             editor.document()
             .findBlockByLineNumber(line - 1)
         )
+
+        if not block.isValid():
+            return
 
         cursor = editor.textCursor()
 
@@ -652,7 +732,14 @@ class MainWindow(QMainWindow):
 
         editor.setTextCursor(cursor)
 
+        editor.centerCursor()
+
         editor.setFocus()
+
+        if hasattr(self, "status_label"):
+            self.status_label.setText(
+                f"Paused at line {line}"
+            )
 
     def setup_menu(self):
         menu = self.menuBar()
@@ -725,6 +812,17 @@ class MainWindow(QMainWindow):
 
         # Debug Menu
         debug_menu = menu.addMenu("Debug")
+
+        start_debug_action = QAction(
+            "Start Debugging",
+            self,
+        )
+        start_debug_action.triggered.connect(
+            self.start_debugging
+        )
+        debug_menu.addAction(start_debug_action)
+
+        debug_menu.addSeparator()
 
         continue_action = QAction("Continue", self)
         continue_action.setShortcut(
@@ -958,6 +1056,15 @@ class MainWindow(QMainWindow):
     ):
         editor = CodeEditor()
 
+        editor.breakpoint_toggled.connect(
+            lambda line, enabled, e=editor:
+            self.on_editor_breakpoint_toggled(
+                e,
+                line,
+                enabled,
+            )
+        )
+
         editor.file_path = None
 
         font = QFont("Consolas", 12)
@@ -966,7 +1073,7 @@ class MainWindow(QMainWindow):
 
         editor.setPlainText(content)
 
-        highlighter = (
+        editor.highlighter = (
             MathToolSyntaxHighlighter(
                 editor.document()
             )
@@ -1220,6 +1327,74 @@ class MainWindow(QMainWindow):
         else:
             self.console.appendPlainText(text)
 
+    def on_editor_breakpoint_toggled(
+        self,
+        editor,
+        line,
+        enabled,
+    ):
+        active_debug_editor = (
+            self.execution_editor
+            if self.debugger.enabled
+            and self.execution_editor is not None
+            else self.current_editor()
+        )
+
+        if editor is not active_debug_editor:
+            return
+
+        if enabled:
+            self.debugger.add_breakpoint(line)
+
+            message = f"Breakpoint added at line {line}"
+
+        else:
+            self.debugger.remove_breakpoint(line)
+
+            message = f"Breakpoint removed at line {line}"
+
+        if hasattr(self, "status_label"):
+            self.status_label.setText(message)
+
+    def sync_breakpoints(self, *_):
+        editor = (
+            self.execution_editor
+            if self.debugger.enabled
+            and self.execution_editor is not None
+            else self.current_editor()
+        )
+
+        lines = (
+            editor.breakpoints
+            if editor is not None
+            and hasattr(editor, "breakpoints")
+            else set()
+        )
+
+        if hasattr(self.debugger, "set_breakpoints"):
+            self.debugger.set_breakpoints(lines)
+
+            return
+
+        for line in list(self.debugger.breakpoints):
+            self.debugger.remove_breakpoint(line)
+
+        for line in lines:
+            self.debugger.add_breakpoint(line)
+
+    def clear_debug_highlights(self):
+        if not hasattr(self, "tabs"):
+            return
+
+        for index in range(self.tabs.count()):
+            editor = self.tabs.widget(index)
+
+            if hasattr(editor, "highlight_debug_line"):
+                editor.highlight_debug_line(None)
+
+        if hasattr(self, "status_label"):
+            self.status_label.setText("Ready")
+
     def add_breakpoint_dialog(self):
         line, ok = (
             QInputDialog.getInt(
@@ -1233,9 +1408,20 @@ class MainWindow(QMainWindow):
         )
 
         if ok:
-            self.debugger.add_breakpoint(
-                line
-            )
+            editor = self.current_editor()
+
+            if (
+                editor is not None
+                and hasattr(editor, "set_breakpoint")
+            ):
+                editor.set_breakpoint(line, True)
+
+                self.sync_breakpoints()
+
+            else:
+                self.debugger.add_breakpoint(
+                    line
+                )
 
             self.console.appendPlainText(
                 f"Breakpoint added at line {line}"
@@ -1258,9 +1444,18 @@ class MainWindow(QMainWindow):
         self.status_label = status_label
 
     def stop_execution(self):
+        self.debugger.stop_session()
+
         if self.execution_worker:
             self.execution_worker.cancel()
 
             self.console.appendPlainText(
                 "Execution cancelled"
             )
+
+        self.clear_debug_highlights()
+
+        self.run_button.setEnabled(True)
+
+        if hasattr(self, "debug_button"):
+            self.debug_button.setEnabled(True)
