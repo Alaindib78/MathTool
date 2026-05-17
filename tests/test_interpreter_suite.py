@@ -76,6 +76,31 @@ transpose = M';
     )
 
 
+def test_interpreter_assigns_vector_and_matrix_elements(execute):
+    _, context = execute(
+        """
+M = [1 2;
+     3 4];
+M(1,1) = 5;
+M(2,2) = M(1,1) + 1;
+picked = M(2,2);
+
+v = [1 2 3];
+v(2) = 9;
+"""
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["M"],
+        np.array([[5, 2], [3, 6]]),
+    )
+    assert context.variables["picked"] == 6
+    np.testing.assert_array_equal(
+        context.variables["v"],
+        np.array([1, 9, 3]),
+    )
+
+
 def test_interpreter_supports_matrix_builtins(execute):
     _, context = execute(
         """
@@ -89,6 +114,10 @@ v = mean(M);
 mx = max(M);
 mn = min(M);
 e = eye(3);
+z1 = zeros(3);
+z2 = zeros(2, 4);
+o1 = ones(3);
+o2 = ones(2, 4);
 """
     )
 
@@ -106,6 +135,10 @@ e = eye(3);
     assert context.variables["mx"] == 4
     assert context.variables["mn"] == 1
     np.testing.assert_array_equal(context.variables["e"], np.eye(3))
+    np.testing.assert_array_equal(context.variables["z1"], np.zeros((3, 3)))
+    np.testing.assert_array_equal(context.variables["z2"], np.zeros((2, 4)))
+    np.testing.assert_array_equal(context.variables["o1"], np.ones((3, 3)))
+    np.testing.assert_array_equal(context.variables["o2"], np.ones((2, 4)))
 
 
 def test_interpreter_supports_implicit_and_explicit_function_returns(execute):

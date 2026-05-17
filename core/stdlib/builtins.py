@@ -77,12 +77,26 @@ def builtin_round(context,x):
 def builtin_sign(context,x):
     return np.sign(x)   
 
-def builtin_zeros(context,n):
-    return np.zeros(int(n))
+def builtin_zeros(context, rows, cols=None):
+    rows = int(rows)
+
+    if cols is None:
+        cols = rows
+    else:
+        cols = int(cols)
+
+    return np.zeros((rows, cols))
 
 
-def builtin_ones(context,n):
-    return np.ones(int(n))
+def builtin_ones(context, rows, cols=None):
+    rows = int(rows)
+
+    if cols is None:
+        cols = rows
+    else:
+        cols = int(cols)
+
+    return np.ones((rows, cols))
 
 
 def _as_array(value):

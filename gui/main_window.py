@@ -77,6 +77,10 @@ from gui.execution_worker import (
     ExecutionWorker
 )
 
+from gui.plot_engine import (
+    GuiPlotEngine
+)
+
 from gui.preferences import (
     OptionsDialog,
     build_stylesheet,
@@ -97,6 +101,10 @@ class MainWindow(QMainWindow):
         self.resize(1400, 900)
 
         self.context = RuntimeContext()
+
+        self.plot_engine = GuiPlotEngine()
+
+        self.context.plot_engine = self.plot_engine
 
         self.context.output_callback = (
             self.route_output

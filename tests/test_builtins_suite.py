@@ -1,5 +1,6 @@
 import numpy as np
 
+from core.plotting.engine import PlotEngine
 from core.runtime.context import RuntimeContext
 
 
@@ -32,6 +33,7 @@ def test_math_builtins_are_vectorized():
 
     sin = context.functions.get("sin")
     sqrt = context.functions.get("sqrt")
+    zeros = context.functions.get("zeros")
     ones = context.functions.get("ones")
     length = context.functions.get("length")
     eye = context.functions.get("eye")
@@ -45,7 +47,10 @@ def test_math_builtins_are_vectorized():
 
     np.testing.assert_allclose(sin(context, values), np.array([0, 1]))
     np.testing.assert_array_equal(sqrt(context, np.array([4, 9])), np.array([2, 3]))
-    np.testing.assert_array_equal(ones(context, 3), np.array([1, 1, 1]))
+    np.testing.assert_array_equal(zeros(context, 3), np.zeros((3, 3)))
+    np.testing.assert_array_equal(zeros(context, 2, 4), np.zeros((2, 4)))
+    np.testing.assert_array_equal(ones(context, 3), np.ones((3, 3)))
+    np.testing.assert_array_equal(ones(context, 2, 4), np.ones((2, 4)))
     assert length(context, values) == 2
     np.testing.assert_array_equal(eye(context, 3), np.eye(3))
     assert det(context, np.array([[1, 2], [3, 4]])) == -2.0
@@ -80,4 +85,46 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
         ("ylabel", "y"),
         ("grid_on",),
         ("grid_off",),
+    ]
+
+
+def test_plot_engine_displays_nonblocking_and_refreshes(monkeypatch):
+    calls = []
+
+    class FakeCanvas:
+        def draw_idle(self):
+            calls.append(("draw_idle",))
+
+        def flush_events(self):
+            calls.append(("flush_events",))
+
+    class FakeFigure:
+        canvas = FakeCanvas()
+
+    figure = FakeFigure()
+
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.figure",
+        lambda: figure,
+    )
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.plot",
+        lambda x, y: calls.append(("plot", x, y)),
+    )
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.show",
+        lambda block=None: calls.append(("show", block)),
+    )
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.gcf",
+        lambda: figure,
+    )
+
+    PlotEngine().plot([1, 2], [3, 4])
+
+    assert calls == [
+        ("plot", [1, 2], [3, 4]),
+        ("show", False),
+        ("draw_idle",),
+        ("flush_events",),
     ]

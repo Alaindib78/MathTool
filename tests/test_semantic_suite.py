@@ -58,6 +58,30 @@ def test_semantic_analyzer_rejects_assigning_immutable_constants(parse):
     assert "Cannot assign to constant 'pi'" in str(error.value)
 
 
+def test_semantic_analyzer_accepts_indexed_assignment(parse):
+    from core.semantic.semantic_analyzer import SemanticAnalyzer
+
+    program = parse(
+        """
+M = [1 2; 3 4];
+M(1,1) = 5;
+"""
+    )
+
+    SemanticAnalyzer().analyze(program)
+
+
+def test_semantic_analyzer_rejects_indexed_assignment_to_undefined_target(parse):
+    from core.semantic.semantic_analyzer import SemanticAnalyzer
+
+    program = parse("M(1,1) = 5;")
+
+    with pytest.raises(SemanticError) as error:
+        SemanticAnalyzer().analyze(program)
+
+    assert "Undefined variable 'M'" in str(error.value)
+
+
 def test_semantic_analyzer_keeps_function_parameters_scoped(parse):
     from core.semantic.semantic_analyzer import SemanticAnalyzer
 

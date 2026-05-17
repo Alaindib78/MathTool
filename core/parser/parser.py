@@ -65,10 +65,7 @@ class Parser:
             return self.return_statement()
 
         # Assignment
-        if (
-            self.peek().type == TokenType.IDENTIFIER
-            and self.peek_next().type == TokenType.EQUAL
-        ):
+        if self.is_assignment_start():
             return self.assignment()
 
         return self.expression()
@@ -216,14 +213,47 @@ class Parser:
         )
 
     def assignment(self):
-        identifier = self.consume(TokenType.IDENTIFIER)
+        target = self.assignment_target()
         self.consume(TokenType.EQUAL)
 
         value = self.expression()
 
         return AssignmentNode(
-            IdentifierNode(identifier.value, identifier.line, identifier.column),
+            target,
             value,
+            target.line,
+            target.column
+        )
+
+    def assignment_target(self):
+        identifier = self.consume(TokenType.IDENTIFIER)
+
+        target = IdentifierNode(
+            identifier.value,
+            identifier.line,
+            identifier.column
+        )
+
+        if not self.match(TokenType.LPAREN):
+            return target
+
+        arguments = []
+
+        if not self.check(TokenType.RPAREN):
+            arguments.append(
+                self.expression()
+            )
+
+            while self.match(TokenType.COMMA):
+                arguments.append(
+                    self.expression()
+                )
+
+        self.consume(TokenType.RPAREN)
+
+        return FunctionCallNode(
+            identifier.value,
+            arguments,
             identifier.line,
             identifier.column
         )
@@ -669,6 +699,44 @@ class Parser:
             if self.check(token_type):
                 self.advance()
                 return True
+
+        return False
+
+    def is_assignment_start(self):
+        if self.peek().type != TokenType.IDENTIFIER:
+            return False
+
+        if self.peek_next().type == TokenType.EQUAL:
+            return True
+
+        if self.peek_next().type != TokenType.LPAREN:
+            return False
+
+        depth = 0
+        position = self.position + 1
+
+        while position < len(self.tokens):
+            token_type = self.tokens[position].type
+
+            if token_type == TokenType.LPAREN:
+                depth += 1
+            elif token_type == TokenType.RPAREN:
+                depth -= 1
+
+                if depth == 0:
+                    next_position = position + 1
+
+                    if next_position >= len(self.tokens):
+                        return False
+
+                    return (
+                        self.tokens[next_position].type
+                        == TokenType.EQUAL
+                    )
+            elif token_type == TokenType.EOF:
+                return False
+
+            position += 1
 
         return False
 

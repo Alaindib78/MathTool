@@ -79,12 +79,47 @@ class Interpreter:
     def visit_AssignmentNode(self, node):
         value = self.evaluate(node.value)
 
-        self.context.set_variable(
-            node.target.name,
-            value
-        )
+        if isinstance(node.target, IdentifierNode):
+            self.context.set_variable(
+                node.target.name,
+                value
+            )
 
-        return value
+            return value
+
+        if isinstance(node.target, FunctionCallNode):
+            target = self.context.get_variable(
+                node.target.name
+            )
+
+            indices = self.coerce_indices([
+                self.evaluate(arg)
+                for arg in node.target.arguments
+            ])
+
+            if not indices:
+                raise RuntimeError(
+                    "Indexed assignment requires at least one index",
+                    node.line,
+                    node.column
+                )
+
+            try:
+                target[self.index_key(indices)] = value
+            except (IndexError, TypeError, ValueError) as error:
+                raise RuntimeError(
+                    f"Invalid indexed assignment: {error}",
+                    node.line,
+                    node.column
+                )
+
+            return value
+
+        raise RuntimeError(
+            "Invalid assignment target",
+            node.line,
+            node.column
+        )
 
     def visit_UnaryOpNode(self, node):
         value = self.evaluate(node.operand)
@@ -372,15 +407,9 @@ class Interpreter:
             node.name
         )
 
-        indices = [
-            int(arg) - 1
-            for arg in arguments
-        ]
+        indices = self.coerce_indices(arguments)
 
-        if len(indices) == 1:
-            return target[indices[0]]
-
-        return target[tuple(indices)]
+        return target[self.index_key(indices)]
     
     def visit_IndexNode(self, node):
         target = self.evaluate(node.target)
@@ -390,10 +419,19 @@ class Interpreter:
             for index in node.indices
         ]
 
-        if len(indices) == 1:
-            return target[indices[0]]
+        return target[self.index_key(indices)]
 
-        return target[tuple(indices)]
+    def coerce_indices(self, values):
+        return [
+            int(value) - 1
+            for value in values
+        ]
+
+    def index_key(self, indices):
+        if len(indices) == 1:
+            return indices[0]
+
+        return tuple(indices)
     
     def visit_FunctionDeclarationNode(self, node):
         function = UserFunction(

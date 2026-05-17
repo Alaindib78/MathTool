@@ -126,7 +126,29 @@ class SemanticAnalyzer:
 
         self.analyze(node.value)
 
-        self.current_scope.define(name)
+        if isinstance(node.target, IdentifierNode):
+            self.current_scope.define(name)
+            return
+
+        if isinstance(node.target, FunctionCallNode):
+            if not self.current_scope.exists(name):
+                raise SemanticError(
+                    f"Undefined variable '{name}'"
+                )
+
+            if not node.target.arguments:
+                raise SemanticError(
+                    "Indexed assignment requires at least one index"
+                )
+
+            for arg in node.target.arguments:
+                self.analyze(arg)
+
+            return
+
+        raise SemanticError(
+            "Invalid assignment target"
+        )
 
     # ---------------------------------
     # Expressions

@@ -3,6 +3,7 @@ import pytest
 from core.ast.nodes import (
     AssignmentNode,
     BinaryOpNode,
+    FunctionCallNode,
     FunctionDeclarationNode,
     IfNode,
     MatrixNode,
@@ -77,6 +78,23 @@ matrix = [1 2; -3 4];
     assert len(matrix_assignment.value.rows) == 2
     assert isinstance(matrix_assignment.value.rows[1][0], UnaryOpNode)
     assert matrix_assignment.value.rows[1][0].operator == TokenType.MINUS
+
+
+def test_parser_builds_indexed_assignment_target(parse):
+    program = parse(
+        """
+M = [1 2; 3 4];
+M(1, 2) = 9;
+"""
+    )
+
+    assignment = program.statements[1]
+
+    assert isinstance(assignment, AssignmentNode)
+    assert isinstance(assignment.target, FunctionCallNode)
+    assert assignment.target.name == "M"
+    assert len(assignment.target.arguments) == 2
+    assert assignment.value.value == 9
 
 
 def test_parser_raises_on_incomplete_expression():
