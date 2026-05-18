@@ -300,10 +300,19 @@ class Interpreter:
         evaluated_rows = []
 
         for row in node.rows:
-            evaluated_row = [
-                self.evaluate(value)
-                for value in row
-            ]
+            evaluated_row = []
+
+            for value in row:
+                evaluated = self.evaluate(value)
+
+                if self.should_expand_matrix_element(
+                    evaluated
+                ):
+                    evaluated_row.extend(
+                        np.asarray(evaluated).tolist()
+                    )
+                else:
+                    evaluated_row.append(evaluated)
 
             evaluated_rows.append(evaluated_row)
 
@@ -502,6 +511,15 @@ class Interpreter:
                 tuple,
             )
         )
+
+    def should_expand_matrix_element(self, value):
+        if isinstance(value, (str, SymbolicValue)):
+            return False
+
+        if not self.is_array_like(value):
+            return False
+
+        return np.asarray(value).ndim == 1
     
     def visit_FunctionDeclarationNode(self, node):
         function = UserFunction(
@@ -535,7 +553,15 @@ class Interpreter:
             node.operand
         )
 
-        return operand.T
+        array = np.asarray(operand)
+
+        if array.ndim == 0:
+            return np.conjugate(operand)
+
+        if array.ndim == 1:
+            return np.conjugate(array).reshape(-1, 1)
+
+        return np.conjugate(array).T
 
     def should_store_ans(
         self,

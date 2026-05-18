@@ -17,8 +17,9 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Element-wise operators: `.*`, `./`, `.^` (`.*` requires same-size array operands)
 - Matrix transpose with `'`
 - One-based indexing such as `M(2, 1)`
+- MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, and `exp`
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
-- Built-ins including `sin`, `cos`, `sqrt`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
+- Built-ins including `sin`, `cos`, `sqrt`, `exp`, `complex`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
 - Desktop GUI with editor tabs, output console, command window, workspace table, and basic debugging controls
 
 ## Project Structure
@@ -132,6 +133,20 @@ x = sym('1/33');
 class(x);
 ```
 
+Complex number example:
+
+```matlab
+z = 1 + 2i;
+
+x = [1:4]';
+y = [8:-2:2]';
+column = x + 1i*y;
+
+r = 4;
+theta = pi/4;
+polar = r*exp(1i*theta);
+```
+
 Plotting example:
 
 ```matlab
@@ -157,7 +172,7 @@ The active pytest configuration runs tests from the `tests/` directory.
 
 ## Development Notes
 
-- Constants `pi`, `e`, `true`, and `false` are loaded into every runtime context.
+- Constants `pi`, `e`, `true`, and `false` are loaded into every runtime context. The names `i` and `j` resolve to the imaginary unit unless the user assigns over them.
 - Constants are treated as immutable by the semantic analyzer.
 - `ans` stores the result of the last expression that is not assigned to a named variable.
 - Built-in `print` and `println` write to the GUI console when an output callback is configured.

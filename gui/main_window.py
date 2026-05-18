@@ -53,6 +53,7 @@ from core.interpreter.interpreter import (
     Interpreter
 )
 from core.runtime.context import RESERVED_CONSTANTS, RuntimeContext 
+from core.runtime.formatting import format_value
 from core.runtime.symbolic import SymbolicValue
 from gui.code_editor import (
     CodeEditor
@@ -900,7 +901,9 @@ class MainWindow(QMainWindow):
         self.debugger.stop_session()
 
         if result is not None:
-            self.console.appendPlainText(str(result))
+            self.console.appendPlainText(
+                format_value(result)
+            )
 
         self.refresh_workspace()
 
@@ -934,7 +937,9 @@ class MainWindow(QMainWindow):
         self.execution_editor = None
 
     def write_output(self, text):
-        self.console.appendPlainText(str(text))
+        self.console.appendPlainText(
+            format_value(text)
+        )
 
     def debug_continue(self):
         self.debugger.continue_execution()
@@ -1266,7 +1271,7 @@ class MainWindow(QMainWindow):
         return "1x1"
 
     def get_preview_text(self, value):
-        text = str(value)
+        text = format_value(value)
 
         if len(text) > 40:
             text = text[:40] + "..."

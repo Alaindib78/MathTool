@@ -2,6 +2,7 @@ from core.lexer.lexer import Lexer
 from core.parser.parser import Parser
 from core.interpreter.interpreter import Interpreter
 from core.runtime.context import RuntimeContext
+from core.runtime.formatting import format_value
 from core.semantic.semantic_analyzer import SemanticAnalyzer
 
 
@@ -140,4 +141,5 @@ class REPL:
 
         result = self.interpreter.evaluate(ast)
 
-        print(result)
+        if result is not None:
+            print(format_value(result))

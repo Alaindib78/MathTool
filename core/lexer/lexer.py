@@ -317,9 +317,25 @@ class Lexer:
         ):
             number_str += self.advance()
 
+        number_value = float(number_str)
+
+        if (
+            not self.is_at_end()
+            and self.peek() in {"i", "j"}
+            and not self.is_identifier_part(self.peek_next())
+        ):
+            self.advance()
+
+            return Token(
+                TokenType.NUMBER,
+                complex(0, number_value),
+                self.line,
+                start_column
+            )
+
         return Token(
             TokenType.NUMBER,
-            float(number_str),
+            number_value,
             self.line,
             start_column
         )
@@ -367,6 +383,9 @@ class Lexer:
 
     def is_at_end(self):
         return self.position >= len(self.source)
+
+    def is_identifier_part(self, char):
+        return char.isalnum() or char == "_"
 
     def is_single_quoted_string_start(self, tokens):
         if not tokens:

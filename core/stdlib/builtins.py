@@ -2,12 +2,13 @@ import math
 from pydoc import text
 import numpy as np
 
+from core.runtime.formatting import format_value
 from core.runtime.symbolic import SymbolicValue
 
 
 def builtin_print(context,*args):
     text = " ".join(
-        str(arg)
+        format_value(arg)
         for arg in args
     )
 
@@ -20,7 +21,7 @@ def builtin_print(context,*args):
 
 def builtin_println(context,*args):
     text = " ".join(
-        str(arg)
+        format_value(arg)
         for arg in args
     )
 
@@ -60,7 +61,26 @@ def builtin_log10(context,x):
     return np.log10(x)
 
 
+def builtin_exp(context,x):
+    return np.exp(x)
+
+
 def builtin_sqrt(context,x):
+    array = np.asarray(x)
+
+    if (
+        not np.iscomplexobj(array)
+        and np.any(array < 0)
+    ):
+        result = np.sqrt(
+            array.astype(complex)
+        )
+
+        if np.asarray(result).ndim == 0:
+            return result.item()
+
+        return result
+
     return np.sqrt(x)
 
 
@@ -226,6 +246,21 @@ def builtin_sym(context, value):
     return SymbolicValue(value)
 
 
+def builtin_complex(context, real, imag=None):
+    if imag is None:
+        result = np.asarray(real, dtype=complex)
+    else:
+        result = (
+            np.asarray(real)
+            + 1j * np.asarray(imag)
+        )
+
+    if result.ndim == 0:
+        return result.item()
+
+    return result
+
+
 def builtin_class(context, value):
     if isinstance(value, SymbolicValue):
         return "sym"
@@ -255,6 +290,7 @@ BUILTIN_FUNCTIONS = {
 
     "log": builtin_log,
     "log10": builtin_log10,
+    "exp": builtin_exp,
 
     "sqrt": builtin_sqrt,
     "abs": builtin_abs,
@@ -284,4 +320,5 @@ BUILTIN_FUNCTIONS = {
     "grid": builtin_grid,
     "sym": builtin_sym,
     "class": builtin_class,
+    "complex": builtin_complex,
 }

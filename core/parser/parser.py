@@ -694,6 +694,13 @@ class Parser:
             ):
                 continue
 
+            raise ParserError(
+                "Expected matrix separator or closing bracket",
+                line=next_token.line,
+                column=next_token.column,
+                token=next_token.value,
+            )
+
         if current_row:
             rows.append(current_row)
 
@@ -704,7 +711,36 @@ class Parser:
         return MatrixNode(rows, token.line, token.column)    
     
     def matrix_expression(self):
-        # Unary negative literal
+        start = self.matrix_atom()
+
+        if self.match(TokenType.COLON):
+            middle = self.logical_or()
+
+            if self.match(TokenType.COLON):
+                end = self.logical_or()
+                colon = self.previous()
+
+                return RangeNode(
+                    start,
+                    middle,
+                    end,
+                    colon.line,
+                    colon.column
+                )
+
+            colon = self.previous()
+
+            return RangeNode(
+                start,
+                NumberNode(1),
+                middle,
+                colon.line,
+                colon.column
+            )
+
+        return start
+
+    def matrix_atom(self):
         if self.match(TokenType.MINUS):
             operand = self.postfix()
 

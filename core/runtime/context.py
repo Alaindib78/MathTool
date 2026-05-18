@@ -13,6 +13,11 @@ RESERVED_CONSTANTS = {
     "false",
 }
 
+DEFAULT_IMAGINARY_UNITS = {
+    "i": 1j,
+    "j": 1j,
+}
+
 class RuntimeContext:
     def __init__(self):
         self.variables = {}
@@ -36,6 +41,12 @@ class RuntimeContext:
         self.variables[name] = value
 
     def get_variable(self, name):
+        if name in DEFAULT_IMAGINARY_UNITS:
+            return self.variables.get(
+                name,
+                DEFAULT_IMAGINARY_UNITS[name]
+            )
+
         if name not in self.variables:
             raise Exception(
                 f"Undefined variable '{name}'"

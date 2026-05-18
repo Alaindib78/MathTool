@@ -11,6 +11,8 @@ from PySide6.QtGui import (
 
 from PySide6.QtCore import Qt
 
+from core.runtime.formatting import format_value
+
 
 class CommandWindow(QPlainTextEdit):
     def __init__(self, execute_callback):
@@ -208,7 +210,7 @@ class CommandWindow(QPlainTextEdit):
 
                 if result is not None:
                     self.insertPlainText(
-                        str(result)
+                        format_value(result)
                     )
 
                     self.insertPlainText(

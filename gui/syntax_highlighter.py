@@ -107,7 +107,7 @@ class MathToolSyntaxHighlighter(
         self.rules.append(
             (
                 QRegularExpression(
-                    r"\b\d+(\.\d+)?\b"
+                    r"\b\d+(\.\d+)?[ij]?\b"
                 ),
                 number_format,
             )

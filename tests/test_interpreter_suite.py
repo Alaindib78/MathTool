@@ -233,6 +233,47 @@ o2 = ones(2, 4);
     np.testing.assert_array_equal(context.variables["o2"], np.ones((2, 4)))
 
 
+def test_interpreter_supports_matlab_style_complex_numbers(execute):
+    _, context = execute(
+        """
+z = 1 + 2i;
+w = 3 - 4j;
+unit_i = i;
+unit_j = j;
+s = sqrt(-1);
+c = complex(5, -6);
+r = 4;
+theta = pi/4;
+polar = r * exp(1i * theta);
+x = [1:4]';
+y = [8:-2:2]';
+column = x + 1i * y;
+""",
+        analyze=True,
+    )
+
+    assert context.variables["z"] == 1 + 2j
+    assert context.variables["w"] == 3 - 4j
+    assert context.variables["unit_i"] == 1j
+    assert context.variables["unit_j"] == 1j
+    assert context.variables["s"] == 1j
+    assert context.variables["c"] == 5 - 6j
+    assert context.variables["polar"] == pytest.approx(
+        4 * np.exp(1j * np.pi / 4)
+    )
+    np.testing.assert_allclose(
+        context.variables["column"],
+        np.array(
+            [
+                [1 + 8j],
+                [2 + 6j],
+                [3 + 4j],
+                [4 + 2j],
+            ]
+        ),
+    )
+
+
 def test_interpreter_supports_implicit_and_explicit_function_returns(execute):
     _, context = execute(
         """

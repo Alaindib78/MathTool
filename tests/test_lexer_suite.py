@@ -69,6 +69,26 @@ def test_lexer_tokenizes_matlab_not_operators():
     assert tokens[8].value == "~="
 
 
+def test_lexer_tokenizes_imaginary_number_suffixes():
+    tokens = Lexer("z = 1 + 2i; w = 3j;").tokenize()
+
+    assert [token.type for token in tokens] == [
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.NUMBER,
+        TokenType.PLUS,
+        TokenType.NUMBER,
+        TokenType.SEMICOLON,
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.NUMBER,
+        TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+    assert tokens[4].value == 2j
+    assert tokens[8].value == 3j
+
+
 def test_lexer_distinguishes_single_quoted_strings_from_transpose():
     tokens = Lexer("f = sym('x'); T = M';").tokenize()
 

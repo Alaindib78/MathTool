@@ -1,5 +1,6 @@
 import numpy as np
 
+from core.runtime.formatting import format_value
 from core.runtime.symbolic import SymbolicValue
 
 from PySide6.QtWidgets import (
@@ -79,7 +80,7 @@ class VariableEditor(QWidget):
             self.table.setItem(
                 0,
                 0,
-                QTableWidgetItem(str(value)),
+                QTableWidgetItem(format_value(value)),
             )
 
             return
@@ -105,7 +106,7 @@ class VariableEditor(QWidget):
         for r in range(rows):
             for c in range(cols):
                 item = QTableWidgetItem(
-                    str(value[r, c])
+                    format_value(value[r, c])
                 )
 
                 self.table.setItem(
@@ -144,9 +145,18 @@ class VariableEditor(QWidget):
 
             # Try numeric conversion
             try:
-                value = float(text)
+                value = complex(
+                    text.replace("i", "j")
+                    .replace(" ", "")
+                )
+
+                if value.imag == 0:
+                    value = value.real
             except Exception:
-                value = text
+                try:
+                    value = float(text)
+                except Exception:
+                    value = text
 
             # Scalar
             if np.isscalar(self.value):

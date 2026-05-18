@@ -13,18 +13,23 @@ def test_runtime_context_loads_constants_and_hides_them_from_who():
     assert context.variables["e"] == math.e
     assert context.variables["true"] is True
     assert context.variables["false"] is False
+    assert context.get_variable("i") == 1j
+    assert context.get_variable("j") == 1j
     assert context.who() == ["answer"]
 
 
 def test_runtime_context_clear_preserves_constants_only():
     context = RuntimeContext()
     context.set_variable("scratch", 123)
+    context.set_variable("i", 5)
 
     context.clear()
 
     assert "scratch" not in context.variables
+    assert "i" not in context.variables
     assert context.variables["pi"] == math.pi
     assert context.variables["e"] == math.e
+    assert context.get_variable("i") == 1j
 
 
 def test_child_context_shares_functions_but_not_parent_variables():

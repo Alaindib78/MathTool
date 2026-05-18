@@ -36,6 +36,7 @@ class SemanticAnalyzer:
             "atan",
             "log",
             "log10",
+            "exp",
             "floor",
             "ceil",
             "round",
@@ -61,6 +62,7 @@ class SemanticAnalyzer:
             "grid",
             "sym",
             "class",
+            "complex",
         ]
 
         for func in builtin_functions:
@@ -69,6 +71,8 @@ class SemanticAnalyzer:
         for const in IMMUTABLE_CONSTANTS:
             self.global_scope.define(const)
 
+        self.global_scope.define("i")
+        self.global_scope.define("j")
         self.global_scope.define("ans")
 
     def analyze(self, node):
