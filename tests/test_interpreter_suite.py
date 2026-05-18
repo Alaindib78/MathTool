@@ -49,15 +49,35 @@ end
     assert context.variables["x"] == 3
 
 
+def test_interpreter_evaluates_matlab_logical_not_and_not_equal(execute):
+    _, context = execute(
+        """
+not_false = ~false;
+not_equal = 3 ~= 4;
+equal_check = 3 ~= 3;
+"""
+    )
+
+    assert context.variables["not_false"] is True
+    assert context.variables["not_equal"] is True
+    assert context.variables["equal_check"] is False
+
+
 def test_interpreter_handles_vectors_matrices_indexing_and_transpose(execute):
     _, context = execute(
         """
 A = [1 2 3];
 B = [4 5 6];
-C = A .* B;
+C = A.*B;
+R1 = 1:3;
+R2 = 4:6;
+range_product = R1.*R2;
 
 M = [1 2;
      3 4];
+N = [5 6;
+     7 8];
+element_product = M.*N;
 picked = M(2,1);
 product = M * M;
 transpose = M';
@@ -65,6 +85,14 @@ transpose = M';
     )
 
     np.testing.assert_array_equal(context.variables["C"], np.array([4, 10, 18]))
+    np.testing.assert_array_equal(
+        context.variables["range_product"],
+        np.array([4, 10, 18]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["element_product"],
+        np.array([[5, 12], [21, 32]]),
+    )
     assert context.variables["picked"] == 3
     np.testing.assert_array_equal(
         context.variables["product"],
@@ -74,6 +102,19 @@ transpose = M';
         context.variables["transpose"],
         np.array([[1, 3], [2, 4]]),
     )
+
+
+def test_interpreter_rejects_mismatched_elementwise_multiply_sizes(execute):
+    with pytest.raises(MathToolRuntimeError) as error:
+        execute(
+            """
+A = [1 2 3];
+B = [4 5];
+C = A.*B;
+"""
+        )
+
+    assert "same size" in str(error.value)
 
 
 def test_interpreter_assigns_vector_and_matrix_elements(execute):

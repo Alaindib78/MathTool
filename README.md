@@ -7,14 +7,14 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Numeric expressions with operator precedence
 - Variables and assignment
 - Strings and comments
-- Boolean and comparison operators
+- Boolean and comparison operators, including `&&`, `||`, `~`, `==`, and `~=`
 - `if`, `elseif`, `else`, `for`, and `while`
 - User-defined functions, including recursive calls
 - Explicit `return` statements and MATLAB-style implicit return variables
 - Ranges such as `1:5` and `0:0.1:1`
 - Vector and matrix literals
 - Matrix multiplication with `*`
-- Element-wise operators: `.*`, `./`, `.^`
+- Element-wise operators: `.*`, `./`, `.^` (`.*` requires same-size array operands)
 - Matrix transpose with `'`
 - One-based indexing such as `M(2, 1)`
 - Built-ins including `sin`, `cos`, `sqrt`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
@@ -125,7 +125,7 @@ t = 0:0.1:2*pi;
 y = sin(t);
 
 plot(t, y);
-title("sin wave");
+title("sine wave");
 xlabel("time (s)");
 ylabel("V (volts)");
 grid(true);

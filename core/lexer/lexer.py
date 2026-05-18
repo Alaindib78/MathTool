@@ -76,11 +76,11 @@ class Lexer:
                 self.advance()
                 continue
 
-            if char == "!" and self.peek_next() == "=":
+            if char == "~" and self.peek_next() == "=":
                 tokens.append(
                     Token(
                         TokenType.NEQ,
-                        "!=",
+                        "~=",
                         self.line,
                         self.column
                     )
@@ -203,7 +203,7 @@ class Lexer:
 
                 "<": TokenType.LT,
                 ">": TokenType.GT,
-                "!": TokenType.NOT,
+                "~": TokenType.NOT,
 
                 "(": TokenType.LPAREN,
                 ")": TokenType.RPAREN,

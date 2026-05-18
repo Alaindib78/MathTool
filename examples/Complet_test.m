@@ -63,9 +63,10 @@ print("Unary operators complete");
 L1 = A > B;
 L2 = A < B;
 L3 = A == 5;
-L4 = A != B;
+L4 = A ~= B;
 L5 = (A > 1) && (B < 10);
 L6 = (A < 1) || (B < 10);
+L7 = ~(A < B);
 
 print("Logical expressions complete");
 

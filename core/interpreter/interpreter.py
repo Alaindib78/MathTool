@@ -170,7 +170,11 @@ class Interpreter:
             return left / right
         
         if operator == TokenType.DOTSTAR:
-            return left * right
+            return self.elementwise_multiply(
+                left,
+                right,
+                node
+            )
 
         if operator == TokenType.DOTSLASH:
             return left / right
@@ -432,6 +436,45 @@ class Interpreter:
             return indices[0]
 
         return tuple(indices)
+
+    def elementwise_multiply(
+        self,
+        left,
+        right,
+        node
+    ):
+        if (
+            self.is_array_like(left)
+            or self.is_array_like(right)
+        ):
+            left_array = np.asarray(left)
+            right_array = np.asarray(right)
+
+            if (
+                left_array.ndim > 0
+                and right_array.ndim > 0
+                and left_array.shape != right_array.shape
+            ):
+                raise RuntimeError(
+                    "Element-wise multiplication requires "
+                    "operands to have the same size",
+                    node.line,
+                    node.column
+                )
+
+            return left_array * right_array
+
+        return left * right
+
+    def is_array_like(self, value):
+        return isinstance(
+            value,
+            (
+                np.ndarray,
+                list,
+                tuple,
+            )
+        )
     
     def visit_FunctionDeclarationNode(self, node):
         function = UserFunction(

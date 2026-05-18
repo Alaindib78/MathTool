@@ -97,6 +97,16 @@ M(1, 2) = 9;
     assert assignment.value.value == 9
 
 
+def test_parser_builds_matlab_logical_not(parse):
+    program = parse("flag = ~false;")
+
+    assignment = program.statements[0]
+
+    assert isinstance(assignment, AssignmentNode)
+    assert isinstance(assignment.value, UnaryOpNode)
+    assert assignment.value.operator == TokenType.NOT
+
+
 def test_parser_raises_on_incomplete_expression():
     tokens = Lexer("A = (1 + 2;").tokenize()
     parser = Parser(tokens)

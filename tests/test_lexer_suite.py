@@ -7,7 +7,7 @@ from core.lexer.token import TokenType
 
 def test_tokenizes_keywords_operators_strings_and_skips_comments():
     source = '''
-if A >= 10 && B != "done" % ignore this comment
+if A >= 10 && B ~= "done" % ignore this comment
     value = A ./ 2 .^ 3;
 end
 '''
@@ -46,6 +46,27 @@ def test_lexer_reports_unexpected_character_location():
     assert error.value.line == 1
     assert error.value.column == 5
     assert error.value.token == "@"
+
+
+def test_lexer_tokenizes_matlab_not_operators():
+    tokens = Lexer("A = ~false; B = 1 ~= 2;").tokenize()
+
+    assert [token.type for token in tokens] == [
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.NOT,
+        TokenType.FALSE,
+        TokenType.SEMICOLON,
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.NUMBER,
+        TokenType.NEQ,
+        TokenType.NUMBER,
+        TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+    assert tokens[2].value == "~"
+    assert tokens[8].value == "~="
 
 
 def test_lexer_rejects_unterminated_string():
