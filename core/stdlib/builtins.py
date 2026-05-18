@@ -2,6 +2,8 @@ import math
 from pydoc import text
 import numpy as np
 
+from core.runtime.symbolic import SymbolicValue
+
 
 def builtin_print(context,*args):
     text = " ".join(
@@ -216,6 +218,29 @@ def builtin_grid(context, value=True):
     else:
         context.plot_engine.grid_off()
 
+
+def builtin_sym(context, value):
+    if isinstance(value, SymbolicValue):
+        return value
+
+    return SymbolicValue(value)
+
+
+def builtin_class(context, value):
+    if isinstance(value, SymbolicValue):
+        return "sym"
+
+    if isinstance(value, bool):
+        return "logical"
+
+    if isinstance(value, (int, float, complex, np.number, np.ndarray)):
+        return "double"
+
+    if isinstance(value, str):
+        return "char"
+
+    return type(value).__name__
+
 BUILTIN_FUNCTIONS = {
     "print": builtin_print,
     "println": builtin_println,
@@ -257,4 +282,6 @@ BUILTIN_FUNCTIONS = {
     "xlabel": builtin_xlabel,
     "ylabel": builtin_ylabel,
     "grid": builtin_grid,
+    "sym": builtin_sym,
+    "class": builtin_class,
 }

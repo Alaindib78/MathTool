@@ -78,6 +78,7 @@ class MathToolSyntaxHighlighter(
             "for",
             "function",
             "return",
+            "syms",
             "true",
             "false",
         ]

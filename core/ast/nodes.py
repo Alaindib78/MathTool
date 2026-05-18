@@ -326,6 +326,25 @@ class ReturnNode(ASTNode):
     def __repr__(self):
         return f"ReturnNode({self.value})"
 
+
+class SymsNode(ASTNode):
+    def __init__(
+        self,
+        names,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
+        self.names = names
+
+    def __repr__(self):
+        return f"SymsNode({self.names})"
+
+
 class TransposeNode(ASTNode):
     def __init__(self, operand, line=None, column=None):
         super().__init__(line, column)

@@ -43,6 +43,15 @@ class Lexer:
                 tokens.append(self.string())
                 continue
 
+            if (
+                char == "'"
+                and self.is_single_quoted_string_start(tokens)
+            ):
+                tokens.append(
+                    self.single_quoted_string()
+                )
+                continue
+
             # Numbers
             if char.isdigit():
                 tokens.append(self.number())
@@ -272,6 +281,33 @@ class Lexer:
             start_column
         )
 
+    def single_quoted_string(self):
+        start_column = self.column
+
+        # Skip opening quote
+        self.advance()
+
+        value = ""
+
+        while not self.is_at_end():
+            if self.peek() == "'":
+                self.advance()
+
+                return Token(
+                    TokenType.STRING,
+                    value,
+                    self.line,
+                    start_column
+                )
+
+            value += self.advance()
+
+        raise LexerError(
+            f"Unterminated string at "
+            f"line {self.line}, "
+            f"column {start_column}"
+        )
+
     def number(self):
         start_column = self.column
         number_str = ""
@@ -331,6 +367,39 @@ class Lexer:
 
     def is_at_end(self):
         return self.position >= len(self.source)
+
+    def is_single_quoted_string_start(self, tokens):
+        if not tokens:
+            return True
+
+        return tokens[-1].type in {
+            TokenType.EQUAL,
+            TokenType.LPAREN,
+            TokenType.LBRACKET,
+            TokenType.COMMA,
+            TokenType.SEMICOLON,
+            TokenType.COLON,
+            TokenType.PLUS,
+            TokenType.MINUS,
+            TokenType.STAR,
+            TokenType.SLASH,
+            TokenType.CARET,
+            TokenType.DOTSTAR,
+            TokenType.DOTSLASH,
+            TokenType.DOTCARET,
+            TokenType.EQEQ,
+            TokenType.NEQ,
+            TokenType.LT,
+            TokenType.GT,
+            TokenType.LTE,
+            TokenType.GTE,
+            TokenType.AND,
+            TokenType.OR,
+            TokenType.NOT,
+            TokenType.IF,
+            TokenType.ELSEIF,
+            TokenType.RETURN,
+        }
     
     def skip_comment(self):
         while (

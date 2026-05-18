@@ -17,6 +17,7 @@ from core.ast.nodes import (
     FunctionCallNode,
     FunctionDeclarationNode,
     ReturnNode,
+    SymsNode,
     TransposeNode,
 )
 from core.errors.errors import ParserError
@@ -63,6 +64,9 @@ class Parser:
 
         if self.match(TokenType.RETURN):
             return self.return_statement()
+
+        if self.is_syms_statement():
+            return self.syms_statement()
 
         # Assignment
         if self.is_assignment_start():
@@ -295,6 +299,37 @@ class Parser:
         value = self.expression()
 
         return ReturnNode(value)
+
+    def syms_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        names = []
+
+        while (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek().line == command.line
+        ):
+            names.append(self.advance().value)
+
+            if (
+                self.check(TokenType.COMMA)
+                and self.peek().line == command.line
+            ):
+                self.advance()
+
+        if not names:
+            raise ParserError(
+                "Expected symbolic variable name",
+                line=command.line,
+                column=command.column,
+                token=command.value,
+            )
+
+        return SymsNode(
+            names,
+            command.line,
+            command.column
+        )
     
     def function_declaration(self):
         return_variable = None
@@ -739,6 +774,14 @@ class Parser:
             position += 1
 
         return False
+
+    def is_syms_statement(self):
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "syms"
+            and self.peek_next().type == TokenType.IDENTIFIER
+            and self.peek_next().type != TokenType.EQUAL
+        )
 
     def consume(self, token_type):
         if self.check(token_type):

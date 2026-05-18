@@ -8,6 +8,7 @@ from core.ast.nodes import (
     IfNode,
     MatrixNode,
     RangeNode,
+    SymsNode,
     UnaryOpNode,
 )
 from core.errors.errors import ParserError
@@ -105,6 +106,21 @@ def test_parser_builds_matlab_logical_not(parse):
     assert isinstance(assignment, AssignmentNode)
     assert isinstance(assignment.value, UnaryOpNode)
     assert assignment.value.operator == TokenType.NOT
+
+
+def test_parser_builds_syms_statement(parse):
+    program = parse(
+        """
+syms x y
+x;
+"""
+    )
+
+    syms = program.statements[0]
+
+    assert isinstance(syms, SymsNode)
+    assert syms.names == ["x", "y"]
+    assert len(program.statements) == 2
 
 
 def test_parser_raises_on_incomplete_expression():

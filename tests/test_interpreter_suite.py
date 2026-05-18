@@ -3,6 +3,7 @@ import pytest
 
 from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.runtime.context import RuntimeContext
+from core.runtime.symbolic import SymbolicValue
 
 
 def test_interpreter_evaluates_arithmetic_and_assignments(execute):
@@ -115,6 +116,56 @@ C = A.*B;
         )
 
     assert "same size" in str(error.value)
+
+
+def test_interpreter_supports_syms_sym_class_and_ans(execute):
+    result, context = execute(
+        """
+syms x
+x;
+symbolic_class = class(x);
+f1 = sym('x');
+f2 = x + 1;
+class(f1);
+"""
+    )
+
+    assert isinstance(context.variables["x"], SymbolicValue)
+    assert str(context.variables["x"]) == "x"
+    assert context.variables["symbolic_class"] == "sym"
+    assert isinstance(context.variables["f1"], SymbolicValue)
+    assert str(context.variables["f1"]) == "x"
+    assert str(context.variables["f2"]) == "x + 1"
+    assert result == "sym"
+    assert context.variables["ans"] == "sym"
+
+
+def test_interpreter_symbolic_variable_can_be_overwritten_by_double(execute):
+    _, context = execute(
+        """
+syms x
+x = 1 / 33;
+kind = class(x);
+"""
+    )
+
+    assert context.variables["x"] == pytest.approx(1 / 33)
+    assert context.variables["kind"] == "double"
+
+
+def test_interpreter_sym_preserves_exact_text(execute):
+    _, context = execute(
+        """
+x = sym('1/33');
+kind = class(x);
+x;
+"""
+    )
+
+    assert isinstance(context.variables["x"], SymbolicValue)
+    assert str(context.variables["x"]) == "1/33"
+    assert context.variables["kind"] == "sym"
+    assert context.variables["ans"] == context.variables["x"]
 
 
 def test_interpreter_assigns_vector_and_matrix_elements(execute):

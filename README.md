@@ -17,6 +17,7 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Element-wise operators: `.*`, `./`, `.^` (`.*` requires same-size array operands)
 - Matrix transpose with `'`
 - One-based indexing such as `M(2, 1)`
+- Symbolic variables with `syms`, `sym`, `class`, and `ans`
 - Built-ins including `sin`, `cos`, `sqrt`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
 - Desktop GUI with editor tabs, output console, command window, workspace table, and basic debugging controls
 
@@ -118,6 +119,19 @@ TM1 = M1' * M2;
 print(TM1);
 ```
 
+Symbolic example:
+
+```matlab
+syms x
+x
+
+x = 1 / 33;
+class(x);
+
+x = sym('1/33');
+class(x);
+```
+
 Plotting example:
 
 ```matlab
@@ -145,6 +159,7 @@ The active pytest configuration runs tests from the `tests/` directory.
 
 - Constants `pi`, `e`, `true`, and `false` are loaded into every runtime context.
 - Constants are treated as immutable by the semantic analyzer.
+- `ans` stores the result of the last expression that is not assigned to a named variable.
 - Built-in `print` and `println` write to the GUI console when an output callback is configured.
 - Plotting uses Matplotlib through `core.plotting.engine.PlotEngine`.
 - The GUI executes scripts on a worker thread and routes output/workspace updates back to the Qt main thread through signals.

@@ -69,6 +69,27 @@ def test_lexer_tokenizes_matlab_not_operators():
     assert tokens[8].value == "~="
 
 
+def test_lexer_distinguishes_single_quoted_strings_from_transpose():
+    tokens = Lexer("f = sym('x'); T = M';").tokenize()
+
+    assert [token.type for token in tokens] == [
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.IDENTIFIER,
+        TokenType.LPAREN,
+        TokenType.STRING,
+        TokenType.RPAREN,
+        TokenType.SEMICOLON,
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.IDENTIFIER,
+        TokenType.TRANSPOSE,
+        TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+    assert tokens[4].value == "x"
+
+
 def test_lexer_rejects_unterminated_string():
     with pytest.raises(LexerError) as error:
         Lexer('message = "unterminated').tokenize()

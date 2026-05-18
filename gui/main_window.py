@@ -53,6 +53,7 @@ from core.interpreter.interpreter import (
     Interpreter
 )
 from core.runtime.context import RESERVED_CONSTANTS, RuntimeContext 
+from core.runtime.symbolic import SymbolicValue
 from gui.code_editor import (
     CodeEditor
 )
@@ -1216,6 +1217,9 @@ class MainWindow(QMainWindow):
 
             # Type
             type_name = type(value).__name__
+
+            if isinstance(value, SymbolicValue):
+                type_name = "sym"
 
             self.workspace_table.setItem(
                 row,

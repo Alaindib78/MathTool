@@ -19,6 +19,7 @@ from core.ast.nodes import (
     FunctionCallNode,
     FunctionDeclarationNode,
     ReturnNode,
+    SymsNode,
     TransposeNode,
 )
 from core.lexer.token import TokenType
@@ -26,6 +27,7 @@ from core.runtime.user_function import UserFunction
 from core.interpreter.return_exception import ReturnException
 from core.errors.errors import RuntimeError
 from core.runtime.call_stack import CallFrame
+from core.runtime.symbolic import SymbolicValue
 
 class Interpreter:
     def __init__(self, context):
@@ -64,6 +66,15 @@ class Interpreter:
 
         for statement in node.statements:
             result = self.evaluate(statement)
+
+            if self.should_store_ans(
+                statement,
+                result
+            ):
+                self.context.set_variable(
+                    "ans",
+                    result
+                )
 
         return result
     
@@ -124,6 +135,12 @@ class Interpreter:
     def visit_UnaryOpNode(self, node):
         value = self.evaluate(node.operand)
 
+        if isinstance(value, SymbolicValue):
+            return self.symbolic_unary_operation(
+                node.operator,
+                value
+            )
+
         if node.operator == TokenType.MINUS:
             return -value
 
@@ -143,6 +160,16 @@ class Interpreter:
         right = self.evaluate(node.right)
 
         operator = node.operator
+
+        if self.has_symbolic_operand(
+            left,
+            right
+        ):
+            return self.symbolic_binary_operation(
+                left,
+                operator,
+                right
+            )
 
         if operator == TokenType.PLUS:
             return left + right
@@ -493,6 +520,15 @@ class Interpreter:
         value = self.evaluate(node.value)
 
         raise ReturnException(value)
+
+    def visit_SymsNode(self, node):
+        for name in node.names:
+            self.context.set_variable(
+                name,
+                SymbolicValue(name)
+            )
+
+        return None
     
     def visit_TransposeNode(self, node):
         operand = self.evaluate(
@@ -500,3 +536,86 @@ class Interpreter:
         )
 
         return operand.T
+
+    def should_store_ans(
+        self,
+        statement,
+        result
+    ):
+        return (
+            result is not None
+            and not isinstance(
+                statement,
+                (
+                    AssignmentNode,
+                    FunctionDeclarationNode,
+                    SymsNode,
+                )
+            )
+        )
+
+    def has_symbolic_operand(
+        self,
+        left,
+        right
+    ):
+        return (
+            isinstance(left, SymbolicValue)
+            or isinstance(right, SymbolicValue)
+        )
+
+    def symbolic_binary_operation(
+        self,
+        left,
+        operator,
+        right
+    ):
+        operators = {
+            TokenType.PLUS: "+",
+            TokenType.MINUS: "-",
+            TokenType.STAR: "*",
+            TokenType.SLASH: "/",
+            TokenType.CARET: "^",
+            TokenType.DOTSTAR: ".*",
+            TokenType.DOTSLASH: "./",
+            TokenType.DOTCARET: ".^",
+        }
+
+        if operator not in operators:
+            raise RuntimeError(
+                f"Unsupported symbolic operator "
+                f"{operator}"
+            )
+
+        return SymbolicValue(
+            f"{self.symbolic_text(left)} "
+            f"{operators[operator]} "
+            f"{self.symbolic_text(right)}"
+        )
+
+    def symbolic_unary_operation(
+        self,
+        operator,
+        value
+    ):
+        if operator == TokenType.PLUS:
+            return value
+
+        if operator == TokenType.MINUS:
+            return SymbolicValue(
+                f"-{self.symbolic_text(value)}"
+            )
+
+        raise RuntimeError(
+            f"Unsupported symbolic unary operator "
+            f"{operator}"
+        )
+
+    def symbolic_text(self, value):
+        if isinstance(value, SymbolicValue):
+            return str(value)
+
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+
+        return str(value)

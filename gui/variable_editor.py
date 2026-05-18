@@ -1,5 +1,7 @@
 import numpy as np
 
+from core.runtime.symbolic import SymbolicValue
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -54,6 +56,16 @@ class VariableEditor(QWidget):
             self.table.setColumnCount(1)
 
             item = QTableWidgetItem(value)
+
+            self.table.setItem(0, 0, item)
+
+            return
+
+        if isinstance(value, SymbolicValue):
+            self.table.setRowCount(1)
+            self.table.setColumnCount(1)
+
+            item = QTableWidgetItem(str(value))
 
             self.table.setItem(0, 0, item)
 

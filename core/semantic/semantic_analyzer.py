@@ -59,6 +59,8 @@ class SemanticAnalyzer:
             "xlabel",
             "ylabel",
             "grid",
+            "sym",
+            "class",
         ]
 
         for func in builtin_functions:
@@ -66,6 +68,8 @@ class SemanticAnalyzer:
 
         for const in IMMUTABLE_CONSTANTS:
             self.global_scope.define(const)
+
+        self.global_scope.define("ans")
 
     def analyze(self, node):
         method_name = (
@@ -266,3 +270,7 @@ class SemanticAnalyzer:
 
     def visit_ReturnNode(self, node):
         self.analyze(node.value)
+
+    def visit_SymsNode(self, node):
+        for name in node.names:
+            self.current_scope.define(name)

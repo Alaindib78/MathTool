@@ -23,6 +23,7 @@
 % 18. Comments
 % 19. Strings
 % 20. Matrix operations
+% 21. Symbolic variables
 %
 % Recommended:
 % - Set breakpoints manually
@@ -193,7 +194,7 @@ print("For loop complete");
 % SECTION 12 — Nested Loops
 % =========================================================
 
-GRID = [0 0 0 0 0;0 0 0 0 0; 0 0 0 0 0; 0 0 0 0 0;0 0 0 0 0];
+GRID = zeros(5);
 
 for r = 1:5
     for c = 1:5
@@ -259,7 +260,28 @@ print("String handling complete");
 
 
 % =========================================================
-% SECTION 16 — Plotting
+% SECTION 16 - Symbolic Variables
+% =========================================================
+
+syms sx
+
+SX_AS_SYMBOL = sx;
+
+sx = 1 / 33;
+SX_NUMERIC_CLASS = class(sx);
+
+sx = sym('1/33');
+SX_EXACT = sx;
+SX_SYMBOLIC_CLASS = class(sx);
+
+class(sx);
+ANS_AFTER_SYMBOLIC_CLASS = ans;
+
+print("Symbolic variables complete");
+
+
+% =========================================================
+% SECTION 17 — Plotting
 % =========================================================
 
 x = 0:0.01:2*pi;
@@ -285,7 +307,7 @@ print("Plotting complete");
 
 
 % =========================================================
-% SECTION 17 — Large Matrix Stress Test
+% SECTION 18 — Large Matrix Stress Test
 % =========================================================
 
 BIG = zeros(50);
@@ -300,7 +322,7 @@ print("Large matrix test complete");
 
 
 % =========================================================
-% SECTION 18 — Workspace Test Variables
+% SECTION 19 — Workspace Test Variables
 % =========================================================
 
 workspace_scalar = 123;
@@ -316,7 +338,7 @@ print("Workspace variables created");
 
 
 % =========================================================
-% SECTION 19 — Debugger Test Section
+% SECTION 20 — Debugger Test Section
 % =========================================================
 % Recommended breakpoint locations:
 %
@@ -344,7 +366,7 @@ print(DBG_SUM);
 
 
 % =========================================================
-% SECTION 20 — Long Running Thread Test
+% SECTION 21 — Long Running Thread Test
 % =========================================================
 % Test:
 % - GUI responsiveness
@@ -362,7 +384,7 @@ print("Long execution test complete");
 
 
 % =========================================================
-% SECTION 21 — Final Summary
+% SECTION 22 — Final Summary
 % =========================================================
 
 FINAL_RESULT = SUM1 + SUM2 + DBG_SUM;

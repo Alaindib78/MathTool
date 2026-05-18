@@ -71,6 +71,23 @@ M(1,1) = 5;
     SemanticAnalyzer().analyze(program)
 
 
+def test_semantic_analyzer_accepts_symbolic_workflow(parse):
+    from core.semantic.semantic_analyzer import SemanticAnalyzer
+
+    program = parse(
+        """
+syms x
+value = x;
+f1 = sym('x');
+kind = class(f1);
+class(f1);
+last = ans;
+"""
+    )
+
+    SemanticAnalyzer().analyze(program)
+
+
 def test_semantic_analyzer_rejects_indexed_assignment_to_undefined_target(parse):
     from core.semantic.semantic_analyzer import SemanticAnalyzer
 
