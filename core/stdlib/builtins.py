@@ -84,6 +84,26 @@ def builtin_sqrt(context,x):
     return np.sqrt(x)
 
 
+def builtin_angle(context, z):
+    return np.angle(z)
+
+
+def builtin_conj(context, z):
+    return np.conj(z)
+
+
+def builtin_imag(context, z):
+    return np.imag(z)
+
+
+def builtin_isreal(context, z):
+    return np.isrealobj(z)
+
+
+def builtin_real(context, z):
+    return np.real(z)
+
+
 def builtin_abs(context,x):
     return np.abs(x)
 
@@ -293,6 +313,11 @@ BUILTIN_FUNCTIONS = {
     "exp": builtin_exp,
 
     "sqrt": builtin_sqrt,
+    "angle": builtin_angle,
+    "conj": builtin_conj,
+    "imag": builtin_imag,
+    "isreal": builtin_isreal,
+    "real": builtin_real,
     "abs": builtin_abs,
 
     "floor": builtin_floor,

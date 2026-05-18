@@ -24,6 +24,7 @@
 % 19. Strings
 % 20. Matrix operations
 % 21. Symbolic variables
+% 22. Complex numbers and helpers
 %
 % Recommended:
 % - Set breakpoints manually
@@ -138,6 +139,48 @@ EV4 = EV2 ./ EV1;
 EV5 = EV1 .^ 2;
 
 print("Element-wise operations complete");
+
+
+% =========================================================
+% SECTION 8B - Complex Numbers
+% =========================================================
+
+IMAG_UNIT_I = i;
+IMAG_UNIT_J = j;
+
+COMPLEX_LITERAL = 1 + 2i;
+COMPLEX_LITERAL_J = 3 - 4j;
+COMPLEX_FROM_FUNCTION = complex(5, -6);
+
+COMPLEX_SQRT = sqrt(-1);
+
+COMPLEX_R = 4;
+COMPLEX_THETA = pi / 4;
+COMPLEX_POLAR = COMPLEX_R * exp(1i * COMPLEX_THETA);
+
+COMPLEX_X = [1:4]';
+COMPLEX_Y = [8:-2:2]';
+COMPLEX_COLUMN = COMPLEX_X + 1i * COMPLEX_Y;
+
+COMPLEX_VECTOR = [1+2i 3-4j];
+
+COMPLEX_PHASE = angle(COMPLEX_LITERAL);
+COMPLEX_PHASE_VECTOR = angle(COMPLEX_VECTOR);
+
+COMPLEX_CONJ = conj(COMPLEX_LITERAL);
+COMPLEX_CONJ_VECTOR = conj(COMPLEX_VECTOR);
+
+COMPLEX_REAL = real(COMPLEX_LITERAL);
+COMPLEX_REAL_VECTOR = real(COMPLEX_VECTOR);
+
+COMPLEX_IMAG = imag(COMPLEX_LITERAL);
+COMPLEX_IMAG_VECTOR = imag(COMPLEX_VECTOR);
+
+COMPLEX_ISREAL_TRUE = isreal([1 2 3]);
+COMPLEX_ISREAL_FALSE = isreal(COMPLEX_VECTOR);
+COMPLEX_ISREAL_STORAGE = isreal(complex(1, 0));
+
+print("Complex numbers complete");
 
 
 % =========================================================

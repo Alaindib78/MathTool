@@ -713,6 +713,26 @@ class Parser:
     def matrix_expression(self):
         start = self.matrix_atom()
 
+        if (
+            self.check(TokenType.PLUS)
+            or self.check(TokenType.MINUS)
+        ):
+            operator = self.peek()
+
+            if self.is_imaginary_literal(
+                self.peek_next()
+            ):
+                self.advance()
+                right = self.matrix_atom()
+
+                return BinaryOpNode(
+                    start,
+                    operator.type,
+                    right,
+                    operator.line,
+                    operator.column
+                )
+
         if self.match(TokenType.COLON):
             middle = self.logical_or()
 
@@ -750,6 +770,13 @@ class Parser:
             )
 
         return self.postfix()
+
+    def is_imaginary_literal(self, token):
+        return (
+            token.type == TokenType.NUMBER
+            and isinstance(token.value, complex)
+            and token.value.real == 0
+        )
 
     def matrix_element(self):
         # Unary minus support

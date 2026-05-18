@@ -17,9 +17,9 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Element-wise operators: `.*`, `./`, `.^` (`.*` requires same-size array operands)
 - Matrix transpose with `'`
 - One-based indexing such as `M(2, 1)`
-- MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, and `exp`
+- MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, `exp`, `angle`, `conj`, `real`, `imag`, and `isreal`
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
-- Built-ins including `sin`, `cos`, `sqrt`, `exp`, `complex`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
+- Built-ins including `sin`, `cos`, `sqrt`, `exp`, `complex`, `angle`, `conj`, `real`, `imag`, `isreal`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
 - Desktop GUI with editor tabs, output console, command window, workspace table, and basic debugging controls
 
 ## Project Structure
@@ -145,6 +145,17 @@ column = x + 1i*y;
 r = 4;
 theta = pi/4;
 polar = r*exp(1i*theta);
+
+phase = angle(z);
+mirror = conj(z);
+parts = [real(z) imag(z)];
+```
+
+`isreal` follows MATLAB's storage-oriented behavior:
+
+```matlab
+isreal([1 2 3]);
+isreal(complex(1, 0));
 ```
 
 Plotting example:

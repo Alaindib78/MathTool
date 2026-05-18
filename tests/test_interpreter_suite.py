@@ -274,6 +274,53 @@ column = x + 1i * y;
     )
 
 
+def test_interpreter_supports_complex_number_helper_functions(execute):
+    _, context = execute(
+        """
+z = 1 + 2i;
+values = [1+2i 3-4j];
+phase = angle(z);
+phases = angle(values);
+z_conj = conj(z);
+values_conj = conj(values);
+z_real = real(z);
+z_imag = imag(z);
+values_real = real(values);
+values_imag = imag(values);
+plain_is_real = isreal([1 2 3]);
+complex_is_real = isreal(values);
+zero_imag_is_real = isreal(complex(1, 0));
+""",
+        analyze=True,
+    )
+
+    assert context.variables["phase"] == pytest.approx(
+        np.angle(1 + 2j)
+    )
+    np.testing.assert_allclose(
+        context.variables["phases"],
+        np.angle(np.array([1 + 2j, 3 - 4j])),
+    )
+    assert context.variables["z_conj"] == 1 - 2j
+    np.testing.assert_allclose(
+        context.variables["values_conj"],
+        np.array([1 - 2j, 3 + 4j]),
+    )
+    assert context.variables["z_real"] == 1
+    assert context.variables["z_imag"] == 2
+    np.testing.assert_array_equal(
+        context.variables["values_real"],
+        np.array([1, 3]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["values_imag"],
+        np.array([2, -4]),
+    )
+    assert context.variables["plain_is_real"] is True
+    assert context.variables["complex_is_real"] is False
+    assert context.variables["zero_imag_is_real"] is False
+
+
 def test_interpreter_supports_implicit_and_explicit_function_returns(execute):
     _, context = execute(
         """
