@@ -25,6 +25,7 @@
 % 20. Matrix operations
 % 21. Symbolic variables
 % 22. Complex numbers and helpers
+% 23. Symbolic solve
 %
 % Recommended:
 % - Set breakpoints manually
@@ -321,6 +322,26 @@ class(sx);
 ANS_AFTER_SYMBOLIC_CLASS = ans;
 
 print("Symbolic variables complete");
+
+
+% =========================================================
+% SECTION 16B - Symbolic Solve
+% =========================================================
+
+syms a b c x
+
+SOLVE_EQN = a*x^2 + b*x + c == 0;
+SOLVE_ROOTS = solve(SOLVE_EQN);
+SOLVE_FOR_A = solve(SOLVE_EQN, a);
+SOLVE_REAL_ONLY = solve(x^2 + 1 == 0, x, Real=true);
+
+syms u v
+
+SOLVE_EQNS = [2*u + v == 0, u - v == 1];
+SOLVE_SYSTEM = solve(SOLVE_EQNS, [u v]);
+SOLVE_VARIABLES = symvar(SOLVE_EQNS);
+
+print("Symbolic solve complete");
 
 
 % =========================================================

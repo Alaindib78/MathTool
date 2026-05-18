@@ -1226,6 +1226,9 @@ class MainWindow(QMainWindow):
             if isinstance(value, SymbolicValue):
                 type_name = "sym"
 
+            if isinstance(value, dict):
+                type_name = "struct"
+
             self.workspace_table.setItem(
                 row,
                 1,

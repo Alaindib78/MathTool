@@ -17,6 +17,7 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    NameValueNode,
     FunctionDeclarationNode,
     ReturnNode,
     SymsNode,
@@ -27,7 +28,11 @@ from core.runtime.user_function import UserFunction
 from core.interpreter.return_exception import ReturnException
 from core.errors.errors import RuntimeError
 from core.runtime.call_stack import CallFrame
-from core.runtime.symbolic import SymbolicValue
+from core.runtime.symbolic import (
+    NameValueOption,
+    SymbolicEquation,
+    SymbolicValue,
+)
 
 class Interpreter:
     def __init__(self, context):
@@ -86,6 +91,12 @@ class Interpreter:
 
     def visit_IdentifierNode(self, node):
         return self.context.get_variable(node.name)
+
+    def visit_NameValueNode(self, node):
+        return NameValueOption(
+            node.name,
+            self.evaluate(node.value)
+        )
 
     def visit_AssignmentNode(self, node):
         value = self.evaluate(node.value)
@@ -587,7 +598,9 @@ class Interpreter:
     ):
         return (
             isinstance(left, SymbolicValue)
+            or isinstance(left, SymbolicEquation)
             or isinstance(right, SymbolicValue)
+            or isinstance(right, SymbolicEquation)
         )
 
     def symbolic_binary_operation(
@@ -606,6 +619,12 @@ class Interpreter:
             TokenType.DOTSLASH: "./",
             TokenType.DOTCARET: ".^",
         }
+
+        if operator == TokenType.EQEQ:
+            return SymbolicEquation(
+                self.symbolic_text(left),
+                self.symbolic_text(right)
+            )
 
         if operator not in operators:
             raise RuntimeError(
@@ -639,6 +658,9 @@ class Interpreter:
 
     def symbolic_text(self, value):
         if isinstance(value, SymbolicValue):
+            return str(value)
+
+        if isinstance(value, SymbolicEquation):
             return str(value)
 
         if isinstance(value, float) and value.is_integer():

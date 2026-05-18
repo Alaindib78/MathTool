@@ -291,6 +291,31 @@ class FunctionCallNode(ASTNode):
             f"arguments={self.arguments})"
         )
 
+
+class NameValueNode(ASTNode):
+    def __init__(
+        self,
+        name,
+        value,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
+        self.name = name
+        self.value = value
+
+    def __repr__(self):
+        return (
+            f"NameValueNode("
+            f"name={self.name}, "
+            f"value={self.value})"
+        )
+
+
 class FunctionDeclarationNode(ASTNode):
     def __init__(
         self,

@@ -2,6 +2,9 @@ import numpy as np
 
 
 def format_value(value):
+    if isinstance(value, dict):
+        return format_struct(value)
+
     if isinstance(value, np.ndarray):
         return format_array(value)
 
@@ -12,6 +15,13 @@ def format_value(value):
         return format_complex(value)
 
     return str(value)
+
+
+def format_struct(value):
+    return "\n".join(
+        f"{key}: {format_value(field_value)}"
+        for key, field_value in value.items()
+    )
 
 
 def format_array(value):

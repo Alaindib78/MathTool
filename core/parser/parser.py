@@ -15,6 +15,7 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    NameValueNode,
     FunctionDeclarationNode,
     ReturnNode,
     SymsNode,
@@ -589,17 +590,7 @@ class Parser:
 
             # Function call
             if self.match(TokenType.LPAREN):
-                arguments = []
-
-                if not self.check(TokenType.RPAREN):
-                    arguments.append(
-                        self.expression()
-                    )
-
-                    while self.match(TokenType.COMMA):
-                        arguments.append(
-                            self.expression()
-                        )
+                arguments = self.function_arguments()
 
                 self.consume(TokenType.RPAREN)
 
@@ -635,6 +626,41 @@ class Parser:
             column=token.column,
             token=token.value,
         )
+
+    def function_arguments(self):
+        arguments = []
+
+        if self.check(TokenType.RPAREN):
+            return arguments
+
+        arguments.append(
+            self.function_argument()
+        )
+
+        while self.match(TokenType.COMMA):
+            arguments.append(
+                self.function_argument()
+            )
+
+        return arguments
+
+    def function_argument(self):
+        if (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek_next().type == TokenType.EQUAL
+        ):
+            name = self.advance()
+            self.consume(TokenType.EQUAL)
+            value = self.expression()
+
+            return NameValueNode(
+                name.value,
+                value,
+                name.line,
+                name.column
+            )
+
+        return self.expression()
     
     def matrix_literal(self):
         rows = []
@@ -649,7 +675,10 @@ class Parser:
             # Matrix element
             # -----------------------------
 
-            value = self.matrix_expression()
+            if self.matrix_element_uses_full_expression():
+                value = self.expression()
+            else:
+                value = self.matrix_expression()
 
             current_row.append(value)
 
@@ -777,6 +806,48 @@ class Parser:
             and isinstance(token.value, complex)
             and token.value.real == 0
         )
+
+    def matrix_element_uses_full_expression(self):
+        depth = 0
+        position = self.position
+
+        while position < len(self.tokens):
+            token_type = self.tokens[position].type
+
+            if token_type in (
+                TokenType.LPAREN,
+                TokenType.LBRACKET,
+            ):
+                depth += 1
+
+            elif token_type in (
+                TokenType.RPAREN,
+                TokenType.RBRACKET,
+            ):
+                if depth == 0:
+                    return False
+
+                depth -= 1
+
+            elif (
+                depth == 0
+                and token_type in (
+                    TokenType.COMMA,
+                    TokenType.SEMICOLON,
+                    TokenType.RBRACKET,
+                )
+            ):
+                return False
+
+            elif (
+                depth == 0
+                and token_type == TokenType.EQEQ
+            ):
+                return True
+
+            position += 1
+
+        return False
 
     def matrix_element(self):
         # Unary minus support

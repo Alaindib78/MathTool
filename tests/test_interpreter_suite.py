@@ -140,6 +140,50 @@ class(f1);
     assert context.variables["ans"] == "sym"
 
 
+def test_interpreter_solves_symbolic_equations_and_systems(execute):
+    _, context = execute(
+        """
+syms a b c x
+eqn = a*x^2 + b*x + c == 0;
+S = solve(eqn);
+Sa = solve(eqn, a);
+real_roots = solve(x^2 + 1 == 0, x, Real=true);
+
+syms u v
+eqns = [2*u + v == 0, u - v == 1];
+Y = solve(eqns, [u v]);
+Y_auto = solve(eqns);
+Y_class = class(Y);
+auto_vars = symvar(eqns);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["eqn"]) == (
+        "a * x ^ 2 + b * x + c == 0"
+    )
+    assert [
+        str(solution)
+        for solution in context.variables["S"]
+    ] == [
+        "(-b - sqrt(-4*a*c + b^2))/(2*a)",
+        "(-b + sqrt(-4*a*c + b^2))/(2*a)",
+    ]
+    assert str(context.variables["Sa"]) == (
+        "(-b*x - c)/x^2"
+    )
+    assert context.variables["real_roots"].size == 0
+    assert str(context.variables["Y"]["u"]) == "1/3"
+    assert str(context.variables["Y"]["v"]) == "-2/3"
+    assert str(context.variables["Y_auto"]["u"]) == "1/3"
+    assert str(context.variables["Y_auto"]["v"]) == "-2/3"
+    assert context.variables["Y_class"] == "struct"
+    assert [
+        str(variable)
+        for variable in context.variables["auto_vars"]
+    ] == ["u", "v"]
+
+
 def test_interpreter_symbolic_variable_can_be_overwritten_by_double(execute):
     _, context = execute(
         """

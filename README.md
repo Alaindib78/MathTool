@@ -19,6 +19,7 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - One-based indexing such as `M(2, 1)`
 - MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, `exp`, `angle`, `conj`, `real`, `imag`, and `isreal`
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
+- Symbolic equation solving with `solve`, `symvar`, and `Name=Value` options such as `Real=true`
 - Built-ins including `sin`, `cos`, `sqrt`, `exp`, `complex`, `angle`, `conj`, `real`, `imag`, `isreal`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
 - Desktop GUI with editor tabs, output console, command window, workspace table, and basic debugging controls
 
@@ -131,6 +132,21 @@ class(x);
 
 x = sym('1/33');
 class(x);
+```
+
+Solve example:
+
+```matlab
+syms a b c x
+eqn = a*x^2 + b*x + c == 0;
+
+S = solve(eqn);
+Sa = solve(eqn, a);
+real_roots = solve(x^2 + 1 == 0, x, Real=true);
+
+syms u v
+eqns = [2*u + v == 0, u - v == 1];
+Y = solve(eqns, [u v]);
 ```
 
 Complex number example:

@@ -68,6 +68,8 @@ class SemanticAnalyzer:
             "sym",
             "class",
             "complex",
+            "solve",
+            "symvar",
         ]
 
         for func in builtin_functions:
@@ -201,6 +203,9 @@ class SemanticAnalyzer:
 
         for arg in node.arguments:
             self.analyze(arg)
+
+    def visit_NameValueNode(self, node):
+        self.analyze(node.value)
 
     # ---------------------------------
     # Control Flow

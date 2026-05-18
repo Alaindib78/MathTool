@@ -72,6 +72,33 @@ class VariableEditor(QWidget):
 
             return
 
+        if isinstance(value, dict):
+            self.table.setRowCount(len(value))
+            self.table.setColumnCount(2)
+            self.table.setHorizontalHeaderLabels(
+                ["Field", "Value"]
+            )
+
+            for row, (key, field_value) in enumerate(
+                value.items()
+            ):
+                self.table.setItem(
+                    row,
+                    0,
+                    QTableWidgetItem(str(key)),
+                )
+                self.table.setItem(
+                    row,
+                    1,
+                    QTableWidgetItem(
+                        format_value(field_value)
+                    ),
+                )
+
+            self.table.resizeColumnsToContents()
+
+            return
+
         # Scalar
         if np.isscalar(value):
             self.table.setRowCount(1)

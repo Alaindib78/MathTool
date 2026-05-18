@@ -1,9 +1,25 @@
 import math
 from pydoc import text
 import numpy as np
+import sympy as sp
+from sympy.parsing.sympy_parser import (
+    convert_xor,
+    parse_expr,
+    standard_transformations,
+)
 
 from core.runtime.formatting import format_value
-from core.runtime.symbolic import SymbolicValue
+from core.runtime.symbolic import (
+    NameValueOption,
+    SymbolicEquation,
+    SymbolicValue,
+)
+
+
+SYMPY_TRANSFORMATIONS = (
+    standard_transformations
+    + (convert_xor,)
+)
 
 
 def builtin_print(context,*args):
@@ -281,8 +297,107 @@ def builtin_complex(context, real, imag=None):
     return result
 
 
+def builtin_symvar(context, value):
+    symbols = sympy_symbols_for(value)
+
+    return np.array(
+        [
+            SymbolicValue(symbol.name)
+            for symbol in symbols
+        ],
+        dtype=object,
+    )
+
+
+def builtin_solve(context, *arguments):
+    positional, options = split_name_value_options(
+        arguments
+    )
+
+    if not positional:
+        raise Exception(
+            "solve requires at least one equation"
+        )
+
+    equations = as_sequence(positional[0])
+    variables = None
+
+    if len(positional) >= 2:
+        variables = [
+            symbol_from_variable(value)
+            for value in as_sequence(positional[1])
+        ]
+    else:
+        symbols = sympy_symbols_for(equations)
+
+        if len(equations) == 1:
+            variables = [preferred_symbol(symbols)]
+        else:
+            variables = symbols
+
+    if len(positional) > 2:
+        raise Exception(
+            "solve accepts equations, variables, and Name=Value options"
+        )
+
+    real_only = bool(
+        options.get("real", False)
+    )
+
+    sympy_equations = [
+        to_sympy_equation(equation)
+        for equation in equations
+    ]
+
+    if len(variables) == 1:
+        solutions = sp.solve(
+            sympy_equations[0]
+            if len(sympy_equations) == 1
+            else sympy_equations,
+            variables[0],
+        )
+
+        if real_only:
+            solutions = [
+                solution
+                for solution in solutions
+                if is_real_solution(solution)
+            ]
+
+        return converted_solution_list(
+            solutions
+        )
+
+    solutions = sp.solve(
+        sympy_equations,
+        variables,
+        dict=True,
+    )
+
+    if real_only:
+        solutions = [
+            solution
+            for solution in solutions
+            if all(
+                is_real_solution(value)
+                for value in solution.values()
+            )
+        ]
+
+    return converted_solution_dict(
+        solutions,
+        variables,
+    )
+
+
 def builtin_class(context, value):
-    if isinstance(value, SymbolicValue):
+    if isinstance(
+        value,
+        (
+            SymbolicValue,
+            SymbolicEquation,
+        )
+    ):
         return "sym"
 
     if isinstance(value, bool):
@@ -294,7 +409,206 @@ def builtin_class(context, value):
     if isinstance(value, str):
         return "char"
 
+    if isinstance(value, dict):
+        return "struct"
+
     return type(value).__name__
+
+
+def split_name_value_options(arguments):
+    positional = []
+    options = {}
+
+    for argument in arguments:
+        if isinstance(argument, NameValueOption):
+            options[argument.name.lower()] = argument.value
+        else:
+            positional.append(argument)
+
+    return positional, options
+
+
+def as_sequence(value):
+    if isinstance(value, np.ndarray):
+        return list(value.flatten())
+
+    if isinstance(value, (list, tuple)):
+        return list(value)
+
+    return [value]
+
+
+def to_sympy_equation(value):
+    if isinstance(value, SymbolicEquation):
+        return sp.Eq(
+            to_sympy_expression(value.left),
+            to_sympy_expression(value.right),
+        )
+
+    expression = to_sympy_expression(value)
+
+    return sp.Eq(expression, 0)
+
+
+def to_sympy_expression(value):
+    if isinstance(value, SymbolicValue):
+        value = value.expression
+
+    if isinstance(value, SymbolicEquation):
+        value = value.expression
+
+    if isinstance(value, bool):
+        return sp.sympify(value)
+
+    if isinstance(value, (int, float, complex, np.number)):
+        return sp.sympify(value)
+
+    text_value = str(value)
+
+    return parse_expr(
+        text_value.replace("^", "**"),
+        transformations=SYMPY_TRANSFORMATIONS,
+        evaluate=True,
+    )
+
+
+def sympy_symbols_for(value):
+    symbols = set()
+
+    for item in as_sequence(value):
+        if isinstance(item, SymbolicEquation):
+            symbols.update(
+                to_sympy_expression(item.left).free_symbols
+            )
+            symbols.update(
+                to_sympy_expression(item.right).free_symbols
+            )
+        else:
+            symbols.update(
+                to_sympy_expression(item).free_symbols
+            )
+
+    return sorted(
+        symbols,
+        key=symbol_sort_key,
+    )
+
+
+def symbol_sort_key(symbol):
+    preferred_names = [
+        "x",
+        "y",
+        "z",
+        "t",
+    ]
+
+    if symbol.name in preferred_names:
+        return (
+            0,
+            preferred_names.index(symbol.name),
+        )
+
+    return (
+        1,
+        symbol.name,
+    )
+
+
+def preferred_symbol(symbols):
+    if not symbols:
+        raise Exception(
+            "Unable to determine variable to solve for"
+        )
+
+    return sorted(
+        symbols,
+        key=symbol_sort_key,
+    )[0]
+
+
+def symbol_from_variable(value):
+    if isinstance(value, SymbolicValue):
+        return sp.Symbol(value.expression)
+
+    if isinstance(value, str):
+        return sp.Symbol(value)
+
+    raise Exception(
+        "solve variables must be symbolic variables"
+    )
+
+
+def is_real_solution(value):
+    real_state = sp.simplify(value).is_real
+
+    return real_state is not False
+
+
+def converted_solution_list(solutions):
+    converted = [
+        from_sympy_value(solution)
+        for solution in solutions
+    ]
+
+    if len(converted) == 1:
+        return converted[0]
+
+    return np.array(
+        converted,
+        dtype=object,
+    )
+
+
+def converted_solution_dict(
+    solutions,
+    variables,
+):
+    if not solutions:
+        return {
+            variable.name: np.array(
+                [],
+                dtype=object,
+            )
+            for variable in variables
+        }
+
+    result = {}
+
+    for variable in variables:
+        values = [
+            from_sympy_value(
+                solution[variable]
+            )
+            for solution in solutions
+            if variable in solution
+        ]
+
+        if len(values) == 1:
+            result[variable.name] = values[0]
+        else:
+            result[variable.name] = np.array(
+                values,
+                dtype=object,
+            )
+
+    return result
+
+
+def from_sympy_value(value):
+    value = sp.simplify(value)
+
+    return SymbolicValue(
+        sympy_text(value)
+    )
+
+
+def sympy_text(value):
+    text_value = sp.sstr(value)
+    text_value = text_value.replace("**", "^")
+    text_value = text_value.replace("I", "1i")
+
+    return text_value
+
 
 BUILTIN_FUNCTIONS = {
     "print": builtin_print,
@@ -346,4 +660,6 @@ BUILTIN_FUNCTIONS = {
     "sym": builtin_sym,
     "class": builtin_class,
     "complex": builtin_complex,
+    "solve": builtin_solve,
+    "symvar": builtin_symvar,
 }
