@@ -30,6 +30,8 @@ from PySide6.QtGui import (
     QIcon,
     QFont,
     QColor,
+    QTextCursor,
+    QTextCharFormat,
 )
 
 from PySide6.QtCore import Qt, QSize
@@ -922,7 +924,12 @@ class MainWindow(QMainWindow):
 
         self.debugger.stop_session()
 
-        self.console.appendPlainText(message)
+        if message:
+            self.insert_output_text(
+                self.console,
+                message + "\n",
+                "error",
+            )
 
         self.refresh_workspace()
 
@@ -1597,16 +1604,60 @@ class MainWindow(QMainWindow):
             hasattr(self, "command_window")
             and self.command_window.hasFocus()
         ):
-            self.command_window.insertPlainText(
+            self.insert_output_text(
+                self.command_window,
                 text
             )
 
-            self.command_window.insertPlainText(
-                "\n"
+        else:
+            self.insert_output_text(
+                self.console,
+                text
             )
 
+    def insert_output_text(self, widget, text, message_type=None):
+        widget.moveCursor(QTextCursor.End)
+
+        cursor = widget.textCursor()
+        cursor.setCharFormat(QTextCharFormat())
+
+        text_format = self.output_text_format(
+            text,
+            message_type,
+        )
+
+        if text_format is None:
+            cursor.insertText(text)
         else:
-            self.console.appendPlainText(text)
+            cursor.insertText(text, text_format)
+
+        cursor.setCharFormat(QTextCharFormat())
+        widget.setTextCursor(cursor)
+
+    def output_text_format(self, text, message_type=None):
+        stripped = str(text).lstrip()
+
+        if (
+            message_type == "warning"
+            or stripped.startswith("Warning:")
+        ):
+            text_format = QTextCharFormat()
+            text_format.setForeground(
+                QColor("#FFA500")
+            )
+            return text_format
+
+        if (
+            message_type == "error"
+            or stripped.startswith("Error:")
+        ):
+            text_format = QTextCharFormat()
+            text_format.setForeground(
+                QColor("#FF4D4D")
+            )
+            return text_format
+
+        return None
 
     def show_output_context_menu(self, position):
         menu = self.console.createStandardContextMenu()

@@ -20,12 +20,12 @@ s1 =  sum_cubes(N);
 s2 = (sum1(N))^2;
 
 if s1 == s2
-    print("The theroem stands");
-    print(s1);
+    disp("The theroem stands");
+    disp(s1);
 else
-	print("The theory is no good");
-	print(s1);
-	print(s2);
+	disp("The theory is no good");
+	disp(s1);
+	disp(s2);
 end
 
     

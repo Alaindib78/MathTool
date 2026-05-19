@@ -389,20 +389,47 @@ B = first_positive(9);
     assert context.call_stack.format_stack() == ""
 
 
-def test_interpreter_sends_print_output_to_callback(execute):
+def test_interpreter_sends_console_output_to_callback(execute):
     context = RuntimeContext()
     output = []
     context.output_callback = output.append
 
     execute(
         """
-print("answer", 42);
-println("done");
+disp("answer");
+fprintf("count=%d pi=%.2f\\n", 42, pi);
+warning("value %.1f is unusually high", 9.5);
 """,
         context=context,
     )
 
-    assert output == ["answer 42.0", "done"]
+    assert output == [
+        "answer\n",
+        "count=42 pi=3.14\n",
+        "Warning: value 9.5 is unusually high\n",
+    ]
+
+
+def test_interpreter_error_aborts_execution(execute):
+    context = RuntimeContext()
+    output = []
+    context.output_callback = output.append
+
+    with pytest.raises(Exception) as raised:
+        execute(
+            """
+error("File %s not found after %d attempts", "data.csv", 3);
+A = 1;
+""",
+            context=context,
+        )
+
+    assert output == [
+        "Error: File data.csv not found after 3 attempts\n"
+    ]
+    assert str(raised.value) == (
+        "Error: File data.csv not found after 3 attempts"
+    )
 
 
 def test_interpreter_raises_domain_runtime_errors(execute):

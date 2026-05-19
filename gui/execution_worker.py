@@ -68,7 +68,10 @@ class ExecutionWorker(QObject):
             self.finished.emit(result)
 
         except Exception as e:
-            self.error.emit(str(e))
+            if getattr(e, "already_reported", False):
+                self.error.emit("")
+            else:
+                self.error.emit(str(e))
 
         finally:
             self.interpreter.context.output_callback = (

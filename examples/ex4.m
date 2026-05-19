@@ -11,4 +11,4 @@ end
 
 
 
-print(pgcd(55, 21));
+disp(pgcd(55, 21));

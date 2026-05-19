@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import (
     QTextCursor,
     QFont,
+    QColor,
+    QTextCharFormat,
 )
 
 from PySide6.QtCore import Qt
@@ -218,13 +220,15 @@ class CommandWindow(QPlainTextEdit):
                     )
 
             except Exception as e:
-                self.insertPlainText(
-                    str(e)
-                )
-
-                self.insertPlainText(
-                    "\n"
-                )
+                if not getattr(
+                    e,
+                    "already_reported",
+                    False,
+                ):
+                    self.insert_output_text(
+                        str(e) + "\n",
+                        "error",
+                    )
 
         # ---------------------------------
         # Insert next prompt
@@ -329,6 +333,54 @@ class CommandWindow(QPlainTextEdit):
         self.prompt_position = (
             self.textCursor().position()
         )
+
+    def insert_output_text(self, text, message_type=None):
+        cursor = self.textCursor()
+        cursor.movePosition(
+            QTextCursor.End
+        )
+
+        self.setTextCursor(cursor)
+
+        text_format = self.output_text_format(
+            text,
+            message_type,
+        )
+
+        cursor.setCharFormat(QTextCharFormat())
+
+        if text_format is None:
+            cursor.insertText(text)
+        else:
+            cursor.insertText(text, text_format)
+
+        cursor.setCharFormat(QTextCharFormat())
+        self.setTextCursor(cursor)
+
+    def output_text_format(self, text, message_type=None):
+        stripped = str(text).lstrip()
+
+        if (
+            message_type == "warning"
+            or stripped.startswith("Warning:")
+        ):
+            text_format = QTextCharFormat()
+            text_format.setForeground(
+                QColor("#FFA500")
+            )
+            return text_format
+
+        if (
+            message_type == "error"
+            or stripped.startswith("Error:")
+        ):
+            text_format = QTextCharFormat()
+            text_format.setForeground(
+                QColor("#FF4D4D")
+            )
+            return text_format
+
+        return None
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)

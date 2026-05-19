@@ -14,6 +14,12 @@ from core.runtime.symbolic import (
     SymbolicEquation,
     SymbolicValue,
 )
+from core.stdlib.console import (
+    disp,
+    error as console_error,
+    fprintf,
+    warning,
+)
 
 
 SYMPY_TRANSFORMATIONS = (
@@ -22,30 +28,46 @@ SYMPY_TRANSFORMATIONS = (
 )
 
 
-def builtin_print(context,*args):
-    text = " ".join(
-        format_value(arg)
-        for arg in args
+def builtin_disp(context, *args):
+    if len(args) != 1:
+        raise Exception(
+            "disp expects exactly 1 argument"
+        )
+
+    disp(
+        args[0],
+        output_callback=context.output_callback,
     )
 
-    if context.output_callback:
-        context.output_callback(text)
-    else:
-        print(text)
     return None
 
 
-def builtin_println(context,*args):
-    text = " ".join(
-        format_value(arg)
-        for arg in args
+def builtin_fprintf(context, format_string, *args):
+    fprintf(
+        format_string,
+        *args,
+        output_callback=context.output_callback,
     )
 
-    if context.output_callback:
-        context.output_callback(text)
-    else:
-        print(text)
     return None
+
+
+def builtin_warning(context, message, *args):
+    warning(
+        message,
+        *args,
+        output_callback=context.output_callback,
+    )
+
+    return None
+
+
+def builtin_error(context, message, *args):
+    console_error(
+        message,
+        *args,
+        output_callback=context.output_callback,
+    )
 
 
 def builtin_sin(context,x):
@@ -611,8 +633,10 @@ def sympy_text(value):
 
 
 BUILTIN_FUNCTIONS = {
-    "print": builtin_print,
-    "println": builtin_println,
+    "disp": builtin_disp,
+    "fprintf": builtin_fprintf,
+    "warning": builtin_warning,
+    "error": builtin_error,
 
     "sin": builtin_sin,
     "cos": builtin_cos,

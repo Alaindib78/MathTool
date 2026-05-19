@@ -46,7 +46,7 @@ E = A * B;
 F = A / B;
 G = A ^ 2;
 
-print("Basic arithmetic complete");
+disp("Basic arithmetic complete");
 
 
 % =========================================================
@@ -56,7 +56,7 @@ print("Basic arithmetic complete");
 N1 = -5;
 N2 = +10;
 
-print("Unary operators complete");
+disp("Unary operators complete");
 
 
 % =========================================================
@@ -71,7 +71,7 @@ L5 = (A > 1) && (B < 10);
 L6 = (A < 1) || (B < 10);
 L7 = ~(A < B);
 
-print("Logical expressions complete");
+disp("Logical expressions complete");
 
 
 % =========================================================
@@ -87,7 +87,7 @@ M3 = [1 2 3;
 M4 = zeros(3);
 M5 = ones(2);
 
-print("Matrix creation complete");
+disp("Matrix creation complete");
 
 
 % =========================================================
@@ -97,7 +97,7 @@ print("Matrix creation complete");
 T1 = M1';
 T2 = M3';
 
-print("Transpose complete");
+disp("Transpose complete");
 
 
 % =========================================================
@@ -108,7 +108,7 @@ R1 = 1:10;
 R2 = 0:0.5:5;
 R3 = -5:1:5;
 
-print("Range expressions complete");
+disp("Range expressions complete");
 
 
 % =========================================================
@@ -125,7 +125,7 @@ MX3 = MX1 + MX2;
 MX4 = MX1 - MX2;
 MX5 = MX1 * MX2;
 
-print("Matrix arithmetic complete");
+disp("Matrix arithmetic complete");
 
 
 % =========================================================
@@ -139,7 +139,7 @@ EV3 = EV1 .* EV2;
 EV4 = EV2 ./ EV1;
 EV5 = EV1 .^ 2;
 
-print("Element-wise operations complete");
+disp("Element-wise operations complete");
 
 
 % =========================================================
@@ -181,7 +181,7 @@ COMPLEX_ISREAL_TRUE = isreal([1 2 3]);
 COMPLEX_ISREAL_FALSE = isreal(COMPLEX_VECTOR);
 COMPLEX_ISREAL_STORAGE = isreal(complex(1, 0));
 
-print("Complex numbers complete");
+disp("Complex numbers complete");
 
 
 % =========================================================
@@ -203,7 +203,7 @@ else
     RESULT = 2;
 end
 
-print("If statement complete");
+disp("If statement complete");
 
 
 % =========================================================
@@ -218,7 +218,7 @@ while COUNT < 10
     SUM1 = SUM1 + COUNT;
 end
 
-print("While loop complete");
+disp("While loop complete");
 
 
 % =========================================================
@@ -231,7 +231,7 @@ for i = 1:20
     SUM2 = SUM2 + i;
 end
 
-print("For loop complete");
+disp("For loop complete");
 
 
 % =========================================================
@@ -246,7 +246,7 @@ for r = 1:5
     end
 end
 
-print("Nested loops complete");
+disp("Nested loops complete");
 
 
 % =========================================================
@@ -272,7 +272,7 @@ ADD1 = add(10, 20);
 
 AVG1 = average(5, 15);
 
-print("Functions complete");
+disp("Functions complete");
 
 
 % =========================================================
@@ -285,7 +285,7 @@ for i = 1:100
     TEMP = TEMP + sin(i);
 end
 
-print("Stress loop complete");
+disp("Stress loop complete");
 
 
 % =========================================================
@@ -296,11 +296,11 @@ STR1 = "Hello";
 STR2 = "MathTool";
 STR3 = "Debugger Test";
 
-print(STR1);
-print(STR2);
-print(STR3);
+disp(STR1);
+disp(STR2);
+disp(STR3);
 
-print("String handling complete");
+disp("String handling complete");
 
 
 % =========================================================
@@ -321,7 +321,7 @@ SX_SYMBOLIC_CLASS = class(sx);
 class(sx);
 ANS_AFTER_SYMBOLIC_CLASS = ans;
 
-print("Symbolic variables complete");
+disp("Symbolic variables complete");
 
 
 % =========================================================
@@ -341,7 +341,7 @@ SOLVE_EQNS = [2*u + v == 0, u - v == 1];
 SOLVE_SYSTEM = solve(SOLVE_EQNS, [u v]);
 SOLVE_VARIABLES = symvar(SOLVE_EQNS);
 
-print("Symbolic solve complete");
+disp("Symbolic solve complete");
 
 
 % =========================================================
@@ -367,7 +367,7 @@ xlabel("x");
 ylabel("cos(x)");
 grid(true);
 
-print("Plotting complete");
+disp("Plotting complete");
 
 
 % =========================================================
@@ -382,7 +382,7 @@ for r = 1:50
     end
 end
 
-print("Large matrix test complete");
+disp("Large matrix test complete");
 
 
 % =========================================================
@@ -398,7 +398,7 @@ workspace_matrix = [1 2;
 
 workspace_string = "Workspace Test";
 
-print("Workspace variables created");
+disp("Workspace variables created");
 
 
 % =========================================================
@@ -426,7 +426,7 @@ for i = 1:10
     DBG_SUM = DBG_SUM + i;
 end
 
-print(DBG_SUM);
+disp(DBG_SUM);
 
 
 % =========================================================
@@ -444,7 +444,7 @@ for i = 1:500000
     LONG_COUNTER = LONG_COUNTER + 1;
 end
 
-print("Long execution test complete");
+disp("Long execution test complete");
 
 
 % =========================================================
@@ -453,7 +453,7 @@ print("Long execution test complete");
 
 FINAL_RESULT = SUM1 + SUM2 + DBG_SUM;
 
-print("================================");
-print("ALL TESTS COMPLETED");
-print(FINAL_RESULT);
-print("================================");
+disp("================================");
+disp("ALL TESTS COMPLETED");
+disp(FINAL_RESULT);
+disp("================================");

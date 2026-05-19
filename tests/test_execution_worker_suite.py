@@ -11,7 +11,7 @@ def test_execution_worker_routes_output_through_signal_and_restores_callback():
     context.output_callback = original_callback
 
     worker = ExecutionWorker(
-        'print("hello");\nA = 1 + 2;',
+        'disp("hello");\nA = 1 + 2;',
         SemanticAnalyzer(),
         Interpreter(context),
     )
@@ -29,7 +29,7 @@ def test_execution_worker_routes_output_through_signal_and_restores_callback():
 
     worker.run()
 
-    assert output == ["hello"]
+    assert output == ["hello\n"]
     assert original_output == []
     assert finished == [3.0]
     assert errors == []
@@ -60,3 +60,25 @@ def test_execution_worker_emits_errors_and_restores_callback():
     assert len(errors) == 1
     assert "Division by zero" in errors[0]
     assert context.output_callback is original_callback
+
+
+def test_execution_worker_routes_reported_error_once():
+    context = RuntimeContext()
+
+    worker = ExecutionWorker(
+        'error("File %s missing", "data.csv");',
+        SemanticAnalyzer(),
+        Interpreter(context),
+    )
+    output = []
+    errors = []
+
+    worker.output.connect(output.append)
+    worker.error.connect(errors.append)
+
+    worker.run()
+
+    assert output == [
+        "Error: File data.csv missing\n"
+    ]
+    assert errors == [""]

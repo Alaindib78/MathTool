@@ -13,8 +13,8 @@ end
 % First Tab
 A = 9^(0.5);
 B = cos(A);
-print(A);
+disp(A);
 
 C = atan2(1, 1);
-print(C);
+disp(C);
 

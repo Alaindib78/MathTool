@@ -85,6 +85,13 @@ class REPL:
                 break
 
             except Exception as e:
+                if getattr(
+                    e,
+                    "already_reported",
+                    False,
+                ):
+                    continue
+
                 print()
 
                 print(e)

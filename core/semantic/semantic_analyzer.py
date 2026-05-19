@@ -26,8 +26,10 @@ class SemanticAnalyzer:
 
     def load_builtins(self):
         builtin_functions = [
-            "print",
-            "println",
+            "disp",
+            "fprintf",
+            "warning",
+            "error",
             "sin",
             "cos",
             "tan",

@@ -5,9 +5,9 @@ M2 = [1; -1];
 M3 = eye(3);
 TM1 = M1' * M2;
 
-print(TM1);
+disp(TM1);
 
 iM = inv(M1);
-print(iM);
-print(M3);
-print(M1 * iM);
+disp(iM);
+disp(M3);
+disp(M1 * iM);
