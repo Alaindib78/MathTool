@@ -277,6 +277,49 @@ o2 = ones(2, 4);
     np.testing.assert_array_equal(context.variables["o2"], np.ones((2, 4)))
 
 
+def test_interpreter_supports_engineering_numpy_inspired_builtins(execute):
+    _, context = execute(
+        """
+t = linspace(0, 1, 5);
+A = reshape(1:4, 2, 2);
+stats_prod = prod(1:4);
+stats_median = median(1:4);
+stats_p50 = percentile(1:4, 50);
+x = linsolve([3 1; 1 2], [9; 8]);
+p = polyval([1 0 -1], 3);
+f = fft([1 0 0 0]);
+round_trip = allclose(ifft(f), [1 0 0 0]);
+r = roots([1 0 -1]);
+"""
+    )
+
+    np.testing.assert_allclose(
+        context.variables["t"],
+        np.linspace(0, 1, 5),
+    )
+    np.testing.assert_array_equal(
+        context.variables["A"],
+        np.array([[1, 2], [3, 4]]),
+    )
+    assert context.variables["stats_prod"] == 24
+    assert context.variables["stats_median"] == 2.5
+    assert context.variables["stats_p50"] == 2.5
+    np.testing.assert_allclose(
+        context.variables["x"],
+        np.array([[2], [3]]),
+    )
+    assert context.variables["p"] == 8
+    np.testing.assert_allclose(
+        context.variables["f"],
+        np.array([1, 1, 1, 1]),
+    )
+    assert context.variables["round_trip"] is True
+    np.testing.assert_allclose(
+        np.sort(context.variables["r"]),
+        np.array([-1, 1]),
+    )
+
+
 def test_interpreter_supports_matlab_style_complex_numbers(execute):
     _, context = execute(
         """
@@ -430,6 +473,34 @@ A = 1;
     assert str(raised.value) == (
         "Error: File data.csv not found after 3 attempts"
     )
+
+
+def test_interpreter_supports_help_command_and_function_call(execute):
+    result, _ = execute("help eig;")
+
+    assert "Definition: Eigenvalue decomposition" in result
+    assert "Syntax:" in result
+    assert "eig(A)" in result
+    assert "Inputs:" in result
+    assert "Output:" in result
+    assert "Options:" in result
+
+    result, _ = execute("help('linspace');")
+
+    assert "Create linearly spaced points" in result
+    assert "linspace(start, stop, num)" in result
+
+    context = RuntimeContext()
+    output = []
+    context.output_callback = output.append
+
+    result, _ = execute(
+        "help missing_topic;",
+        context=context,
+    )
+
+    assert result is None
+    assert "No help available for 'missing_topic'." in output[0]
 
 
 def test_interpreter_raises_domain_runtime_errors(execute):

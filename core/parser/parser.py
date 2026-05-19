@@ -69,6 +69,9 @@ class Parser:
         if self.is_syms_statement():
             return self.syms_statement()
 
+        if self.is_help_statement():
+            return self.help_statement()
+
         # Assignment
         if self.is_assignment_start():
             return self.assignment()
@@ -330,6 +333,56 @@ class Parser:
             names,
             command.line,
             command.column
+        )
+
+    def help_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        arguments = []
+
+        if (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek().line == command.line
+        ):
+            topic = self.advance()
+            arguments.append(
+                StringNode(
+                    topic.value,
+                    topic.line,
+                    topic.column,
+                )
+            )
+        elif (
+            self.check(TokenType.STRING)
+            and self.peek().line == command.line
+        ):
+            topic = self.advance()
+            arguments.append(
+                StringNode(
+                    topic.value,
+                    topic.line,
+                    topic.column,
+                )
+            )
+        elif (
+            self.peek().line == command.line
+            and not self.check(TokenType.SEMICOLON)
+            and not self.is_at_end()
+        ):
+            token = self.peek()
+
+            raise ParserError(
+                "Expected help topic",
+                line=token.line,
+                column=token.column,
+                token=token.value,
+            )
+
+        return FunctionCallNode(
+            "help",
+            arguments,
+            command.line,
+            command.column,
         )
     
     def function_declaration(self):
@@ -914,6 +967,14 @@ class Parser:
             self.peek().type == TokenType.IDENTIFIER
             and self.peek().value == "syms"
             and self.peek_next().type == TokenType.IDENTIFIER
+            and self.peek_next().type != TokenType.EQUAL
+        )
+
+    def is_help_statement(self):
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "help"
+            and self.peek_next().type != TokenType.LPAREN
             and self.peek_next().type != TokenType.EQUAL
         )
 

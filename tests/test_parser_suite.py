@@ -123,6 +123,17 @@ x;
     assert len(program.statements) == 2
 
 
+def test_parser_builds_help_command_statement(parse):
+    program = parse("help eig;")
+
+    call = program.statements[0]
+
+    assert isinstance(call, FunctionCallNode)
+    assert call.name == "help"
+    assert len(call.arguments) == 1
+    assert call.arguments[0].value == "eig"
+
+
 def test_parser_raises_on_incomplete_expression():
     tokens = Lexer("A = (1 + 2;").tokenize()
     parser = Parser(tokens)

@@ -20,7 +20,8 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, `exp`, `angle`, `conj`, `real`, `imag`, and `isreal`
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
 - Symbolic equation solving with `solve`, `symvar`, and `Name=Value` options such as `Real=true`
-- Built-ins including `disp`, `fprintf`, `warning`, `error`, `sin`, `cos`, `sqrt`, `exp`, `complex`, `angle`, `conj`, `real`, `imag`, `isreal`, `zeros`, `ones`, `length`, `plot`, `title`, `xlabel`, `ylabel`, and `grid`
+- Built-ins including console utilities (`disp`, `fprintf`, `warning`, `error`), engineering math, array construction/shape helpers, reductions/statistics, linear algebra, FFT, polynomial utilities, interpolation/integration helpers, plotting, symbolic math, and complex-number utilities
+- Built-in help with `help`, `help eig`, or `help("eig")`
 - Desktop GUI with editor tabs, output console, command window, workspace table, and basic debugging controls
 
 ## Project Structure
@@ -72,6 +73,8 @@ The REPL supports normal MathTool statements and simple commands:
 ```text
 who
 clear
+help
+help eig
 exit
 ```
 

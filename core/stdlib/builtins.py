@@ -20,6 +20,7 @@ from core.stdlib.console import (
     fprintf,
     warning,
 )
+from core.stdlib.help_text import format_help
 
 
 SYMPY_TRANSFORMATIONS = (
@@ -70,6 +71,16 @@ def builtin_error(context, message, *args):
     )
 
 
+def builtin_help(context, topic=None):
+    text = format_help(topic)
+
+    if context.output_callback is not None:
+        context.output_callback(text + "\n")
+        return None
+
+    return text
+
+
 def builtin_sin(context,x):
     return np.sin(x)
 
@@ -92,6 +103,34 @@ def builtin_acos(context,x):
 def builtin_atan(context,x):
     return np.arctan(x)
 
+
+def builtin_atan2(context, y, x):
+    return np.arctan2(y, x)
+
+
+def builtin_sinh(context, x):
+    return np.sinh(x)
+
+
+def builtin_cosh(context, x):
+    return np.cosh(x)
+
+
+def builtin_tanh(context, x):
+    return np.tanh(x)
+
+
+def builtin_asinh(context, x):
+    return np.arcsinh(x)
+
+
+def builtin_acosh(context, x):
+    return np.arccosh(x)
+
+
+def builtin_atanh(context, x):
+    return np.arctanh(x)
+
 def builtin_log(context,x):
     return np.log(x)
 
@@ -99,8 +138,16 @@ def builtin_log10(context,x):
     return np.log10(x)
 
 
+def builtin_log2(context, x):
+    return np.log2(x)
+
+
 def builtin_exp(context,x):
     return np.exp(x)
+
+
+def builtin_expm1(context, x):
+    return np.expm1(x)
 
 
 def builtin_sqrt(context,x):
@@ -151,36 +198,109 @@ def builtin_floor(context,x):
 def builtin_ceil(context,x):
     return np.ceil(x)
 
-def builtin_round(context,x):
-    return np.round(x)
+def builtin_round(context, x, decimals=0):
+    return np.round(x, int(decimals))
+
+
+def builtin_fix(context, x):
+    return np.fix(x)
+
+
+def builtin_clip(context, x, lower, upper):
+    return np.clip(x, lower, upper)
+
+
+def builtin_deg2rad(context, x):
+    return np.deg2rad(x)
+
+
+def builtin_rad2deg(context, x):
+    return np.rad2deg(x)
 
 def builtin_sign(context,x):
-    return np.sign(x)   
-
-def builtin_zeros(context, rows, cols=None):
-    rows = int(rows)
-
-    if cols is None:
-        cols = rows
-    else:
-        cols = int(cols)
-
-    return np.zeros((rows, cols))
-
-
-def builtin_ones(context, rows, cols=None):
-    rows = int(rows)
-
-    if cols is None:
-        cols = rows
-    else:
-        cols = int(cols)
-
-    return np.ones((rows, cols))
-
+    return np.sign(x)
 
 def _as_array(value):
     return np.asarray(value)
+
+
+def _normalize_result(value):
+    if isinstance(value, np.generic):
+        return value.item()
+
+    array = np.asarray(value)
+
+    if array.ndim == 0:
+        return array.item()
+
+    return value
+
+
+def _axis_from_dim(dim):
+    axis = int(dim) - 1
+
+    if axis < 0:
+        raise Exception("Dimension must be positive")
+
+    return axis
+
+
+def _shape_from_dimensions(
+    dimensions,
+    *,
+    square_single_scalar=False,
+):
+    if len(dimensions) == 1:
+        first = dimensions[0]
+
+        if isinstance(first, np.ndarray):
+            values = first.flatten().tolist()
+        elif isinstance(first, (list, tuple)):
+            values = list(first)
+        else:
+            value = int(first)
+
+            if square_single_scalar:
+                return (value, value)
+
+            return (value,)
+
+        return tuple(int(value) for value in values)
+
+    return tuple(int(value) for value in dimensions)
+
+
+def _first_nonsingleton_axis(array):
+    for axis, size in enumerate(array.shape):
+        if size > 1:
+            return axis
+
+    return 0
+
+
+def _random_generator(context):
+    if not hasattr(context, "random_generator"):
+        context.random_generator = np.random.default_rng()
+
+    return context.random_generator
+
+
+def builtin_zeros(context, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    return np.zeros(shape)
+
+
+def builtin_ones(context, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    return np.ones(shape)
 
 
 def builtin_eye(context, rows, cols=None):
@@ -214,10 +334,7 @@ def builtin_size(context, value, dim=None):
     array = _as_array(value)
 
     if dim is not None:
-        axis = int(dim) - 1
-
-        if axis < 0:
-            raise Exception("Dimension must be positive")
+        axis = _axis_from_dim(dim)
 
         if array.ndim == 0:
             return 1 if axis == 0 else 1
@@ -237,40 +354,477 @@ def builtin_sum(context, value, dim=None):
     array = _as_array(value)
 
     if dim is None:
-        return np.sum(array)
+        return _normalize_result(np.sum(array))
 
-    return np.sum(array, axis=int(dim) - 1)
+    return _normalize_result(
+        np.sum(array, axis=_axis_from_dim(dim))
+    )
 
 
 def builtin_mean(context, value, dim=None):
     array = _as_array(value)
 
     if dim is None:
-        return np.mean(array)
+        return _normalize_result(np.mean(array))
 
-    return np.mean(array, axis=int(dim) - 1)
+    return _normalize_result(
+        np.mean(array, axis=_axis_from_dim(dim))
+    )
 
 
 def builtin_max(context, value, dim=None):
     array = _as_array(value)
 
     if dim is None:
-        return np.max(array)
+        return _normalize_result(np.max(array))
 
-    return np.max(array, axis=int(dim) - 1)
+    return _normalize_result(
+        np.max(array, axis=_axis_from_dim(dim))
+    )
 
 
 def builtin_min(context, value, dim=None):
     array = _as_array(value)
 
     if dim is None:
-        return np.min(array)
+        return _normalize_result(np.min(array))
 
-    return np.min(array, axis=int(dim) - 1)
+    return _normalize_result(
+        np.min(array, axis=_axis_from_dim(dim))
+    )
 
 
 def builtin_length(context,x):
-    return len(x)
+    array = _as_array(x)
+
+    if array.ndim == 0:
+        return 1
+
+    return int(max(array.shape))
+
+
+def builtin_numel(context, value):
+    return int(_as_array(value).size)
+
+
+def builtin_ndims(context, value):
+    return int(_as_array(value).ndim)
+
+
+def builtin_isempty(context, value):
+    return bool(_as_array(value).size == 0)
+
+
+def builtin_linspace(context, start, stop, num=100):
+    return np.linspace(start, stop, int(num))
+
+
+def builtin_logspace(context, start, stop, num=50):
+    return np.logspace(start, stop, int(num))
+
+
+def builtin_arange(context, start, stop=None, step=1):
+    if stop is None:
+        return np.arange(start)
+
+    return np.arange(start, stop, step)
+
+
+def builtin_zeros_like(context, value):
+    return np.zeros_like(_as_array(value))
+
+
+def builtin_ones_like(context, value):
+    return np.ones_like(_as_array(value))
+
+
+def builtin_rand(context, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    result = _random_generator(context).random(shape)
+
+    return _normalize_result(result)
+
+
+def builtin_randn(context, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    result = _random_generator(context).standard_normal(shape)
+
+    return _normalize_result(result)
+
+
+def builtin_randi(context, high, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    result = _random_generator(context).integers(
+        1,
+        int(high) + 1,
+        size=shape if shape else None,
+    )
+
+    return _normalize_result(result)
+
+
+def builtin_rng(context, seed=None):
+    if seed is None:
+        context.random_generator = np.random.default_rng()
+    else:
+        context.random_generator = np.random.default_rng(
+            int(seed)
+        )
+
+    return None
+
+
+def builtin_reshape(context, value, *dimensions):
+    shape = _shape_from_dimensions(dimensions)
+
+    return np.reshape(_as_array(value), shape)
+
+
+def builtin_transpose(context, value):
+    return np.transpose(_as_array(value))
+
+
+def builtin_flatten(context, value):
+    return _as_array(value).flatten()
+
+
+def builtin_diag(context, value, k=0):
+    return np.diag(_as_array(value), int(k))
+
+
+def builtin_tril(context, value, k=0):
+    return np.tril(_as_array(value), int(k))
+
+
+def builtin_triu(context, value, k=0):
+    return np.triu(_as_array(value), int(k))
+
+
+def builtin_sort(context, value, dim=None):
+    axis = -1 if dim is None else _axis_from_dim(dim)
+
+    return np.sort(_as_array(value), axis=axis)
+
+
+def builtin_unique(context, value):
+    return np.unique(_as_array(value))
+
+
+def builtin_find(context, value):
+    return np.flatnonzero(_as_array(value)) + 1
+
+
+def builtin_prod(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return _normalize_result(np.prod(array))
+
+    return _normalize_result(
+        np.prod(array, axis=_axis_from_dim(dim))
+    )
+
+
+def builtin_median(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return _normalize_result(np.median(array))
+
+    return _normalize_result(
+        np.median(array, axis=_axis_from_dim(dim))
+    )
+
+
+def builtin_std(context, value, dim=None, ddof=0):
+    array = _as_array(value)
+
+    if dim is None:
+        return _normalize_result(
+            np.std(array, ddof=int(ddof))
+        )
+
+    return _normalize_result(
+        np.std(
+            array,
+            axis=_axis_from_dim(dim),
+            ddof=int(ddof),
+        )
+    )
+
+
+def builtin_var(context, value, dim=None, ddof=0):
+    array = _as_array(value)
+
+    if dim is None:
+        return _normalize_result(
+            np.var(array, ddof=int(ddof))
+        )
+
+    return _normalize_result(
+        np.var(
+            array,
+            axis=_axis_from_dim(dim),
+            ddof=int(ddof),
+        )
+    )
+
+
+def builtin_percentile(context, value, q, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return _normalize_result(np.percentile(array, q))
+
+    return _normalize_result(
+        np.percentile(
+            array,
+            q,
+            axis=_axis_from_dim(dim),
+        )
+    )
+
+
+def builtin_any(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return bool(np.any(array))
+
+    return np.any(array, axis=_axis_from_dim(dim))
+
+
+def builtin_all(context, value, dim=None):
+    array = _as_array(value)
+
+    if dim is None:
+        return bool(np.all(array))
+
+    return np.all(array, axis=_axis_from_dim(dim))
+
+
+def builtin_isnan(context, value):
+    return np.isnan(value)
+
+
+def builtin_isinf(context, value):
+    return np.isinf(value)
+
+
+def builtin_isfinite(context, value):
+    return np.isfinite(value)
+
+
+def builtin_isclose(context, a, b, rtol=1e-05, atol=1e-08):
+    return np.isclose(a, b, rtol=rtol, atol=atol)
+
+
+def builtin_allclose(context, a, b, rtol=1e-05, atol=1e-08):
+    return bool(np.allclose(a, b, rtol=rtol, atol=atol))
+
+
+def builtin_diff(context, value, n=1, dim=None):
+    array = _as_array(value)
+    axis = (
+        _first_nonsingleton_axis(array)
+        if dim is None
+        else _axis_from_dim(dim)
+    )
+
+    return np.diff(array, n=int(n), axis=axis)
+
+
+def builtin_gradient(context, value):
+    result = np.gradient(_as_array(value))
+
+    if isinstance(result, list):
+        return np.array(result)
+
+    return result
+
+
+def builtin_cumsum(context, value, dim=None):
+    array = _as_array(value)
+    axis = None if dim is None else _axis_from_dim(dim)
+
+    return _normalize_result(np.cumsum(array, axis=axis))
+
+
+def builtin_cumprod(context, value, dim=None):
+    array = _as_array(value)
+    axis = None if dim is None else _axis_from_dim(dim)
+
+    return _normalize_result(np.cumprod(array, axis=axis))
+
+
+def builtin_trapz(context, x, y=None):
+    if y is None:
+        return _normalize_result(
+            np.trapezoid(_as_array(x))
+        )
+
+    return _normalize_result(
+        np.trapezoid(
+            _as_array(y),
+            _as_array(x),
+        )
+    )
+
+
+def builtin_interp1(context, x, y, query):
+    return _normalize_result(
+        np.interp(
+            query,
+            _as_array(x),
+            _as_array(y),
+        )
+    )
+
+
+def builtin_dot(context, a, b):
+    return _normalize_result(np.dot(a, b))
+
+
+def builtin_cross(context, a, b):
+    return np.cross(a, b)
+
+
+def builtin_norm(context, value, order=None):
+    if order is None:
+        return _normalize_result(
+            np.linalg.norm(_as_array(value))
+        )
+
+    return _normalize_result(
+        np.linalg.norm(_as_array(value), order)
+    )
+
+
+def builtin_trace(context, value):
+    return _normalize_result(np.trace(_as_array(value)))
+
+
+def builtin_rank(context, value):
+    return int(np.linalg.matrix_rank(_as_array(value)))
+
+
+def builtin_cond(context, value):
+    return _normalize_result(np.linalg.cond(_as_array(value)))
+
+
+def builtin_pinv(context, value):
+    return np.linalg.pinv(_as_array(value))
+
+
+def builtin_linsolve(context, coefficients, constants):
+    try:
+        return _normalize_result(
+            np.linalg.solve(
+                _as_array(coefficients),
+                _as_array(constants),
+            )
+        )
+    except np.linalg.LinAlgError as error:
+        raise Exception(str(error))
+
+
+def builtin_eig(context, value):
+    try:
+        values, vectors = np.linalg.eig(_as_array(value))
+    except np.linalg.LinAlgError as error:
+        raise Exception(str(error))
+
+    return {
+        "values": values,
+        "vectors": vectors,
+    }
+
+
+def builtin_svd(context, value):
+    try:
+        u, singular_values, vt = np.linalg.svd(
+            _as_array(value)
+        )
+    except np.linalg.LinAlgError as error:
+        raise Exception(str(error))
+
+    return {
+        "U": u,
+        "S": singular_values,
+        "Vt": vt,
+    }
+
+
+def builtin_qr(context, value):
+    try:
+        q, r = np.linalg.qr(_as_array(value))
+    except np.linalg.LinAlgError as error:
+        raise Exception(str(error))
+
+    return {
+        "Q": q,
+        "R": r,
+    }
+
+
+def builtin_fft(context, value, n=None):
+    if n is None:
+        return np.fft.fft(_as_array(value))
+
+    return np.fft.fft(_as_array(value), int(n))
+
+
+def builtin_ifft(context, value, n=None):
+    if n is None:
+        return np.fft.ifft(_as_array(value))
+
+    return np.fft.ifft(_as_array(value), int(n))
+
+
+def builtin_fftshift(context, value):
+    return np.fft.fftshift(_as_array(value))
+
+
+def builtin_ifftshift(context, value):
+    return np.fft.ifftshift(_as_array(value))
+
+
+def builtin_fftfreq(context, n, d=1.0):
+    return np.fft.fftfreq(int(n), float(d))
+
+
+def builtin_roots(context, coefficients):
+    return np.roots(_as_array(coefficients))
+
+
+def builtin_polyval(context, coefficients, x):
+    return _normalize_result(
+        np.polyval(_as_array(coefficients), x)
+    )
+
+
+def builtin_polyfit(context, x, y, degree):
+    return np.polyfit(
+        _as_array(x),
+        _as_array(y),
+        int(degree),
+    )
+
+
+def builtin_conv(context, a, b):
+    return np.convolve(_as_array(a), _as_array(b))
 
 def builtin_plot(context, x, y):
     context.plot_engine.plot(x, y)
@@ -637,18 +1191,28 @@ BUILTIN_FUNCTIONS = {
     "fprintf": builtin_fprintf,
     "warning": builtin_warning,
     "error": builtin_error,
+    "help": builtin_help,
 
     "sin": builtin_sin,
     "cos": builtin_cos,
     "tan": builtin_tan,
 
-    "asin": builtin_sin,
+    "asin": builtin_asin,
     "acos": builtin_acos,
     "atan": builtin_atan,
+    "atan2": builtin_atan2,
+    "sinh": builtin_sinh,
+    "cosh": builtin_cosh,
+    "tanh": builtin_tanh,
+    "asinh": builtin_asinh,
+    "acosh": builtin_acosh,
+    "atanh": builtin_atanh,
 
     "log": builtin_log,
     "log10": builtin_log10,
+    "log2": builtin_log2,
     "exp": builtin_exp,
+    "expm1": builtin_expm1,
 
     "sqrt": builtin_sqrt,
     "angle": builtin_angle,
@@ -661,18 +1225,81 @@ BUILTIN_FUNCTIONS = {
     "floor": builtin_floor,
     "ceil": builtin_ceil,
     "round": builtin_round,
+    "fix": builtin_fix,
+    "clip": builtin_clip,
+    "deg2rad": builtin_deg2rad,
+    "rad2deg": builtin_rad2deg,
     "sign": builtin_sign,
 
     "zeros": builtin_zeros,
     "ones": builtin_ones,
+    "zeros_like": builtin_zeros_like,
+    "ones_like": builtin_ones_like,
+    "linspace": builtin_linspace,
+    "logspace": builtin_logspace,
+    "arange": builtin_arange,
+    "rand": builtin_rand,
+    "randn": builtin_randn,
+    "randi": builtin_randi,
+    "rng": builtin_rng,
     "eye": builtin_eye,
+    "reshape": builtin_reshape,
+    "transpose": builtin_transpose,
+    "flatten": builtin_flatten,
+    "diag": builtin_diag,
+    "tril": builtin_tril,
+    "triu": builtin_triu,
     "det": builtin_det,
     "inv": builtin_inv,
+    "pinv": builtin_pinv,
+    "linsolve": builtin_linsolve,
+    "eig": builtin_eig,
+    "svd": builtin_svd,
+    "qr": builtin_qr,
+    "dot": builtin_dot,
+    "cross": builtin_cross,
+    "norm": builtin_norm,
+    "trace": builtin_trace,
+    "rank": builtin_rank,
+    "cond": builtin_cond,
     "size": builtin_size,
+    "numel": builtin_numel,
+    "ndims": builtin_ndims,
+    "isempty": builtin_isempty,
     "sum": builtin_sum,
+    "prod": builtin_prod,
     "mean": builtin_mean,
+    "median": builtin_median,
+    "std": builtin_std,
+    "var": builtin_var,
+    "percentile": builtin_percentile,
     "max": builtin_max,
     "min": builtin_min,
+    "any": builtin_any,
+    "all": builtin_all,
+    "isnan": builtin_isnan,
+    "isinf": builtin_isinf,
+    "isfinite": builtin_isfinite,
+    "isclose": builtin_isclose,
+    "allclose": builtin_allclose,
+    "sort": builtin_sort,
+    "unique": builtin_unique,
+    "find": builtin_find,
+    "diff": builtin_diff,
+    "gradient": builtin_gradient,
+    "cumsum": builtin_cumsum,
+    "cumprod": builtin_cumprod,
+    "trapz": builtin_trapz,
+    "interp1": builtin_interp1,
+    "fft": builtin_fft,
+    "ifft": builtin_ifft,
+    "fftshift": builtin_fftshift,
+    "ifftshift": builtin_ifftshift,
+    "fftfreq": builtin_fftfreq,
+    "roots": builtin_roots,
+    "polyval": builtin_polyval,
+    "polyfit": builtin_polyfit,
+    "conv": builtin_conv,
 
     "length": builtin_length,
     "plot": builtin_plot,

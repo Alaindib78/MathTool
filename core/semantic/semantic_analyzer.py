@@ -6,6 +6,7 @@ from core.semantic.symbol_table import (
 
 from core.ast.nodes import *
 from core.errors.errors import SemanticError
+from core.stdlib.builtins import BUILTIN_FUNCTIONS
 
 
 IMMUTABLE_CONSTANTS = {
@@ -25,54 +26,7 @@ class SemanticAnalyzer:
         self.load_builtins()
 
     def load_builtins(self):
-        builtin_functions = [
-            "disp",
-            "fprintf",
-            "warning",
-            "error",
-            "sin",
-            "cos",
-            "tan",
-            "asin",
-            "acos",
-            "atan",
-            "log",
-            "log10",
-            "exp",
-            "floor",
-            "ceil",
-            "round",
-            "sign",
-            "sqrt",
-            "angle",
-            "conj",
-            "imag",
-            "isreal",
-            "real",
-            "abs",
-            "zeros",
-            "ones",
-            "length",
-            "size",
-            "eye",
-            "det",
-            "inv", 
-            "sum",
-            "mean",
-            "max",
-            "min",
-            "plot",
-            "mod",
-            "title",
-            "xlabel",
-            "ylabel",
-            "grid",
-            "sym",
-            "class",
-            "complex",
-            "solve",
-            "symvar",
-        ]
+        builtin_functions = BUILTIN_FUNCTIONS.keys()
 
         for func in builtin_functions:
             self.global_scope.define(func)

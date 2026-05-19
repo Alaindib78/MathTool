@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from core.plotting.engine import PlotEngine
 from core.runtime.context import RuntimeContext
@@ -65,6 +66,157 @@ def test_math_builtins_are_vectorized():
     assert mean(context, np.array([1, 2, 3])) == 2
     assert max_(context, np.array([1, 5, 3])) == 5
     assert min_(context, np.array([1, 5, 3])) == 1
+
+
+def test_engineering_elementwise_and_shape_builtins():
+    context = RuntimeContext()
+    functions = context.functions
+
+    np.testing.assert_allclose(
+        functions.get("asin")(context, np.array([0, 1])),
+        np.array([0, np.pi / 2]),
+    )
+    assert functions.get("atan2")(context, 1, 1) == pytest.approx(
+        np.pi / 4
+    )
+    np.testing.assert_allclose(
+        functions.get("rad2deg")(context, np.array([0, np.pi])),
+        np.array([0, 180]),
+    )
+    np.testing.assert_array_equal(
+        functions.get("linspace")(context, 0, 1, 5),
+        np.linspace(0, 1, 5),
+    )
+    np.testing.assert_array_equal(
+        functions.get("arange")(context, 1, 6, 2),
+        np.array([1, 3, 5]),
+    )
+
+    matrix = np.array([[1, 2, 3], [4, 5, 6]])
+
+    assert functions.get("numel")(context, matrix) == 6
+    assert functions.get("ndims")(context, matrix) == 2
+    assert functions.get("isempty")(context, np.array([])) is True
+    np.testing.assert_array_equal(
+        functions.get("reshape")(context, np.arange(6), 2, 3),
+        matrix - 1,
+    )
+    np.testing.assert_array_equal(
+        functions.get("flatten")(context, matrix),
+        np.array([1, 2, 3, 4, 5, 6]),
+    )
+    np.testing.assert_array_equal(
+        functions.get("diag")(context, np.array([1, 2, 3])),
+        np.diag([1, 2, 3]),
+    )
+    np.testing.assert_array_equal(
+        functions.get("triu")(context, matrix),
+        np.triu(matrix),
+    )
+
+
+def test_engineering_statistics_logical_and_signal_builtins():
+    context = RuntimeContext()
+    functions = context.functions
+
+    values = np.array([1, 2, 3, 4])
+
+    assert functions.get("prod")(context, values) == 24
+    assert functions.get("median")(context, values) == 2.5
+    assert functions.get("std")(context, values) == pytest.approx(
+        np.std(values)
+    )
+    assert functions.get("var")(context, values) == pytest.approx(
+        np.var(values)
+    )
+    assert functions.get("percentile")(context, values, 50) == 2.5
+    assert functions.get("any")(context, np.array([0, 1])) is True
+    assert functions.get("all")(context, np.array([1, 1])) is True
+    np.testing.assert_array_equal(
+        functions.get("isfinite")(context, np.array([1, np.inf])),
+        np.array([True, False]),
+    )
+    assert functions.get("allclose")(
+        context,
+        np.array([1.0, 2.0]),
+        np.array([1.0, 2.0 + 1e-9]),
+    ) is True
+
+    np.testing.assert_array_equal(
+        functions.get("diff")(context, values),
+        np.array([1, 1, 1]),
+    )
+    np.testing.assert_array_equal(
+        functions.get("cumsum")(context, values),
+        np.array([1, 3, 6, 10]),
+    )
+    assert functions.get("trapz")(context, np.array([0, 1, 2])) == 2.0
+    assert functions.get("interp1")(
+        context,
+        np.array([0, 1, 2]),
+        np.array([0, 10, 20]),
+        1.5,
+    ) == 15.0
+
+
+def test_engineering_linalg_fft_polynomial_and_random_builtins():
+    context = RuntimeContext()
+    functions = context.functions
+    matrix = np.array([[1.0, 2.0], [3.0, 4.0]])
+
+    np.testing.assert_allclose(
+        functions.get("linsolve")(context, matrix, np.array([5.0, 11.0])),
+        np.array([1.0, 2.0]),
+    )
+    np.testing.assert_allclose(
+        functions.get("pinv")(context, matrix),
+        np.linalg.pinv(matrix),
+    )
+    assert functions.get("dot")(context, [1, 2, 3], [4, 5, 6]) == 32
+    np.testing.assert_array_equal(
+        functions.get("cross")(context, [1, 0, 0], [0, 1, 0]),
+        np.array([0, 0, 1]),
+    )
+    assert functions.get("norm")(context, [3, 4]) == 5
+    assert functions.get("trace")(context, matrix) == 5
+    assert functions.get("rank")(context, matrix) == 2
+    assert functions.get("cond")(context, matrix) == pytest.approx(
+        np.linalg.cond(matrix)
+    )
+
+    eig = functions.get("eig")(context, matrix)
+    np.testing.assert_allclose(
+        np.sort(eig["values"]),
+        np.sort(np.linalg.eig(matrix)[0]),
+    )
+
+    svd = functions.get("svd")(context, matrix)
+    assert set(svd.keys()) == {"U", "S", "Vt"}
+
+    np.testing.assert_allclose(
+        functions.get("fft")(context, np.array([1, 0, 0, 0])),
+        np.array([1, 1, 1, 1]),
+    )
+    np.testing.assert_allclose(
+        functions.get("ifft")(context, np.array([1, 1, 1, 1])),
+        np.array([1, 0, 0, 0]),
+    )
+    np.testing.assert_array_equal(
+        functions.get("conv")(context, [1, 2], [3, 4]),
+        np.array([3, 10, 8]),
+    )
+    np.testing.assert_allclose(
+        np.sort(functions.get("roots")(context, [1, 0, -1])),
+        np.array([-1, 1]),
+    )
+    assert functions.get("polyval")(context, [1, 0, -1], 3) == 8
+
+    functions.get("rng")(context, 123)
+    first = functions.get("rand")(context, 2, 2)
+    functions.get("rng")(context, 123)
+    second = functions.get("rand")(context, 2, 2)
+    np.testing.assert_allclose(first, second)
+    assert functions.get("randi")(context, 10) in range(1, 11)
 
 
 def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():

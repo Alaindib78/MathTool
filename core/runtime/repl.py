@@ -29,7 +29,12 @@ class REPL:
         block_depth = 0
 
         first_line = input(">> ")
-        if first_line.strip().lower() in {"exit", "who", "clear"}:
+        first_line_command = first_line.strip().lower()
+
+        if (
+            first_line_command in {"exit", "who", "clear", "help"}
+            or first_line_command.startswith("help ")
+        ):
             return first_line
 
         lines.append(first_line)
