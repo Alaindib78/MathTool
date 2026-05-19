@@ -503,6 +503,24 @@ def test_interpreter_supports_help_command_and_function_call(execute):
     assert "No help available for 'missing_topic'." in output[0]
 
 
+def test_interpreter_supports_cwd_command_and_function(tmp_path, execute):
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    result, _ = execute(
+        """
+cwd;
+value = cwd();
+""",
+        context=context,
+    )
+
+    assert result == str(tmp_path.resolve())
+    assert context.variables["value"] == str(
+        tmp_path.resolve()
+    )
+
+
 def test_interpreter_raises_domain_runtime_errors(execute):
     with pytest.raises(MathToolRuntimeError) as error:
         execute("A = 5 / 0;")

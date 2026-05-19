@@ -109,6 +109,16 @@ add(
     "No options.",
     ["help eig", "help('linspace')"],
 )
+add(
+    "cwd",
+    "console",
+    "Return the active current working directory.",
+    ["cwd", "cwd()"],
+    "No inputs.",
+    "Returns the current working directory used for script and function lookup.",
+    "Matches the directory shown in the GUI current folder panel.",
+    ["cwd", "disp(cwd())"],
+)
 
 
 # Trigonometry and angles

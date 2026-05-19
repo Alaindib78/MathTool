@@ -17,7 +17,9 @@ class REPL:
         )
 
         self.semantic_analyzer = (
-            SemanticAnalyzer()
+            SemanticAnalyzer(
+                function_exists=self.context.function_exists
+            )
         )
 
 #if first_line.strip().lower() in {"exit", "who", "clear"}:
@@ -32,7 +34,13 @@ class REPL:
         first_line_command = first_line.strip().lower()
 
         if (
-            first_line_command in {"exit", "who", "clear", "help"}
+            first_line_command in {
+                "exit",
+                "who",
+                "clear",
+                "help",
+                "cwd",
+            }
             or first_line_command.startswith("help ")
         ):
             return first_line
@@ -140,6 +148,12 @@ class REPL:
             self.context.clear()
             print("Workspace cleared")
             return
+
+        if source.strip() == "cwd":
+            print(self.context.current_working_directory)
+            return
+
+        self.context.validate_function_paths()
 
         lexer = Lexer(source)
 

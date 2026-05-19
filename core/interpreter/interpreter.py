@@ -25,6 +25,10 @@ from core.ast.nodes import (
 )
 from core.lexer.token import TokenType
 from core.runtime.user_function import UserFunction
+from core.runtime.function_resolver import (
+    build_user_functions,
+    top_level_function_declarations,
+)
 from core.interpreter.return_exception import ReturnException
 from core.errors.errors import RuntimeError
 from core.runtime.call_stack import CallFrame
@@ -38,7 +42,16 @@ class Interpreter:
     def __init__(self, context):
         self.context = context
 
-    def evaluate(self, node):
+    def evaluate(self, node, source_path=None):
+        previous_source_path = None
+
+        if source_path is not None:
+            previous_source_path = (
+                self.context.current_source_path
+            )
+
+            self.context.current_source_path = source_path
+
         method_name = f"visit_{type(node).__name__}"
 
         method = getattr(
@@ -55,7 +68,13 @@ class Interpreter:
                 node
             )
 
-        return method(node)
+        try:
+            return method(node)
+        finally:
+            if source_path is not None:
+                self.context.current_source_path = (
+                    previous_source_path
+                )
 
     def no_visit_method(self, node):
         raise RuntimeError(
@@ -69,19 +88,38 @@ class Interpreter:
     def visit_ProgramNode(self, node):
         result = None
 
-        for statement in node.statements:
-            result = self.evaluate(statement)
+        file_functions = build_user_functions(
+            self.context,
+            top_level_function_declarations(node),
+            self.context.current_source_path,
+        )
 
-            if self.should_store_ans(
-                statement,
-                result
-            ):
-                self.context.set_variable(
-                    "ans",
-                    result
+        self.context.push_file_functions(
+            file_functions
+        )
+
+        try:
+            for name, function in file_functions.items():
+                self.context.functions.register(
+                    name,
+                    function,
                 )
 
-        return result
+            for statement in node.statements:
+                result = self.evaluate(statement)
+
+                if self.should_store_ans(
+                    statement,
+                    result
+                ):
+                    self.context.set_variable(
+                        "ans",
+                        result
+                    )
+
+            return result
+        finally:
+            self.context.pop_file_functions()
     
     def visit_StringNode(self, node):
         return node.value
@@ -376,91 +414,115 @@ class Interpreter:
             for arg in node.arguments
         ]
 
-        # Built-in/user function
-        if self.context.functions.exists(node.name):
-            function = self.context.functions.get(
-                node.name
-            )
+        function = self.context.resolve_function(
+            node.name
+        )
 
-            # Builtin Python function
+        if function is not None:
             if callable(function):
                 return function(
                     self.context,
                     *arguments
                 )
 
-            # User-defined function
             if isinstance(function, UserFunction):
-                declaration = function.declaration
-
-                if len(arguments) != len(
-                    declaration.parameters
-                ):
-                    raise RuntimeError(
-                        f"Function '{node.name}' "
-                        f"expects "
-                        f"{len(declaration.parameters)} "
-                        f"arguments"
-                    )
-
-            local_context = (
-                self.context.create_child_context()
-            )
-
-            for param, value in zip(
-                declaration.parameters,
-                arguments
-            ):
-                local_context.set_variable(
-                    param,
-                    value
+                return self.call_user_function(
+                    node,
+                    function,
+                    arguments,
                 )
 
-            local_interpreter = Interpreter(
-                local_context
+            raise RuntimeError(
+                f"Invalid function '{node.name}'",
+                node.line,
+                node.column,
             )
-
-            # -----------------------------
-            # Push call frame
-            # -----------------------------
-
-            self.context.call_stack.push(
-                CallFrame(node.name)
-            )
-
-            try:
-                result = None
-
-                for stmt in declaration.body:
-                    result = local_interpreter.evaluate(
-                        stmt
-                    )
-
-            except ReturnException as ret:
-                return ret.value
-            finally:
-                # -------------------------
-                # Always pop frame
-                # -------------------------
-
-                self.context.call_stack.pop()
-
-            # Implicit return variable
-            if declaration.return_variable:
-                return local_context.get_variable(
-                    declaration.return_variable
-                )
-
-            return result
         
         # Otherwise treat as indexing
-        target = self.context.get_variable(
-            node.name
-        )
+        try:
+            target = self.context.get_variable(
+                node.name
+            )
+        except Exception as error:
+            raise RuntimeError(
+                f"Undefined function '{node.name}'",
+                node.line,
+                node.column,
+            ) from error
 
         indices = self.coerce_indices(arguments)
 
         return target[self.index_key(indices)]
+
+    def call_user_function(
+        self,
+        node,
+        function,
+        arguments,
+    ):
+        declaration = function.declaration
+
+        if len(arguments) != len(
+            declaration.parameters
+        ):
+            raise RuntimeError(
+                f"Function '{node.name}' "
+                f"expects "
+                f"{len(declaration.parameters)} "
+                f"arguments"
+            )
+
+        local_context = (
+            self.context.create_child_context()
+        )
+
+        local_context.current_source_path = (
+            function.source_path
+            or self.context.current_source_path
+        )
+
+        for param, value in zip(
+            declaration.parameters,
+            arguments
+        ):
+            local_context.set_variable(
+                param,
+                value
+            )
+
+        local_interpreter = Interpreter(
+            local_context
+        )
+
+        self.context.push_file_functions(
+            function.local_functions
+        )
+
+        self.context.call_stack.push(
+            CallFrame(node.name)
+        )
+
+        try:
+            result = None
+
+            for stmt in declaration.body:
+                result = local_interpreter.evaluate(
+                    stmt
+                )
+
+        except ReturnException as ret:
+            return ret.value
+        finally:
+            self.context.call_stack.pop()
+
+            self.context.pop_file_functions()
+
+        if declaration.return_variable:
+            return local_context.get_variable(
+                declaration.return_variable
+            )
+
+        return result
     
     def visit_IndexNode(self, node):
         target = self.evaluate(node.target)
@@ -533,10 +595,27 @@ class Interpreter:
         return np.asarray(value).ndim == 1
     
     def visit_FunctionDeclarationNode(self, node):
-        function = UserFunction(
-            node,
-            self.context
+        if self.context.functions.is_builtin(
+            node.name
+        ):
+            raise RuntimeError(
+                f"Cannot redefine built-in function "
+                f"'{node.name}'"
+            )
+
+        function = self.context.get_same_file_function(
+            node.name
         )
+
+        if (
+            function is None
+            or function.declaration is not node
+        ):
+            function = UserFunction(
+                node,
+                self.context,
+                self.context.current_source_path,
+            )
 
         self.context.functions.register(
             node.name,

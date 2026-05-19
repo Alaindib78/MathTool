@@ -18,12 +18,26 @@ IMMUTABLE_CONSTANTS = {
 
 
 class SemanticAnalyzer:
-    def __init__(self):
+    def __init__(self, function_exists=None):
         self.global_scope = SymbolTable()
 
         self.current_scope = self.global_scope
 
+        self.external_function_exists = (
+            function_exists
+            if function_exists is not None
+            else lambda name: False
+        )
+
         self.load_builtins()
+
+    def set_external_function_exists(
+        self,
+        function_exists,
+    ):
+        self.external_function_exists = (
+            function_exists
+        )
 
     def load_builtins(self):
         builtin_functions = BUILTIN_FUNCTIONS.keys()
@@ -62,8 +76,18 @@ class SemanticAnalyzer:
     # ---------------------------------
 
     def visit_ProgramNode(self, node):
+        self.define_file_functions(node.statements)
+
         for stmt in node.statements:
             self.analyze(stmt)
+
+    def define_file_functions(self, statements):
+        for statement in statements:
+            if isinstance(
+                statement,
+                FunctionDeclarationNode,
+            ):
+                self.define_function_name(statement)
 
     # ---------------------------------
     # Literals
@@ -150,8 +174,13 @@ class SemanticAnalyzer:
     # ---------------------------------
 
     def visit_FunctionCallNode(self, node):
-        if not self.current_scope.exists(
-            node.name
+        if (
+            not self.current_scope.exists(
+                node.name
+            )
+            and not self.external_function_exists(
+                node.name
+            )
         ):
             raise SemanticError(
                 f"Undefined function '{node.name}'"
@@ -215,7 +244,7 @@ class SemanticAnalyzer:
         self,
         node
     ):
-        self.current_scope.define(node.name)
+        self.define_function_name(node)
 
         function_scope = SymbolTable(
             self.current_scope
@@ -233,10 +262,21 @@ class SemanticAnalyzer:
                 node.return_variable
             )
 
+        self.define_file_functions(node.body)
+
         for stmt in node.body:
             self.analyze(stmt)
 
         self.current_scope = previous_scope
+
+    def define_function_name(self, node):
+        if node.name in BUILTIN_FUNCTIONS:
+            raise SemanticError(
+                f"Cannot redefine built-in function "
+                f"'{node.name}'"
+            )
+
+        self.current_scope.define(node.name)
 
     def visit_ReturnNode(self, node):
         self.analyze(node.value)

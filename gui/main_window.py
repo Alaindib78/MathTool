@@ -1,9 +1,11 @@
 import ast
 import os
+from datetime import datetime
 from tkinter import font
 from unittest import result
 
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QMainWindow,
     QWidget,
     QVBoxLayout,
@@ -22,6 +24,8 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QLabel,
     QStatusBar,
+    QLineEdit,
+    QMenu,
 )
 
 from PySide6.QtGui import (
@@ -56,6 +60,9 @@ from core.interpreter.interpreter import (
 )
 from core.runtime.context import RESERVED_CONSTANTS, RuntimeContext 
 from core.runtime.formatting import format_value
+from core.runtime.function_resolver import (
+    top_level_function_declarations,
+)
 from core.runtime.symbolic import SymbolicValue
 from gui.code_editor import (
     CodeEditor
@@ -106,6 +113,10 @@ class MainWindow(QMainWindow):
 
         self.context = RuntimeContext()
 
+        self.default_working_directory = (
+            self.context.current_working_directory
+        )
+
         self.plot_engine = GuiPlotEngine()
 
         self.context.plot_engine = self.plot_engine
@@ -132,7 +143,9 @@ class MainWindow(QMainWindow):
             self.context
         )
 
-        self.semantic = SemanticAnalyzer()
+        self.semantic = SemanticAnalyzer(
+            function_exists=self.context.function_exists
+        )
 
         self.settings = QSettings(
             "MathTool",
@@ -143,6 +156,8 @@ class MainWindow(QMainWindow):
             self.settings
         )
 
+        self.load_runtime_settings()
+
         self.options_dialog = None
 
         # Apply modern styling
@@ -150,7 +165,11 @@ class MainWindow(QMainWindow):
 
         self.setup_ui()
 
+        self.setup_current_directory_panel()
+
         self.setup_workspace_panel()
+
+        self.setup_path_manager_panel()
 
         self.setup_command_window()
 
@@ -165,6 +184,12 @@ class MainWindow(QMainWindow):
         self.execution_worker = None
 
         self.execution_editor = None
+
+        self.context.path_changed_callback = (
+            self.update_runtime_path_ui
+        )
+
+        self.update_runtime_path_ui()
 
         self.apply_preferences()
 
@@ -542,6 +567,307 @@ class MainWindow(QMainWindow):
 
         self.apply_preferences()
 
+    def load_runtime_settings(self):
+        directory = self.settings.value(
+            "runtime/current_working_directory",
+            self.context.current_working_directory,
+        )
+
+        try:
+            self.context.set_current_working_directory(
+                directory
+            )
+        except Exception:
+            pass
+
+        paths = self.settings.value(
+            "runtime/search_paths",
+            [],
+        )
+
+        if isinstance(paths, str):
+            paths = [paths] if paths else []
+
+        if paths is None:
+            paths = []
+
+        self.context.search_paths = []
+
+        for path in paths:
+            try:
+                self.context.add_search_path(path)
+            except Exception:
+                continue
+
+    def save_runtime_settings(self):
+        self.settings.setValue(
+            "runtime/current_working_directory",
+            self.context.current_working_directory,
+        )
+
+        self.settings.setValue(
+            "runtime/search_paths",
+            self.context.search_paths,
+        )
+
+        self.settings.sync()
+
+    def update_runtime_path_ui(self):
+        self.update_working_directory_status()
+        self.refresh_directory_browser()
+        self.refresh_path_table()
+        self.update_function_diagnostics()
+
+    def choose_current_working_directory(self):
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Set Current Working Directory",
+            self.context.current_working_directory,
+        )
+
+        if not directory:
+            return
+
+        self.apply_current_working_directory(
+            directory
+        )
+
+    def apply_current_working_directory(
+        self,
+        directory,
+    ):
+        previous_directory = (
+            self.context.current_working_directory
+        )
+
+        try:
+            self.context.set_current_working_directory(
+                directory
+            )
+
+            self.context.validate_function_paths()
+        except Exception as error:
+            self.context.set_current_working_directory(
+                previous_directory
+            )
+
+            QMessageBox.critical(
+                self,
+                "Working Directory Error",
+                str(error),
+            )
+
+            return
+
+        self.save_runtime_settings()
+
+        self.update_runtime_path_ui()
+
+        self.console.appendPlainText(
+            f"Current directory: "
+            f"{self.context.current_working_directory}"
+        )
+
+    def reset_current_working_directory(self):
+        self.apply_current_working_directory(
+            self.default_working_directory
+        )
+
+    def go_to_parent_directory(self):
+        parent = os.path.dirname(
+            self.context.current_working_directory
+        )
+
+        if (
+            parent
+            and parent != self.context.current_working_directory
+        ):
+            self.apply_current_working_directory(
+                parent
+            )
+
+    def add_search_path(self, directory=None):
+        if directory is None:
+            directory = QFileDialog.getExistingDirectory(
+                self,
+                "Add Directory to Search Path",
+                self.context.current_working_directory,
+            )
+
+        if not directory:
+            return
+
+        previous_paths = list(self.context.search_paths)
+
+        try:
+            self.context.add_search_path(directory)
+
+            self.context.validate_function_paths()
+        except Exception as error:
+            self.context.set_search_paths(
+                previous_paths
+            )
+
+            QMessageBox.critical(
+                self,
+                "Search Path Error",
+                str(error),
+            )
+
+            return
+
+        self.save_runtime_settings()
+
+        self.update_runtime_path_ui()
+
+        self.console.appendPlainText(
+            f"Added to path: "
+            f"{self.context.normalize_directory(directory)}"
+        )
+
+    def remove_search_path(self):
+        if not self.context.search_paths:
+            QMessageBox.information(
+                self,
+                "Search Path",
+                "The search path is empty.",
+            )
+
+            return
+
+        row = self.selected_path_row()
+
+        if row is not None:
+            directory = self.context.search_paths[row]
+
+            self.remove_search_path_at(row)
+
+            self.console.appendPlainText(
+                f"Removed from path: {directory}"
+            )
+
+            return
+
+        directory, ok = QInputDialog.getItem(
+            self,
+            "Remove Search Path",
+            "Directory:",
+            self.context.search_paths,
+            0,
+            False,
+        )
+
+        if not ok or not directory:
+            return
+
+        if directory in self.context.search_paths:
+            self.remove_search_path_at(
+                self.context.search_paths.index(
+                    directory
+                )
+            )
+
+            self.console.appendPlainText(
+                f"Removed from path: {directory}"
+            )
+
+    def remove_search_path_at(self, row):
+        if row < 0 or row >= len(
+            self.context.search_paths
+        ):
+            return
+
+        del self.context.search_paths[row]
+
+        self.context.function_resolver.invalidate()
+
+        self.context.notify_path_changed()
+
+        self.save_runtime_settings()
+
+        self.update_runtime_path_ui()
+
+    def move_selected_search_path_up(self):
+        self.move_selected_search_path(-1)
+
+    def move_selected_search_path_down(self):
+        self.move_selected_search_path(1)
+
+    def move_selected_search_path(self, direction):
+        row = self.selected_path_row()
+
+        if row is None:
+            return
+
+        target = row + direction
+
+        if (
+            target < 0
+            or target >= len(self.context.search_paths)
+        ):
+            return
+
+        paths = self.context.search_paths
+
+        paths[row], paths[target] = (
+            paths[target],
+            paths[row],
+        )
+
+        self.context.function_resolver.invalidate()
+
+        self.context.notify_path_changed()
+
+        self.save_runtime_settings()
+
+        self.refresh_path_table()
+
+        self.select_path_row(target)
+
+        self.update_function_diagnostics()
+
+    def show_search_path(self):
+        path_lines = [
+            "Current directory:",
+            self.context.current_working_directory,
+            "",
+            "Search path:",
+        ]
+
+        if self.context.search_paths:
+            path_lines.extend(
+                self.context.search_paths
+            )
+        else:
+            path_lines.append("(empty)")
+
+        QMessageBox.information(
+            self,
+            "Function Search Path",
+            "\n".join(path_lines),
+        )
+
+    def show_path_manager(self):
+        if hasattr(self, "path_manager_dock"):
+            self.path_manager_dock.show()
+            self.path_manager_dock.raise_()
+
+    def update_working_directory_status(self):
+        directory = self.context.current_working_directory
+
+        if hasattr(self, "cwd_label"):
+            self.cwd_label.setText(
+                f"Current directory: {directory}"
+            )
+
+        if hasattr(self, "cwd_path_edit"):
+            self.cwd_path_edit.setText(directory)
+
+        if hasattr(self, "cwd_browser_label"):
+            self.cwd_browser_label.setText(
+                "Current working directory"
+            )
+
     def show_options_dialog(self):
         if (
             self.options_dialog is not None
@@ -815,9 +1141,9 @@ class MainWindow(QMainWindow):
             self.execution_editor = None
         
         self.console.appendPlainText(
-            "Debugging..."
+            "Debugging...\n"
             if debug
-            else "Running..."
+            else "Running...\n"
         )
 
         self.run_button.setEnabled(False)
@@ -836,6 +1162,7 @@ class MainWindow(QMainWindow):
                 source,
                 self.semantic,
                 self.interpreter,
+                source_path=editor.file_path,
             )
         )
 
@@ -909,6 +1236,8 @@ class MainWindow(QMainWindow):
 
         self.refresh_workspace()
 
+        self.update_runtime_path_ui()
+
         self.console.appendPlainText(
             "Execution finished"
         )
@@ -932,6 +1261,8 @@ class MainWindow(QMainWindow):
             )
 
         self.refresh_workspace()
+
+        self.update_runtime_path_ui()
 
         self.run_button.setEnabled(True)
 
@@ -1127,6 +1458,53 @@ class MainWindow(QMainWindow):
         self.tools_menu = menu.addMenu("Tools")
         tools_menu = self.tools_menu
 
+        set_directory_action = QAction(
+            "Set Current Directory",
+            self,
+        )
+        set_directory_action.triggered.connect(
+            self.choose_current_working_directory
+        )
+        tools_menu.addAction(set_directory_action)
+
+        add_path_action = QAction(
+            "Add Directory to Path",
+            self,
+        )
+        add_path_action.triggered.connect(
+            self.add_search_path
+        )
+        tools_menu.addAction(add_path_action)
+
+        remove_path_action = QAction(
+            "Remove Directory from Path",
+            self,
+        )
+        remove_path_action.triggered.connect(
+            self.remove_search_path
+        )
+        tools_menu.addAction(remove_path_action)
+
+        show_path_action = QAction(
+            "Show Function Search Path",
+            self,
+        )
+        show_path_action.triggered.connect(
+            self.show_search_path
+        )
+        tools_menu.addAction(show_path_action)
+
+        show_path_manager_action = QAction(
+            "Show Path Manager",
+            self,
+        )
+        show_path_manager_action.triggered.connect(
+            self.show_path_manager
+        )
+        tools_menu.addAction(show_path_manager_action)
+
+        tools_menu.addSeparator()
+
         options_action = QAction("Options", self)
         options_action.triggered.connect(
             self.show_options_dialog
@@ -1145,6 +1523,605 @@ class MainWindow(QMainWindow):
             self
         )
         help_menu.addAction(documentation_action)
+
+    def setup_current_directory_panel(self):
+        dock = QDockWidget("Current Folder", self)
+
+        self.current_directory_dock = dock
+
+        container = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
+
+        container.setLayout(layout)
+
+        self.cwd_browser_label = QLabel(
+            "Current working directory"
+        )
+
+        layout.addWidget(self.cwd_browser_label)
+
+        self.cwd_path_edit = QLineEdit()
+        self.cwd_path_edit.setReadOnly(True)
+
+        layout.addWidget(self.cwd_path_edit)
+
+        button_row = QHBoxLayout()
+
+        change_button = QPushButton("Change")
+        change_button.clicked.connect(
+            self.choose_current_working_directory
+        )
+        button_row.addWidget(change_button)
+
+        up_button = QPushButton("Up")
+        up_button.clicked.connect(
+            self.go_to_parent_directory
+        )
+        button_row.addWidget(up_button)
+
+        reset_button = QPushButton("Reset")
+        reset_button.clicked.connect(
+            self.reset_current_working_directory
+        )
+        button_row.addWidget(reset_button)
+
+        refresh_button = QPushButton("Refresh")
+        refresh_button.clicked.connect(
+            self.refresh_directory_browser
+        )
+        button_row.addWidget(refresh_button)
+
+        layout.addLayout(button_row)
+
+        self.directory_filter_edit = QLineEdit()
+        self.directory_filter_edit.setPlaceholderText(
+            "Filter current folder"
+        )
+        self.directory_filter_edit.textChanged.connect(
+            self.refresh_directory_browser
+        )
+
+        layout.addWidget(self.directory_filter_edit)
+
+        self.directory_table = QTableWidget()
+        self.directory_table.setColumnCount(3)
+        self.directory_table.setHorizontalHeaderLabels(
+            [
+                "Name",
+                "Type",
+                "Function",
+            ]
+        )
+        self.directory_table.setSelectionBehavior(
+            QAbstractItemView.SelectRows
+        )
+        self.directory_table.setSelectionMode(
+            QAbstractItemView.SingleSelection
+        )
+        self.directory_table.setEditTriggers(
+            QTableWidget.NoEditTriggers
+        )
+        self.directory_table.setAlternatingRowColors(True)
+        self.directory_table.cellDoubleClicked.connect(
+            self.open_directory_entry
+        )
+        self.directory_table.setContextMenuPolicy(
+            Qt.CustomContextMenu
+        )
+        self.directory_table.customContextMenuRequested.connect(
+            self.show_directory_context_menu
+        )
+
+        header = self.directory_table.horizontalHeader()
+        header.setSectionResizeMode(
+            0,
+            QHeaderView.Stretch,
+        )
+        header.setSectionResizeMode(
+            1,
+            QHeaderView.ResizeToContents,
+        )
+        header.setSectionResizeMode(
+            2,
+            QHeaderView.Stretch,
+        )
+
+        layout.addWidget(self.directory_table)
+
+        self.directory_feedback_label = QLabel()
+        self.directory_feedback_label.setWordWrap(True)
+        layout.addWidget(self.directory_feedback_label)
+
+        dock.setWidget(container)
+
+        self.addDockWidget(
+            Qt.LeftDockWidgetArea,
+            dock,
+        )
+
+    def setup_path_manager_panel(self):
+        dock = QDockWidget("Function Path", self)
+
+        self.path_manager_dock = dock
+
+        container = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
+
+        container.setLayout(layout)
+
+        summary = QLabel(
+            "External paths are searched after built-ins, "
+            "same-file functions, and the current folder. "
+            "Higher entries win when external paths contain "
+            "the same function name."
+        )
+        summary.setWordWrap(True)
+
+        self.path_summary_label = summary
+
+        layout.addWidget(summary)
+
+        self.path_table = QTableWidget()
+        self.path_table.setColumnCount(3)
+        self.path_table.setHorizontalHeaderLabels(
+            [
+                "Priority",
+                "Directory",
+                "Status",
+            ]
+        )
+        self.path_table.setSelectionBehavior(
+            QAbstractItemView.SelectRows
+        )
+        self.path_table.setSelectionMode(
+            QAbstractItemView.SingleSelection
+        )
+        self.path_table.setEditTriggers(
+            QTableWidget.NoEditTriggers
+        )
+        self.path_table.setAlternatingRowColors(True)
+
+        path_header = self.path_table.horizontalHeader()
+        path_header.setSectionResizeMode(
+            0,
+            QHeaderView.ResizeToContents,
+        )
+        path_header.setSectionResizeMode(
+            1,
+            QHeaderView.Stretch,
+        )
+        path_header.setSectionResizeMode(
+            2,
+            QHeaderView.ResizeToContents,
+        )
+
+        layout.addWidget(self.path_table)
+
+        button_row = QHBoxLayout()
+
+        add_button = QPushButton("Add")
+        add_button.clicked.connect(self.add_search_path)
+        button_row.addWidget(add_button)
+
+        remove_button = QPushButton("Remove")
+        remove_button.clicked.connect(
+            self.remove_search_path
+        )
+        button_row.addWidget(remove_button)
+
+        up_button = QPushButton("Move Up")
+        up_button.clicked.connect(
+            self.move_selected_search_path_up
+        )
+        button_row.addWidget(up_button)
+
+        down_button = QPushButton("Move Down")
+        down_button.clicked.connect(
+            self.move_selected_search_path_down
+        )
+        button_row.addWidget(down_button)
+
+        layout.addLayout(button_row)
+
+        self.path_feedback_label = QLabel()
+        self.path_feedback_label.setWordWrap(True)
+        layout.addWidget(self.path_feedback_label)
+
+        dock.setWidget(container)
+
+        self.addDockWidget(
+            Qt.RightDockWidgetArea,
+            dock,
+        )
+
+    def refresh_directory_browser(self):
+        if not hasattr(self, "directory_table"):
+            return
+
+        directory = self.context.current_working_directory
+
+        self.directory_table.setRowCount(0)
+
+        try:
+            entries = list(os.scandir(directory))
+        except OSError as error:
+            self.directory_feedback_label.setText(
+                f"Unable to read current folder: {error}"
+            )
+            return
+
+        filter_text = ""
+
+        if hasattr(self, "directory_filter_edit"):
+            filter_text = (
+                self.directory_filter_edit
+                .text()
+                .strip()
+                .lower()
+            )
+
+        entries = [
+            entry
+            for entry in entries
+            if not filter_text
+            or filter_text in entry.name.lower()
+        ]
+
+        entries.sort(
+            key=lambda entry: (
+                not entry.is_dir(),
+                entry.name.lower(),
+            )
+        )
+
+        self.directory_table.setRowCount(
+            len(entries)
+        )
+
+        for row, entry in enumerate(entries):
+            path = entry.path
+            is_directory = entry.is_dir()
+            extension = os.path.splitext(
+                entry.name
+            )[1].lower()
+
+            if is_directory:
+                type_text = "Folder"
+                function_text = ""
+            elif extension == ".m":
+                type_text = "M-file"
+                function_text = (
+                    self.function_summary_for_file(path)
+                )
+            else:
+                type_text = "File"
+                function_text = ""
+
+            name_item = QTableWidgetItem(entry.name)
+            name_item.setData(Qt.UserRole, path)
+            name_item.setData(
+                Qt.UserRole + 1,
+                is_directory,
+            )
+
+            if extension == ".m":
+                name_item.setForeground(
+                    QColor("#4FC3F7")
+                )
+
+            self.directory_table.setItem(
+                row,
+                0,
+                name_item,
+            )
+            self.directory_table.setItem(
+                row,
+                1,
+                QTableWidgetItem(type_text),
+            )
+            self.directory_table.setItem(
+                row,
+                2,
+                QTableWidgetItem(function_text),
+            )
+
+        self.directory_table.resizeRowsToContents()
+
+        self.directory_feedback_label.setText(
+            f"{len(entries)} item(s). Double-click folders "
+            f"to enter them or .m files to open them."
+        )
+
+    def function_summary_for_file(self, path):
+        try:
+            program = (
+                self.context
+                .function_resolver
+                .parse_file(path)
+            )
+        except Exception:
+            return "script or invalid function file"
+
+        declarations = top_level_function_declarations(
+            program
+        )
+
+        if not declarations:
+            return "script"
+
+        names = [
+            declaration.name
+            for declaration in declarations
+        ]
+
+        return ", ".join(names)
+
+    def open_directory_entry(self, row, column):
+        item = self.directory_table.item(row, 0)
+
+        if item is None:
+            return
+
+        path = item.data(Qt.UserRole)
+        is_directory = item.data(Qt.UserRole + 1)
+
+        if is_directory:
+            self.apply_current_working_directory(path)
+            return
+
+        self.open_file_path(path)
+
+    def selected_directory_entry(self):
+        if not hasattr(self, "directory_table"):
+            return None, False
+
+        selected = self.directory_table.selectedItems()
+
+        if not selected:
+            return None, False
+
+        row = selected[0].row()
+        item = self.directory_table.item(row, 0)
+
+        if item is None:
+            return None, False
+
+        return (
+            item.data(Qt.UserRole),
+            bool(item.data(Qt.UserRole + 1)),
+        )
+
+    def open_selected_directory_entry(self):
+        path, is_directory = (
+            self.selected_directory_entry()
+        )
+
+        if not path:
+            return
+
+        if is_directory:
+            self.apply_current_working_directory(path)
+        else:
+            self.open_file_path(path)
+
+    def set_selected_directory_as_cwd(self):
+        path, is_directory = (
+            self.selected_directory_entry()
+        )
+
+        if path and is_directory:
+            self.apply_current_working_directory(path)
+
+    def add_selected_directory_to_path(self):
+        path, is_directory = (
+            self.selected_directory_entry()
+        )
+
+        if path and is_directory:
+            self.add_search_path(path)
+
+    def show_directory_context_menu(self, position):
+        row = self.directory_table.rowAt(
+            position.y()
+        )
+
+        if row < 0:
+            return
+
+        self.directory_table.selectRow(row)
+
+        path, is_directory = (
+            self.selected_directory_entry()
+        )
+
+        if not path:
+            return
+
+        menu = QMenu(self)
+
+        if is_directory:
+            open_action = menu.addAction(
+                "Open Folder"
+            )
+            open_action.triggered.connect(
+                self.open_selected_directory_entry
+            )
+
+            set_cwd_action = menu.addAction(
+                "Set as Current Folder"
+            )
+            set_cwd_action.triggered.connect(
+                self.set_selected_directory_as_cwd
+            )
+
+            add_path_action = menu.addAction(
+                "Add to Function Path"
+            )
+            add_path_action.triggered.connect(
+                self.add_selected_directory_to_path
+            )
+        else:
+            open_action = menu.addAction("Open File")
+            open_action.triggered.connect(
+                self.open_selected_directory_entry
+            )
+
+        menu.exec(
+            self.directory_table.mapToGlobal(position)
+        )
+
+        menu.deleteLater()
+
+    def refresh_path_table(self):
+        if not hasattr(self, "path_table"):
+            return
+
+        paths = self.context.search_paths
+
+        self.path_table.setRowCount(len(paths))
+
+        for row, directory in enumerate(paths):
+            priority_item = QTableWidgetItem(
+                str(row + 1)
+            )
+            directory_item = QTableWidgetItem(directory)
+            status_item = QTableWidgetItem(
+                self.directory_status(directory)
+            )
+
+            self.path_table.setItem(
+                row,
+                0,
+                priority_item,
+            )
+            self.path_table.setItem(
+                row,
+                1,
+                directory_item,
+            )
+            self.path_table.setItem(
+                row,
+                2,
+                status_item,
+            )
+
+        self.path_table.resizeRowsToContents()
+
+    def directory_status(self, directory):
+        if not os.path.isdir(directory):
+            return "Missing"
+
+        if not os.access(directory, os.R_OK):
+            return "Inaccessible"
+
+        return "OK"
+
+    def selected_path_row(self):
+        if not hasattr(self, "path_table"):
+            return None
+
+        selected = self.path_table.selectedItems()
+
+        if not selected:
+            return None
+
+        row = selected[0].row()
+
+        if row < 0 or row >= len(
+            self.context.search_paths
+        ):
+            return None
+
+        return row
+
+    def select_path_row(self, row):
+        if not hasattr(self, "path_table"):
+            return
+
+        if row < 0 or row >= self.path_table.rowCount():
+            return
+
+        self.path_table.selectRow(row)
+
+    def update_function_diagnostics(self):
+        if not hasattr(self, "path_feedback_label"):
+            return
+
+        if hasattr(self, "path_summary_label"):
+            self.path_summary_label.setText(
+                "Function search order: built-ins, "
+                "same-file/local functions, current folder "
+                f"({self.context.current_working_directory}), "
+                "then external paths in the order listed below."
+            )
+
+        try:
+            locations = (
+                self.context
+                .function_resolver
+                .function_locations()
+            )
+        except Exception as error:
+            self.path_feedback_label.setText(
+                f"Unable to scan function paths: {error}"
+            )
+            return
+
+        duplicate_lines = []
+        builtin_conflicts = []
+
+        for name, function_locations in sorted(
+            locations.items()
+        ):
+            if self.context.functions.is_builtin(name):
+                builtin_conflicts.append(
+                    f"{name} in "
+                    f"{function_locations[0]['path']}"
+                )
+                continue
+
+            directories = {
+                location["directory"]
+                for location in function_locations
+            }
+
+            if len(directories) <= 1:
+                continue
+
+            winner = function_locations[0]
+
+            duplicate_lines.append(
+                f"{name}: {winner['scope']} wins "
+                f"({winner['path']})"
+            )
+
+        messages = []
+
+        if builtin_conflicts:
+            messages.append(
+                "Built-in conflicts detected: "
+                + "; ".join(builtin_conflicts[:3])
+            )
+
+        if duplicate_lines:
+            messages.append(
+                "Duplicate function names: "
+                + "; ".join(duplicate_lines[:4])
+            )
+
+        if not messages:
+            messages.append(
+                "No duplicate function names detected "
+                "across the current folder and external paths."
+            )
+
+        self.path_feedback_label.setText(
+            "\n".join(messages)
+        )
 
     def setup_workspace_panel(self):
         dock = QDockWidget("Workspace", self)
@@ -1410,11 +2387,23 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Open File",
-            "",
+            self.context.current_working_directory,
             "MathTool Files (*.m);;All Files (*)",
         )
 
         if not path:
+            return
+
+        self.open_file_path(path)
+
+    def open_file_path(self, path):
+        if not os.path.isfile(path):
+            QMessageBox.warning(
+                self,
+                "Open File",
+                f"File does not exist: {path}",
+            )
+
             return
 
         with open(
@@ -1467,7 +2456,7 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Save File As",
-            "",
+            self.context.current_working_directory,
             "MathTool Files (*.m);;All Files (*)",
         )
 
@@ -1578,6 +2567,11 @@ class MainWindow(QMainWindow):
 
             return None
 
+        if source.strip() == "cwd":
+            return self.context.current_working_directory
+
+        self.context.validate_function_paths()
+
         lexer = Lexer(source)
 
         tokens = lexer.tokenize()
@@ -1593,6 +2587,8 @@ class MainWindow(QMainWindow):
         )
 
         self.refresh_workspace()
+
+        self.update_runtime_path_ui()
 
         return result
 
@@ -1791,6 +2787,13 @@ class MainWindow(QMainWindow):
         status_bar.addWidget(status_label)
         
         self.status_label = status_label
+
+        cwd_label = QLabel()
+        status_bar.addPermanentWidget(cwd_label)
+
+        self.cwd_label = cwd_label
+
+        self.update_working_directory_status()
 
     def stop_execution(self):
         self.debugger.stop_session()

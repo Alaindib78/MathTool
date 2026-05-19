@@ -43,3 +43,19 @@ def test_child_context_shares_functions_but_not_parent_variables():
     assert child.functions.get("custom") is marker
     with pytest.raises(Exception, match="Undefined variable 'parent_only'"):
         child.get_variable("parent_only")
+
+
+def test_runtime_context_notifies_when_paths_change(tmp_path):
+    context = RuntimeContext()
+    notifications = []
+
+    context.path_changed_callback = (
+        lambda: notifications.append(True)
+    )
+
+    context.set_current_working_directory(tmp_path)
+
+    assert context.current_working_directory == str(
+        tmp_path.resolve()
+    )
+    assert notifications == [True]

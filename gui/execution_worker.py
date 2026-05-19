@@ -21,6 +21,7 @@ class ExecutionWorker(QObject):
         source,
         semantic,
         interpreter,
+        source_path=None,
     ):
         super().__init__()
 
@@ -29,6 +30,8 @@ class ExecutionWorker(QObject):
         self.semantic = semantic
 
         self.interpreter = interpreter
+
+        self.source_path = source_path
 
         self.cancelled = False
 
@@ -46,6 +49,8 @@ class ExecutionWorker(QObject):
         )
 
         try:
+            self.interpreter.context.validate_function_paths()
+
             lexer = Lexer(self.source)
 
             tokens = lexer.tokenize()
@@ -61,7 +66,10 @@ class ExecutionWorker(QObject):
                 return
 
             result = (
-                self.interpreter.evaluate(ast)
+                self.interpreter.evaluate(
+                    ast,
+                    source_path=self.source_path,
+                )
             )
 
             self.workspace_updated.emit()

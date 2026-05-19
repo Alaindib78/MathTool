@@ -72,6 +72,9 @@ class Parser:
         if self.is_help_statement():
             return self.help_statement()
 
+        if self.is_cwd_statement():
+            return self.cwd_statement()
+
         # Assignment
         if self.is_assignment_start():
             return self.assignment()
@@ -381,6 +384,16 @@ class Parser:
         return FunctionCallNode(
             "help",
             arguments,
+            command.line,
+            command.column,
+        )
+
+    def cwd_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        return FunctionCallNode(
+            "cwd",
+            [],
             command.line,
             command.column,
         )
@@ -976,6 +989,21 @@ class Parser:
             and self.peek().value == "help"
             and self.peek_next().type != TokenType.LPAREN
             and self.peek_next().type != TokenType.EQUAL
+        )
+
+    def is_cwd_statement(self):
+        next_token = self.peek_next()
+
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "cwd"
+            and next_token.type != TokenType.LPAREN
+            and next_token.type != TokenType.EQUAL
+            and (
+                next_token.type == TokenType.SEMICOLON
+                or next_token.type == TokenType.EOF
+                or next_token.line != self.peek().line
+            )
         )
 
     def consume(self, token_type):

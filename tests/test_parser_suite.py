@@ -134,6 +134,16 @@ def test_parser_builds_help_command_statement(parse):
     assert call.arguments[0].value == "eig"
 
 
+def test_parser_builds_cwd_command_statement(parse):
+    program = parse("cwd")
+
+    call = program.statements[0]
+
+    assert isinstance(call, FunctionCallNode)
+    assert call.name == "cwd"
+    assert call.arguments == []
+
+
 def test_parser_raises_on_incomplete_expression():
     tokens = Lexer("A = (1 + 2;").tokenize()
     parser = Parser(tokens)

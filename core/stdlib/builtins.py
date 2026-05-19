@@ -81,6 +81,10 @@ def builtin_help(context, topic=None):
     return text
 
 
+def builtin_cwd(context):
+    return context.current_working_directory
+
+
 def builtin_sin(context,x):
     return np.sin(x)
 
@@ -1192,6 +1196,7 @@ BUILTIN_FUNCTIONS = {
     "warning": builtin_warning,
     "error": builtin_error,
     "help": builtin_help,
+    "cwd": builtin_cwd,
 
     "sin": builtin_sin,
     "cos": builtin_cos,
