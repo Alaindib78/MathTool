@@ -38,10 +38,12 @@ core/
   runtime/         REPL, context, functions, and call stack
   semantic/        Semantic analyzer and symbol table
   stdlib/          Built-in functions
+api/               FastAPI REST backend
 gui/               PySide6 desktop application
 examples/          Example .m scripts
 tests/             Pytest test suites
 main.py            CLI REPL entrypoint
+run_api.py         API backend entrypoint
 run_gui.py         GUI entrypoint
 ```
 
@@ -120,6 +122,28 @@ The GUI provides:
 - Workspace variable table
 - Variable inspection
 - Basic breakpoint and stepping controls
+
+## Run The API
+
+```powershell
+python run_api.py
+```
+
+The API starts on `http://127.0.0.1:8000` by default. It provides
+session-based REST endpoints for executing MathTool code, reading the
+workspace, managing the current working directory/search path, and
+querying help text. Interactive API docs are available at
+`http://127.0.0.1:8000/docs` when the server is running.
+
+Basic flow:
+
+```text
+POST /sessions
+POST /sessions/{session_id}/execute
+POST /sessions/{session_id}/command
+GET  /sessions/{session_id}/workspace
+POST /sessions/{session_id}/workspace/clear
+```
 
 ## Example Script
 

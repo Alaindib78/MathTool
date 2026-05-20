@@ -1,0 +1,368 @@
+from fastapi import FastAPI, HTTPException, Query
+
+from api.schemas import (
+    CommandRequest,
+    ExecuteRequest,
+    PathRequest,
+    SearchPathsRequest,
+)
+from api.session_store import SessionStore
+from core.serialization import (
+    serialize_execution_result,
+    serialize_workspace,
+)
+
+
+def create_app(session_store=None):
+    store = session_store or SessionStore()
+
+    app = FastAPI(
+        title="MathTool API",
+        version="0.1.0",
+    )
+
+    app.state.session_store = store
+
+    @app.get("/health")
+    def health():
+        return {
+            "status": "ok",
+        }
+
+    @app.post("/sessions")
+    def create_session():
+        stored = store.create()
+
+        return session_metadata(stored)
+
+    @app.get("/sessions")
+    def list_sessions():
+        return {
+            "sessions": [
+                session_metadata(stored)
+                for stored in store.list()
+            ],
+        }
+
+    @app.delete("/sessions/{session_id}")
+    def delete_session(session_id: str):
+        if not store.delete(session_id):
+            raise not_found(session_id)
+
+        return {
+            "deleted": True,
+        }
+
+    @app.post("/sessions/{session_id}/execute")
+    def execute(
+        session_id: str,
+        request: ExecuteRequest,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                result = stored.session.execute(
+                    request.source,
+                    source_path=request.source_path,
+                    allow_commands=request.allow_commands,
+                    allow_script_commands=(
+                        request.allow_script_commands
+                    ),
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return serialize_execution_result(
+                result,
+                context=stored.session.context,
+                include_workspace=request.include_workspace,
+            )
+
+    @app.post("/sessions/{session_id}/command")
+    def command(
+        session_id: str,
+        request: CommandRequest,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                result = stored.session.execute(
+                    request.source,
+                    allow_commands=True,
+                    allow_script_commands=True,
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return serialize_execution_result(
+                result,
+                context=stored.session.context,
+                include_workspace=request.include_workspace,
+            )
+
+    @app.get("/sessions/{session_id}/workspace")
+    def workspace(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            return serialize_workspace(
+                stored.session.context
+            )
+
+    @app.post("/sessions/{session_id}/workspace/clear")
+    def clear_workspace(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            stored.session.context.clear()
+
+            return serialize_workspace(
+                stored.session.context
+            )
+
+    @app.get("/sessions/{session_id}/cwd")
+    def get_cwd(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        return {
+            "path": (
+                stored
+                .session
+                .context
+                .current_working_directory
+            ),
+        }
+
+    @app.put("/sessions/{session_id}/cwd")
+    def set_cwd(
+        session_id: str,
+        request: PathRequest,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                stored.session.context.set_current_working_directory(
+                    request.path
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "path": (
+                    stored
+                    .session
+                    .context
+                    .current_working_directory
+                ),
+            }
+
+    @app.get("/sessions/{session_id}/paths")
+    def get_search_paths(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        return {
+            "paths": list(
+                stored.session.context.search_paths
+            ),
+        }
+
+    @app.put("/sessions/{session_id}/paths")
+    def set_search_paths(
+        session_id: str,
+        request: SearchPathsRequest,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                stored.session.context.set_search_paths(
+                    request.paths
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "paths": list(
+                    stored.session.context.search_paths
+                ),
+            }
+
+    @app.post("/sessions/{session_id}/paths")
+    def add_search_path(
+        session_id: str,
+        request: PathRequest,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                stored.session.context.add_search_path(
+                    request.path
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "paths": list(
+                    stored.session.context.search_paths
+                ),
+            }
+
+    @app.delete("/sessions/{session_id}/paths")
+    def remove_search_path(
+        session_id: str,
+        path: str = Query(...),
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                stored.session.context.remove_search_path(
+                    path
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "paths": list(
+                    stored.session.context.search_paths
+                ),
+            }
+
+    @app.get("/sessions/{session_id}/help")
+    def help_overview(
+        session_id: str,
+        topic: str | None = None,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        try:
+            text = stored.session.context.help_database.format_help(
+                topic
+            )
+        except Exception as error:
+            raise bad_request(error) from error
+
+        return {
+            "topic": topic,
+            "text": text,
+        }
+
+    @app.get("/sessions/{session_id}/help/{topic}")
+    def help_topic(
+        session_id: str,
+        topic: str,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        try:
+            text = stored.session.context.help_database.format_help(
+                topic
+            )
+        except Exception as error:
+            raise bad_request(error) from error
+
+        return {
+            "topic": topic,
+            "text": text,
+        }
+
+    @app.get("/sessions/{session_id}/lookfor")
+    def lookfor(
+        session_id: str,
+        q: str = Query(...),
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        return {
+            "query": q,
+            "text": (
+                stored
+                .session
+                .context
+                .help_database
+                .format_lookfor(q)
+            ),
+        }
+
+    return app
+
+
+def get_stored_session(store, session_id):
+    try:
+        return store.get(session_id)
+    except KeyError as error:
+        raise not_found(session_id) from error
+
+
+def session_metadata(stored):
+    return {
+        "id": stored.id,
+        "created_at": stored.created_at.isoformat(),
+        "updated_at": stored.updated_at.isoformat(),
+        "cwd": (
+            stored
+            .session
+            .context
+            .current_working_directory
+        ),
+    }
+
+
+def not_found(session_id):
+    return HTTPException(
+        status_code=404,
+        detail=f"Session not found: {session_id}",
+    )
+
+
+def bad_request(error):
+    return HTTPException(
+        status_code=400,
+        detail=str(error),
+    )
+
+
+app = create_app()
