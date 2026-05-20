@@ -21,7 +21,7 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
 - Symbolic equation solving with `solve`, `symvar`, and `Name=Value` options such as `Real=true`
 - Built-ins including console utilities (`disp`, `fprintf`, `warning`, `error`), engineering math, array construction/shape helpers, reductions/statistics, linear algebra, FFT, polynomial utilities, interpolation/integration helpers, plotting, symbolic math, and complex-number utilities
-- Built-in help with `help`, `help eig`, or `help("eig")`
+- MATLAB-style function help comments with `help`, `help eig`, `help("eig")`, and `lookfor keyword`
 - Desktop GUI with editor tabs, output console, command window, workspace table, and basic debugging controls
 
 ## Project Structure
@@ -75,12 +75,34 @@ who
 clear
 help
 help eig
+lookfor matrix
 cwd
 exit
 ```
 
 If `script_1.m` is a script in the current working directory, type
 `script_1` in the REPL or GUI command window to run it.
+
+Function files can include MATLAB-style help blocks immediately after
+the function definition:
+
+```matlab
+function y = squareNumber(x)
+% SQUARENUMBER Squares the input value.
+%
+%   y = SQUARENUMBER(x) returns x squared.
+%
+%   Example:
+%       y = squareNumber(5)
+%
+%   See also sqrt, power
+    y = x ^ 2;
+end
+```
+
+The GUI Documentation panel indexes built-ins and documented functions
+on the current function path, supports search, and renders see-also
+links.
 
 ## Run The GUI
 

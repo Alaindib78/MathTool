@@ -80,6 +80,9 @@ class Parser:
         if self.is_help_statement():
             return self.help_statement()
 
+        if self.is_lookfor_statement():
+            return self.lookfor_statement()
+
         if self.is_cwd_statement():
             return self.cwd_statement()
 
@@ -425,6 +428,52 @@ class Parser:
 
         return FunctionCallNode(
             "help",
+            arguments,
+            command.line,
+            command.column,
+        )
+
+    def lookfor_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        arguments = []
+
+        if (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek().line == command.line
+        ):
+            topic = self.advance()
+            arguments.append(
+                StringNode(
+                    topic.value,
+                    topic.line,
+                    topic.column,
+                )
+            )
+        elif (
+            self.check(TokenType.STRING)
+            and self.peek().line == command.line
+        ):
+            topic = self.advance()
+            arguments.append(
+                StringNode(
+                    topic.value,
+                    topic.line,
+                    topic.column,
+                )
+            )
+        else:
+            token = self.peek()
+
+            raise ParserError(
+                "Expected lookfor keyword",
+                line=token.line,
+                column=token.column,
+                token=token.value,
+            )
+
+        return FunctionCallNode(
+            "lookfor",
             arguments,
             command.line,
             command.column,
@@ -1029,6 +1078,14 @@ class Parser:
         return (
             self.peek().type == TokenType.IDENTIFIER
             and self.peek().value == "help"
+            and self.peek_next().type != TokenType.LPAREN
+            and self.peek_next().type != TokenType.EQUAL
+        )
+
+    def is_lookfor_statement(self):
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "lookfor"
             and self.peek_next().type != TokenType.LPAREN
             and self.peek_next().type != TokenType.EQUAL
         )

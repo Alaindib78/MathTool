@@ -91,6 +91,10 @@ from gui.execution_worker import (
     ExecutionWorker
 )
 
+from gui.documentation_panel import (
+    DocumentationPanel
+)
+
 from gui.plot_engine import (
     GuiPlotEngine
 )
@@ -173,6 +177,8 @@ class MainWindow(QMainWindow):
         self.setup_workspace_panel()
 
         self.setup_path_manager_panel()
+
+        self.setup_documentation_panel()
 
         self.setup_command_window()
 
@@ -625,6 +631,9 @@ class MainWindow(QMainWindow):
         self.refresh_directory_browser()
         self.refresh_path_table()
         self.update_function_diagnostics()
+
+        if hasattr(self, "documentation_panel"):
+            self.documentation_panel.refresh()
 
     def choose_current_working_directory(self):
         directory = QFileDialog.getExistingDirectory(
@@ -1530,7 +1539,24 @@ class MainWindow(QMainWindow):
             "Documentation",
             self
         )
+        documentation_action.setShortcut(
+            QKeySequence("F1")
+        )
+        documentation_action.triggered.connect(
+            self.show_documentation_panel
+        )
         help_menu.addAction(documentation_action)
+
+    def show_documentation_panel(self):
+        if not hasattr(self, "documentation_dock"):
+            return
+
+        self.documentation_dock.show()
+        self.documentation_dock.raise_()
+
+        if hasattr(self, "documentation_panel"):
+            self.documentation_panel.refresh()
+            self.documentation_panel.search_edit.setFocus()
 
     def setup_current_directory_panel(self):
         dock = QDockWidget("Current Folder", self)
@@ -2551,6 +2577,28 @@ class MainWindow(QMainWindow):
             Qt.BottomDockWidgetArea,
             dock
         )
+
+    def setup_documentation_panel(self):
+        dock = QDockWidget(
+            "Documentation",
+            self,
+        )
+
+        self.documentation_dock = dock
+
+        self.documentation_panel = DocumentationPanel(
+            self.context.help_database,
+            self,
+        )
+
+        dock.setWidget(self.documentation_panel)
+
+        self.addDockWidget(
+            Qt.RightDockWidgetArea,
+            dock,
+        )
+
+        dock.hide()
 
     def execute_repl_code(self, source):
         if (

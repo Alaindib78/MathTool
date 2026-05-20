@@ -635,7 +635,37 @@ def test_interpreter_supports_help_command_and_function_call(execute):
     )
 
     assert result is None
-    assert "No help available for 'missing_topic'." in output[0]
+    assert "No help available for missing_topic" in output[0]
+
+
+def test_interpreter_supports_lookfor_command(tmp_path, execute):
+    (tmp_path / "squareNumber.m").write_text(
+        """
+function y = squareNumber(x)
+% SQUARENUMBER Squares the input value.
+%
+%   y = SQUARENUMBER(x) returns x squared.
+    y = x ^ 2;
+end
+""",
+        encoding="utf-8",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+    output = []
+    context.output_callback = output.append
+
+    result, _ = execute(
+        "lookfor squared;",
+        context=context,
+    )
+
+    assert result is None
+    assert (
+        "squareNumber - SQUARENUMBER Squares the input value."
+        in output[0]
+    )
 
 
 def test_interpreter_supports_cwd_command_and_function(tmp_path, execute):

@@ -102,12 +102,23 @@ add(
 add(
     "help",
     "console",
-    "Show documentation for a builtin function or list available help topics.",
+    "Show documentation for a function or list available help topics.",
     ["help", "help functionName", "help('functionName')"],
-    "functionName: optional builtin name, supplied command-style or as a string.",
+    "functionName: optional builtin or user function name, supplied command-style or as a string.",
     "Returns explanatory text. In the GUI, it is written directly to the console.",
     "No options.",
     ["help eig", "help('linspace')"],
+)
+add(
+    "lookfor",
+    "console",
+    "Search function H1 lines and descriptions.",
+    ["lookfor keyword", "lookfor('keyword')"],
+    "keyword: search text supplied command-style or as a string.",
+    "Returns matching function names with short descriptions.",
+    "Searches built-ins and documented functions on the current function path.",
+    ["lookfor eigen", "lookfor('matrix')"],
+    see_also=["help"],
 )
 add(
     "cwd",

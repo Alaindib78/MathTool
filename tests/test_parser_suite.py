@@ -137,6 +137,17 @@ def test_parser_builds_help_command_statement(parse):
     assert call.arguments[0].value == "eig"
 
 
+def test_parser_builds_lookfor_command_statement(parse):
+    program = parse("lookfor eigen;")
+
+    call = program.statements[0]
+
+    assert isinstance(call, FunctionCallNode)
+    assert call.name == "lookfor"
+    assert len(call.arguments) == 1
+    assert call.arguments[0].value == "eigen"
+
+
 def test_parser_builds_cwd_command_statement(parse):
     program = parse("cwd")
 

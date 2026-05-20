@@ -8,6 +8,7 @@ from core.stdlib.builtins import BUILTIN_FUNCTIONS
 from core.plotting.engine import PlotEngine
 from core.runtime.call_stack import CallStack
 from core.runtime.function_resolver import FileFunctionResolver
+from core.documentation.database import FunctionHelpDatabase
 import math
 
 RESERVED_CONSTANTS = {
@@ -42,6 +43,10 @@ class RuntimeContext:
         self.search_paths = []
 
         self.function_resolver = FileFunctionResolver(
+            self
+        )
+
+        self.help_database = FunctionHelpDatabase(
             self
         )
 
@@ -94,6 +99,8 @@ class RuntimeContext:
         child.search_paths = self.search_paths
 
         child.function_resolver = self.function_resolver
+
+        child.help_database = self.help_database
 
         child.file_function_stack = self.file_function_stack
 

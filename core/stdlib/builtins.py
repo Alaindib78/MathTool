@@ -20,7 +20,6 @@ from core.stdlib.console import (
     fprintf,
     warning,
 )
-from core.stdlib.help_text import format_help
 
 
 SYMPY_TRANSFORMATIONS = (
@@ -72,7 +71,17 @@ def builtin_error(context, message, *args):
 
 
 def builtin_help(context, topic=None):
-    text = format_help(topic)
+    text = context.help_database.format_help(topic)
+
+    if context.output_callback is not None:
+        context.output_callback(text + "\n")
+        return None
+
+    return text
+
+
+def builtin_lookfor(context, keyword):
+    text = context.help_database.format_lookfor(keyword)
 
     if context.output_callback is not None:
         context.output_callback(text + "\n")
@@ -1196,6 +1205,7 @@ BUILTIN_FUNCTIONS = {
     "warning": builtin_warning,
     "error": builtin_error,
     "help": builtin_help,
+    "lookfor": builtin_lookfor,
     "cwd": builtin_cwd,
 
     "sin": builtin_sin,
