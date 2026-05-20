@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QInputDialog,
+    QCheckBox,
     QLabel,
     QStatusBar,
     QLineEdit,
@@ -613,6 +614,16 @@ class MainWindow(QMainWindow):
             except Exception:
                 continue
 
+        self.include_subdirectories_on_add = (
+            self.setting_to_bool(
+                self.settings.value(
+                    "runtime/include_subdirectories_on_add",
+                    True,
+                ),
+                True,
+            )
+        )
+
     def save_runtime_settings(self):
         self.settings.setValue(
             "runtime/current_working_directory",
@@ -624,7 +635,29 @@ class MainWindow(QMainWindow):
             self.context.search_paths,
         )
 
+        self.settings.setValue(
+            "runtime/include_subdirectories_on_add",
+            self.include_subdirectories_on_add,
+        )
+
         self.settings.sync()
+
+    def setting_to_bool(self, value, default=False):
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            return value.strip().lower() in (
+                "1",
+                "true",
+                "yes",
+                "on",
+            )
+
+        if value is None:
+            return default
+
+        return bool(value)
 
     def update_runtime_path_ui(self):
         self.update_working_directory_status()
@@ -703,7 +736,14 @@ class MainWindow(QMainWindow):
                 parent
             )
 
-    def add_search_path(self, directory=None):
+    def add_search_path(
+        self,
+        directory=None,
+        include_subdirectories=None,
+    ):
+        if isinstance(directory, bool):
+            directory = None
+
         if directory is None:
             directory = QFileDialog.getExistingDirectory(
                 self,
@@ -714,10 +754,21 @@ class MainWindow(QMainWindow):
         if not directory:
             return
 
+        if include_subdirectories is None:
+            include_subdirectories = (
+                self.include_subdirectories_for_path_add()
+            )
+
         previous_paths = list(self.context.search_paths)
 
         try:
-            self.context.add_search_path(directory)
+            directories = self.search_path_directories(
+                directory,
+                include_subdirectories,
+            )
+
+            for path in directories:
+                self.context.add_search_path(path)
 
             self.context.validate_function_paths()
         except Exception as error:
@@ -737,10 +788,76 @@ class MainWindow(QMainWindow):
 
         self.update_runtime_path_ui()
 
+        if len(directories) == 1:
+            message = f"Added to path: {directories[0]}"
+        else:
+            message = (
+                f"Added {len(directories)} directories "
+                f"to path: {directories[0]}"
+            )
+
         self.console.appendPlainText(
-            f"Added to path: "
-            f"{self.context.normalize_directory(directory)}"
+            message
         )
+
+    def include_subdirectories_for_path_add(self):
+        if hasattr(self, "include_subdirectories_checkbox"):
+            return (
+                self
+                .include_subdirectories_checkbox
+                .isChecked()
+            )
+
+        return getattr(
+            self,
+            "include_subdirectories_on_add",
+            True,
+        )
+
+    def set_include_subdirectories_on_add(self, checked):
+        self.include_subdirectories_on_add = bool(checked)
+
+        self.save_runtime_settings()
+
+    def search_path_directories(
+        self,
+        directory,
+        include_subdirectories=False,
+    ):
+        root = self.context.normalize_directory(directory)
+
+        directories = [root]
+
+        if include_subdirectories:
+            for current, child_names, _ in os.walk(root):
+                child_names.sort(key=str.lower)
+
+                if current == root:
+                    continue
+
+                try:
+                    normalized_current = (
+                        self
+                        .context
+                        .normalize_directory(current)
+                    )
+                except ValueError:
+                    child_names.clear()
+                    continue
+
+                directories.append(normalized_current)
+
+        unique_directories = []
+        seen = set()
+
+        for path in directories:
+            if path in seen:
+                continue
+
+            seen.add(path)
+            unique_directories.append(path)
+
+        return unique_directories
 
     def remove_search_path(self):
         if not self.context.search_paths:
@@ -1735,10 +1852,28 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.path_table)
 
+        include_subdirectories_checkbox = QCheckBox(
+            "Include subdirectories when adding"
+        )
+        include_subdirectories_checkbox.setChecked(
+            self.include_subdirectories_on_add
+        )
+        include_subdirectories_checkbox.toggled.connect(
+            self.set_include_subdirectories_on_add
+        )
+
+        self.include_subdirectories_checkbox = (
+            include_subdirectories_checkbox
+        )
+
+        layout.addWidget(include_subdirectories_checkbox)
+
         button_row = QHBoxLayout()
 
         add_button = QPushButton("Add")
-        add_button.clicked.connect(self.add_search_path)
+        add_button.clicked.connect(
+            self.add_search_path
+        )
         button_row.addWidget(add_button)
 
         remove_button = QPushButton("Remove")
@@ -2606,25 +2741,30 @@ class MainWindow(QMainWindow):
             and self.execution_thread.isRunning()
         ):
             return "Execution already running"        
+
+        command = source.strip().lower()
         
-        if source.strip() in (
+        if command in (
             "exit",
             "quit",
         ):
             self.close()
             return None
 
-        if source.strip() == "clear":
+        if command == "clear":
             self.clear_workspace()
             return None
 
-        if source.strip() == "clc":
+        if command == "clc":
             self.command_window.clear()
 
             return None
 
-        if source.strip() == "cwd":
+        if command == "cwd":
             return self.context.current_working_directory
+
+        if command == "who":
+            return self.context.who()
 
         self.context.validate_function_paths()
 

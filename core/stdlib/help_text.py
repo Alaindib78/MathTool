@@ -130,6 +130,16 @@ add(
     "Matches the directory shown in the GUI current folder panel.",
     ["cwd", "disp(cwd())"],
 )
+add(
+    "who",
+    "console",
+    "List variables in the current workspace.",
+    ["who", "who()"],
+    "No inputs.",
+    "Returns a list of workspace variable names, excluding built-in constants.",
+    "Matches the Workspace panel contents.",
+    ["who"],
+)
 
 
 # Trigonometry and angles
@@ -232,6 +242,8 @@ add(
 for name, summary, signature, output, options in [
     ("zeros", "Create an array of zeros.", "zeros(m, n, ...)", "Array of zeros with requested shape.", "A single scalar creates an n-by-n matrix."),
     ("ones", "Create an array of ones.", "ones(m, n, ...)", "Array of ones with requested shape.", "A single scalar creates an n-by-n matrix."),
+    ("true", "Create a logical array filled with true.", "true(m, n, ...)", "Logical array with requested shape.", "A single scalar creates an n-by-n matrix."),
+    ("false", "Create a logical array filled with false.", "false(m, n, ...)", "Logical array with requested shape.", "A single scalar creates an n-by-n matrix."),
     ("zeros_like", "Create zeros with the same shape and type as another value.", "zeros_like(A)", "Array matching A's shape filled with zeros.", "No options."),
     ("ones_like", "Create ones with the same shape and type as another value.", "ones_like(A)", "Array matching A's shape filled with ones.", "No options."),
     ("eye", "Create an identity matrix.", "eye(n, m)", "Identity-like matrix with ones on the main diagonal.", "m is optional; eye(n) creates n-by-n."),

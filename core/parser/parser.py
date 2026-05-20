@@ -86,6 +86,9 @@ class Parser:
         if self.is_cwd_statement():
             return self.cwd_statement()
 
+        if self.is_who_statement():
+            return self.who_statement()
+
         # Assignment
         if self.is_assignment_start():
             return self.assignment()
@@ -488,6 +491,16 @@ class Parser:
             command.line,
             command.column,
         )
+
+    def who_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        return FunctionCallNode(
+            "who",
+            [],
+            command.line,
+            command.column,
+        )
     
     def function_declaration(self):
         return_variable = None
@@ -736,10 +749,36 @@ class Parser:
         
         if self.match(TokenType.TRUE):
             token = self.previous()
+
+            if self.match(TokenType.LPAREN):
+                arguments = self.function_arguments()
+
+                self.consume(TokenType.RPAREN)
+
+                return FunctionCallNode(
+                    "true",
+                    arguments,
+                    token.line,
+                    token.column,
+                )
+
             return NumberNode(True, token.line, token.column)
 
         if self.match(TokenType.FALSE):
             token = self.previous()
+
+            if self.match(TokenType.LPAREN):
+                arguments = self.function_arguments()
+
+                self.consume(TokenType.RPAREN)
+
+                return FunctionCallNode(
+                    "false",
+                    arguments,
+                    token.line,
+                    token.column,
+                )
+
             return NumberNode(False, token.line, token.column)
 
         if self.match(TokenType.IDENTIFIER):
@@ -874,6 +913,8 @@ class Parser:
             if next_token.type in (
                 TokenType.NUMBER,
                 TokenType.IDENTIFIER,
+                TokenType.TRUE,
+                TokenType.FALSE,
                 TokenType.MINUS,
                 TokenType.STRING,
                 TokenType.LPAREN,
@@ -1096,6 +1137,21 @@ class Parser:
         return (
             self.peek().type == TokenType.IDENTIFIER
             and self.peek().value == "cwd"
+            and next_token.type != TokenType.LPAREN
+            and next_token.type != TokenType.EQUAL
+            and (
+                next_token.type == TokenType.SEMICOLON
+                or next_token.type == TokenType.EOF
+                or next_token.line != self.peek().line
+            )
+        )
+
+    def is_who_statement(self):
+        next_token = self.peek_next()
+
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "who"
             and next_token.type != TokenType.LPAREN
             and next_token.type != TokenType.EQUAL
             and (

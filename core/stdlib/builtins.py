@@ -94,6 +94,10 @@ def builtin_cwd(context):
     return context.current_working_directory
 
 
+def builtin_who(context):
+    return context.who()
+
+
 def builtin_sin(context,x):
     return np.sin(x)
 
@@ -314,6 +318,28 @@ def builtin_ones(context, *dimensions):
     )
 
     return np.ones(shape)
+
+
+def builtin_true(context, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    return _normalize_result(
+        np.ones(shape, dtype=bool)
+    )
+
+
+def builtin_false(context, *dimensions):
+    shape = _shape_from_dimensions(
+        dimensions,
+        square_single_scalar=True,
+    )
+
+    return _normalize_result(
+        np.zeros(shape, dtype=bool)
+    )
 
 
 def builtin_eye(context, rows, cols=None):
@@ -989,8 +1015,14 @@ def builtin_class(context, value):
     ):
         return "sym"
 
-    if isinstance(value, bool):
+    if isinstance(value, (bool, np.bool_)):
         return "logical"
+
+    if isinstance(value, np.ndarray):
+        if np.issubdtype(value.dtype, np.bool_):
+            return "logical"
+
+        return "double"
 
     if isinstance(value, (int, float, complex, np.number, np.ndarray)):
         return "double"
@@ -1207,6 +1239,7 @@ BUILTIN_FUNCTIONS = {
     "help": builtin_help,
     "lookfor": builtin_lookfor,
     "cwd": builtin_cwd,
+    "who": builtin_who,
 
     "sin": builtin_sin,
     "cos": builtin_cos,
@@ -1248,6 +1281,8 @@ BUILTIN_FUNCTIONS = {
 
     "zeros": builtin_zeros,
     "ones": builtin_ones,
+    "true": builtin_true,
+    "false": builtin_false,
     "zeros_like": builtin_zeros_like,
     "ones_like": builtin_ones_like,
     "linspace": builtin_linspace,

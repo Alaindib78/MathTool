@@ -64,6 +64,53 @@ equal_check = 3 ~= 3;
     assert context.variables["equal_check"] is False
 
 
+def test_interpreter_constructs_logical_matrices(execute):
+    _, context = execute(
+        """
+T = true(2, 3);
+F = false(2, 3);
+S = true(2);
+row = [true false true];
+logical_class = class(T);
+""",
+        analyze=True,
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["T"],
+        np.ones((2, 3), dtype=bool),
+    )
+    np.testing.assert_array_equal(
+        context.variables["F"],
+        np.zeros((2, 3), dtype=bool),
+    )
+    np.testing.assert_array_equal(
+        context.variables["S"],
+        np.ones((2, 2), dtype=bool),
+    )
+    np.testing.assert_array_equal(
+        context.variables["row"],
+        np.array([True, False, True]),
+    )
+
+    assert context.variables["T"].dtype == np.bool_
+    assert context.variables["F"].dtype == np.bool_
+    assert context.variables["logical_class"] == "logical"
+
+
+def test_interpreter_supports_who_command(execute):
+    result, context = execute(
+        """
+alpha = 1;
+who;
+""",
+        analyze=True,
+    )
+
+    assert result == ["alpha"]
+    assert context.variables["ans"] == ["alpha"]
+
+
 def test_interpreter_handles_vectors_matrices_indexing_and_transpose(execute):
     _, context = execute(
         """
