@@ -3,8 +3,7 @@ from PySide6.QtCore import (
     Signal,
 )
 
-from core.lexer.lexer import Lexer
-from core.parser.parser import Parser
+from core.engine import MathToolSession
 
 
 class ExecutionWorker(QObject):
@@ -19,17 +18,26 @@ class ExecutionWorker(QObject):
     def __init__(
         self,
         source,
-        semantic,
-        interpreter,
+        session_or_semantic,
+        interpreter=None,
         source_path=None,
     ):
         super().__init__()
 
         self.source = source
 
-        self.semantic = semantic
+        if isinstance(
+            session_or_semantic,
+            MathToolSession,
+        ):
+            self.session = session_or_semantic
+        else:
+            self.session = MathToolSession(
+                context=interpreter.context
+            )
 
-        self.interpreter = interpreter
+            self.session.semantic = session_or_semantic
+            self.session.interpreter = interpreter
 
         self.source_path = source_path
 
@@ -40,51 +48,29 @@ class ExecutionWorker(QObject):
     # ---------------------------------
 
     def run(self):
-        original_output_callback = (
-            self.interpreter.context.output_callback
-        )
-
-        self.interpreter.context.output_callback = (
-            self.output.emit
-        )
+        if self.cancelled:
+            self.finished.emit(None)
+            return
 
         try:
-            self.interpreter.context.validate_function_paths()
-
-            lexer = Lexer(self.source)
-
-            tokens = lexer.tokenize()
-
-            parser = Parser(tokens)
-
-            ast = parser.parse()
-
-            self.semantic.analyze(ast)
-
-            if self.cancelled:
-                self.finished.emit(None)
-                return
-
             result = (
-                self.interpreter.evaluate(
-                    ast,
+                self.session.execute(
+                    self.source,
                     source_path=self.source_path,
+                    output_callback=self.output.emit,
+                    allow_commands=False,
+                    allow_script_commands=False,
                 )
             )
 
             self.workspace_updated.emit()
-            self.finished.emit(result)
+            self.finished.emit(result.value)
 
         except Exception as e:
             if getattr(e, "already_reported", False):
                 self.error.emit("")
             else:
                 self.error.emit(str(e))
-
-        finally:
-            self.interpreter.context.output_callback = (
-                original_output_callback
-            )
 
     # ---------------------------------
     # Cancellation

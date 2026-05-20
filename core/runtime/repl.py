@@ -1,35 +1,19 @@
 from pathlib import Path
 
-from core.lexer.lexer import Lexer
-from core.parser.parser import Parser
-from core.interpreter.interpreter import Interpreter
-from core.runtime.context import RuntimeContext
+from core.engine import MathToolSession
 from core.runtime.formatting import format_value
 from core.runtime.script_command import (
-    load_script_command,
     script_command_name,
 )
-from core.semantic.semantic_analyzer import SemanticAnalyzer
 
 
 class REPL:
     def __init__(self):
         self.running = True
 
-        self.context = RuntimeContext()
+        self.session = MathToolSession()
 
-        self.interpreter = Interpreter(
-            self.context
-        )
-
-        self.semantic_analyzer = (
-            SemanticAnalyzer(
-                function_exists=self.context.function_exists
-            )
-        )
-
-#if first_line.strip().lower() in {"exit", "who", "clear"}:
-#            return first_line
+        self.context = self.session.context
 
     def read_input(self):
         lines = []
@@ -48,6 +32,7 @@ class REPL:
                 "cwd",
             }
             or first_line_command.startswith("help ")
+            or first_line_command.startswith("lookfor ")
         ):
             return first_line
 
@@ -149,55 +134,21 @@ class REPL:
         return line.strip() == "end"
 
     def execute(self, source):
-        if source.strip() == "who":
-            print(self.context.who())
-            return
-
-        if source.strip() == "clear":
-            self.context.clear()
-            print("Workspace cleared")
-            return
-
-        if source.strip() == "cwd":
-            print(self.context.current_working_directory)
-            return
-
-        self.context.validate_function_paths()
-
-        script_command = load_script_command(
-            self.context,
+        result = self.session.execute(
             source,
+            allow_commands=True,
+            allow_script_commands=True,
         )
 
-        if script_command is not None:
-            self.semantic_analyzer.analyze(
-                script_command.ast
-            )
-
-            result = self.interpreter.evaluate(
-                script_command.ast,
-                source_path=script_command.path,
-            )
-
-            if result is not None:
-                print(format_value(result))
-
+        if result.should_exit:
+            self.running = False
             return
 
-        lexer = Lexer(source)
+        for text in result.output:
+            print(text, end="")
 
-        tokens = lexer.tokenize()
-
-        parser = Parser(tokens)
-
-        ast = parser.parse()
-
-        self.semantic_analyzer.analyze(ast)
-
-        result = self.interpreter.evaluate(ast)
-
-        if result is not None:
-            print(format_value(result))
+        if result.value is not None:
+            print(format_value(result.value))
 
     def is_script_command(self, source):
         name = script_command_name(source)

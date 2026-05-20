@@ -50,22 +50,11 @@ from PySide6.QtCore import (
     Signal,
 )
 
-from core.lexer import lexer
-from core.lexer.lexer import Lexer
-from core.parser.parser import Parser
-from core.semantic.semantic_analyzer import (
-    SemanticAnalyzer
-)
-from core.interpreter.interpreter import (
-    Interpreter
-)
-from core.runtime.context import RESERVED_CONSTANTS, RuntimeContext 
+from core.engine import MathToolSession
+from core.runtime.context import RESERVED_CONSTANTS
 from core.runtime.formatting import format_value
 from core.runtime.function_resolver import (
     top_level_function_declarations,
-)
-from core.runtime.script_command import (
-    load_script_command,
 )
 from core.runtime.symbolic import SymbolicValue
 from gui.code_editor import (
@@ -119,19 +108,7 @@ class MainWindow(QMainWindow):
 
         self.resize(1400, 900)
 
-        self.context = RuntimeContext()
-
-        self.default_working_directory = (
-            self.context.current_working_directory
-        )
-
         self.plot_engine = GuiPlotEngine()
-
-        self.context.plot_engine = self.plot_engine
-
-        self.context.output_callback = (
-            self.route_output
-        )
 
         self.debugger = Debugger()
 
@@ -139,20 +116,24 @@ class MainWindow(QMainWindow):
             self.handle_debug_pause
         )
 
-        self.context.debugger = (
-            self.debugger
-        )
-
         self.debugger.pause_callback = (
             self.on_debug_pause
         )
 
-        self.interpreter = Interpreter(
-            self.context
+        self.session = MathToolSession(
+            output_callback=self.route_output,
+            plot_engine=self.plot_engine,
+            debugger=self.debugger,
         )
 
-        self.semantic = SemanticAnalyzer(
-            function_exists=self.context.function_exists
+        self.context = self.session.context
+
+        self.interpreter = self.session.interpreter
+
+        self.semantic = self.session.semantic
+
+        self.default_working_directory = (
+            self.context.current_working_directory
         )
 
         self.settings = QSettings(
@@ -1294,8 +1275,7 @@ class MainWindow(QMainWindow):
         self.execution_worker = (
             ExecutionWorker(
                 source,
-                self.semantic,
-                self.interpreter,
+                self.session,
                 source_path=editor.file_path,
             )
         )
@@ -2742,72 +2722,35 @@ class MainWindow(QMainWindow):
         ):
             return "Execution already running"        
 
-        command = source.strip().lower()
-        
-        if command in (
-            "exit",
-            "quit",
-        ):
+        if not hasattr(self, "session"):
+            self.session = MathToolSession(
+                context=self.context
+            )
+            self.interpreter = self.session.interpreter
+            self.semantic = self.session.semantic
+
+        result = self.session.execute(
+            source,
+            allow_commands=True,
+            allow_script_commands=True,
+        )
+
+        if result.should_exit:
             self.close()
             return None
 
-        if command == "clear":
-            self.clear_workspace()
-            return None
-
-        if command == "clc":
+        if result.clear_output:
             self.command_window.clear()
-
             return None
 
-        if command == "cwd":
-            return self.context.current_working_directory
+        if result.workspace_changed:
+            if hasattr(self, "refresh_workspace"):
+                self.refresh_workspace()
 
-        if command == "who":
-            return self.context.who()
+            if hasattr(self, "update_runtime_path_ui"):
+                self.update_runtime_path_ui()
 
-        self.context.validate_function_paths()
-
-        script_command = load_script_command(
-            self.context,
-            source,
-        )
-
-        if script_command is not None:
-            self.semantic.analyze(
-                script_command.ast
-            )
-
-            result = self.interpreter.evaluate(
-                script_command.ast,
-                source_path=script_command.path,
-            )
-
-            self.refresh_workspace()
-
-            self.update_runtime_path_ui()
-
-            return result
-
-        lexer = Lexer(source)
-
-        tokens = lexer.tokenize()
-
-        parser = Parser(tokens)
-
-        ast = parser.parse()
-
-        self.semantic.analyze(ast)
-
-        result = (
-            self.interpreter.evaluate(ast)
-        )
-
-        self.refresh_workspace()
-
-        self.update_runtime_path_ui()
-
-        return result
+        return result.value
 
     def route_output(self, text):
         text = str(text)
