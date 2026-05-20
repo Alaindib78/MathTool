@@ -3,11 +3,14 @@ import pytest
 from core.ast.nodes import (
     AssignmentNode,
     BinaryOpNode,
+    BreakNode,
+    ContinueNode,
     FunctionCallNode,
     FunctionDeclarationNode,
     IfNode,
     MatrixNode,
     RangeNode,
+    ReturnNode,
     SymsNode,
     UnaryOpNode,
 )
@@ -142,6 +145,48 @@ def test_parser_builds_cwd_command_statement(parse):
     assert isinstance(call, FunctionCallNode)
     assert call.name == "cwd"
     assert call.arguments == []
+
+
+def test_parser_builds_return_break_and_continue_statements(parse):
+    program = parse(
+        """
+function y = control(x)
+    y = 0;
+    for i = 1:5
+        if i == 2
+            continue;
+        elseif i == 4
+            break;
+        end
+    end
+    return;
+end
+"""
+    )
+
+    function = program.statements[0]
+    loop = function.body[1]
+    if_node = loop.body[0]
+
+    assert isinstance(if_node.then_branch[0], ContinueNode)
+    assert isinstance(if_node.elseif_branches[0][1][0], BreakNode)
+    assert isinstance(function.body[-1], ReturnNode)
+    assert function.body[-1].value is None
+
+
+def test_parser_builds_return_statement_with_expression(parse):
+    program = parse(
+        """
+function y = control(x)
+    return x + 1;
+end
+"""
+    )
+
+    return_statement = program.statements[0].body[0]
+
+    assert isinstance(return_statement, ReturnNode)
+    assert isinstance(return_statement.value, BinaryOpNode)
 
 
 def test_parser_raises_on_incomplete_expression():

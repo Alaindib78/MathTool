@@ -23,6 +23,10 @@ class SemanticAnalyzer:
 
         self.current_scope = self.global_scope
 
+        self.function_depth = 0
+
+        self.loop_depth = 0
+
         self.external_function_exists = (
             function_exists
             if function_exists is not None
@@ -215,8 +219,13 @@ class SemanticAnalyzer:
     def visit_WhileNode(self, node):
         self.analyze(node.condition)
 
-        for stmt in node.body:
-            self.analyze(stmt)
+        self.loop_depth += 1
+
+        try:
+            for stmt in node.body:
+                self.analyze(stmt)
+        finally:
+            self.loop_depth -= 1
 
     def visit_ForNode(self, node):
         self.analyze(node.iterable)
@@ -229,12 +238,33 @@ class SemanticAnalyzer:
 
         self.current_scope = loop_scope
 
-        loop_scope.define(node.variable.name)
+        self.loop_depth += 1
 
-        for stmt in node.body:
-            self.analyze(stmt)
+        try:
+            loop_scope.define(node.variable.name)
 
-        self.current_scope = previous_scope
+            for stmt in node.body:
+                self.analyze(stmt)
+        finally:
+            self.loop_depth -= 1
+
+            self.current_scope = previous_scope
+
+    def visit_BreakNode(self, node):
+        if self.loop_depth <= 0:
+            raise SemanticError(
+                "'break' can only be used inside a loop",
+                node.line,
+                node.column,
+            )
+
+    def visit_ContinueNode(self, node):
+        if self.loop_depth <= 0:
+            raise SemanticError(
+                "'continue' can only be used inside a loop",
+                node.line,
+                node.column,
+            )
 
     # ---------------------------------
     # Functions
@@ -251,23 +281,31 @@ class SemanticAnalyzer:
         )
 
         previous_scope = self.current_scope
+        previous_loop_depth = self.loop_depth
 
         self.current_scope = function_scope
 
-        for param in node.parameters:
-            function_scope.define(param)
+        self.function_depth += 1
+        self.loop_depth = 0
 
-        if node.return_variable:
-            function_scope.define(
-                node.return_variable
-            )
+        try:
+            for param in node.parameters:
+                function_scope.define(param)
 
-        self.define_file_functions(node.body)
+            if node.return_variable:
+                function_scope.define(
+                    node.return_variable
+                )
 
-        for stmt in node.body:
-            self.analyze(stmt)
+            self.define_file_functions(node.body)
 
-        self.current_scope = previous_scope
+            for stmt in node.body:
+                self.analyze(stmt)
+        finally:
+            self.function_depth -= 1
+            self.loop_depth = previous_loop_depth
+
+            self.current_scope = previous_scope
 
     def define_function_name(self, node):
         if node.name in BUILTIN_FUNCTIONS:
@@ -279,7 +317,15 @@ class SemanticAnalyzer:
         self.current_scope.define(node.name)
 
     def visit_ReturnNode(self, node):
-        self.analyze(node.value)
+        if self.function_depth <= 0:
+            raise SemanticError(
+                "'return' can only be used inside a function",
+                node.line,
+                node.column,
+            )
+
+        if node.value is not None:
+            self.analyze(node.value)
 
     def visit_SymsNode(self, node):
         for name in node.names:

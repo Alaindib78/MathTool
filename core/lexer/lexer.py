@@ -10,6 +10,8 @@ KEYWORDS = {
     "while": TokenType.WHILE,
     "function": TokenType.FUNCTION,
     "return": TokenType.RETURN,
+    "break": TokenType.BREAK,
+    "continue": TokenType.CONTINUE,
     "true": TokenType.TRUE,
     "false": TokenType.FALSE,
 }
@@ -418,6 +420,8 @@ class Lexer:
             TokenType.IF,
             TokenType.ELSEIF,
             TokenType.RETURN,
+            TokenType.BREAK,
+            TokenType.CONTINUE,
         }
     
     def skip_comment(self):

@@ -30,6 +30,10 @@ class CommandWindow(QPlainTextEdit):
 
         self.prompt = ">> "
 
+        self.normal_text_color = QColor(
+            "#D4D4D4"
+        )
+
         self.setFont(
             QFont("Consolas", 11)
         )
@@ -42,11 +46,11 @@ class CommandWindow(QPlainTextEdit):
             """
         )
 
+        self.prompt_position = 0
+
         self.insert_prompt()
 
         self.setUndoRedoEnabled(False)
-
-        self.prompt_position = 0
 
     # ---------------------------------
     # Key Handling
@@ -159,6 +163,8 @@ class CommandWindow(QPlainTextEdit):
     # ---------------------------------
 
     def execute_current_line(self):
+        self.reset_text_format()
+
         cursor = self.textCursor()
 
         cursor.movePosition(
@@ -190,7 +196,7 @@ class CommandWindow(QPlainTextEdit):
         ].strip()
 
         # Move to next line after command
-        self.insertPlainText("\n")
+        self.insert_normal_text("\n")
 
         # ---------------------------------
         # Execute command
@@ -211,11 +217,11 @@ class CommandWindow(QPlainTextEdit):
                 )
 
                 if result is not None:
-                    self.insertPlainText(
+                    self.insert_normal_text(
                         format_value(result)
                     )
 
-                    self.insertPlainText(
+                    self.insert_normal_text(
                         "\n"
                     )
 
@@ -309,11 +315,17 @@ class CommandWindow(QPlainTextEdit):
 
         cursor.removeSelectedText()
 
-        cursor.insertText(text)
+        cursor.insertText(
+            text,
+            self.normal_text_format(),
+        )
 
         self.setTextCursor(cursor)
+        self.reset_text_format()
 
     def insert_prompt(self):
+        self.reset_text_format()
+
         cursor = self.textCursor()
 
         cursor.movePosition(
@@ -326,13 +338,15 @@ class CommandWindow(QPlainTextEdit):
         text = self.toPlainText()
 
         if text and not text.endswith("\n"):
-            self.insertPlainText("\n")
+            self.insert_normal_text("\n")
 
-        self.insertPlainText(self.prompt)
+        self.insert_normal_text(self.prompt)
 
         self.prompt_position = (
             self.textCursor().position()
         )
+
+        self.reset_text_format()
 
     def insert_output_text(self, text, message_type=None):
         cursor = self.textCursor()
@@ -342,20 +356,57 @@ class CommandWindow(QPlainTextEdit):
 
         self.setTextCursor(cursor)
 
+        self.reset_text_format()
+
         text_format = self.output_text_format(
             text,
             message_type,
         )
 
-        cursor.setCharFormat(QTextCharFormat())
-
         if text_format is None:
-            cursor.insertText(text)
-        else:
-            cursor.insertText(text, text_format)
+            text_format = self.normal_text_format()
 
-        cursor.setCharFormat(QTextCharFormat())
+        cursor.insertText(text, text_format)
+
         self.setTextCursor(cursor)
+        self.reset_text_format()
+
+    def insert_normal_text(self, text):
+        cursor = self.textCursor()
+        cursor.movePosition(
+            QTextCursor.End
+        )
+
+        self.setTextCursor(cursor)
+
+        cursor.insertText(
+            text,
+            self.normal_text_format(),
+        )
+
+        self.setTextCursor(cursor)
+        self.reset_text_format()
+
+    def normal_text_format(self):
+        text_format = QTextCharFormat()
+        text_format.setForeground(
+            self.normal_text_color
+        )
+
+        return text_format
+
+    def set_normal_text_color(self, color):
+        self.normal_text_color = QColor(color)
+        self.reset_text_format()
+
+    def reset_text_format(self):
+        text_format = self.normal_text_format()
+
+        cursor = self.textCursor()
+        cursor.setCharFormat(text_format)
+
+        self.setTextCursor(cursor)
+        self.setCurrentCharFormat(text_format)
 
     def output_text_format(self, text, message_type=None):
         stripped = str(text).lstrip()

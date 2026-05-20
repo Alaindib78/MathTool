@@ -69,6 +69,20 @@ def test_lexer_tokenizes_matlab_not_operators():
     assert tokens[8].value == "~="
 
 
+def test_lexer_tokenizes_loop_control_keywords():
+    tokens = Lexer("break; continue; return;").tokenize()
+
+    assert [token.type for token in tokens] == [
+        TokenType.BREAK,
+        TokenType.SEMICOLON,
+        TokenType.CONTINUE,
+        TokenType.SEMICOLON,
+        TokenType.RETURN,
+        TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+
+
 def test_lexer_tokenizes_imaginary_number_suffixes():
     tokens = Lexer("z = 1 + 2i; w = 3j;").tokenize()
 

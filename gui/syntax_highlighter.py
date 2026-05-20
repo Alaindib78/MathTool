@@ -78,6 +78,8 @@ class MathToolSyntaxHighlighter(
             "for",
             "function",
             "return",
+            "break",
+            "continue",
             "syms",
             "help",
             "true",

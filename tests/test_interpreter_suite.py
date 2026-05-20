@@ -432,6 +432,141 @@ B = first_positive(9);
     assert context.call_stack.format_stack() == ""
 
 
+def test_interpreter_bare_return_exits_function(execute):
+    _, context = execute(
+        """
+function y = clamp_positive(x)
+    y = 0;
+
+    if x > 0
+        y = x;
+        return
+    end
+
+    y = -1;
+end
+
+positive = clamp_positive(6);
+negative = clamp_positive(-2);
+""",
+        analyze=True,
+    )
+
+    assert context.variables["positive"] == 6
+    assert context.variables["negative"] == -1
+
+
+def test_interpreter_supports_break_and_continue_in_for_loops(execute):
+    _, context = execute(
+        """
+total = 0;
+
+for i = 1:6
+    if i == 2
+        continue;
+    end
+
+    if i == 5
+        break;
+    end
+
+    total = total + i;
+end
+""",
+        analyze=True,
+    )
+
+    assert context.variables["total"] == 8
+
+
+def test_interpreter_supports_break_and_continue_in_while_loops(execute):
+    _, context = execute(
+        """
+x = 0;
+total = 0;
+
+while x < 6
+    x = x + 1;
+
+    if x == 2
+        continue;
+    end
+
+    if x == 5
+        break;
+    end
+
+    total = total + x;
+end
+""",
+        analyze=True,
+    )
+
+    assert context.variables["x"] == 5
+    assert context.variables["total"] == 8
+
+
+def test_interpreter_break_only_exits_nearest_loop(execute):
+    _, context = execute(
+        """
+total = 0;
+
+for outer = 1:3
+    for inner = 1:3
+        if inner == 2
+            break;
+        end
+
+        total = total + outer;
+    end
+end
+""",
+        analyze=True,
+    )
+
+    assert context.variables["total"] == 6
+
+
+def test_interpreter_rejects_break_from_function_called_inside_loop(execute):
+    with pytest.raises(MathToolRuntimeError) as error:
+        execute(
+            """
+function y = bad()
+    break;
+    y = 1;
+end
+
+for i = 1:3
+    value = bad();
+end
+"""
+        )
+
+    assert "'break' can only be used inside a loop" in str(
+        error.value
+    )
+
+
+def test_interpreter_rejects_continue_from_function_called_inside_loop(execute):
+    with pytest.raises(MathToolRuntimeError) as error:
+        execute(
+            """
+function y = bad()
+    continue;
+    y = 1;
+end
+
+for i = 1:3
+    value = bad();
+end
+"""
+        )
+
+    assert "'continue' can only be used inside a loop" in str(
+        error.value
+    )
+
+
 def test_interpreter_sends_console_output_to_callback(execute):
     context = RuntimeContext()
     output = []

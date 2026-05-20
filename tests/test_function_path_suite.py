@@ -1,10 +1,13 @@
 import pytest
+from pathlib import Path
 
+from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.errors.errors import SemanticError
 from core.interpreter.interpreter import Interpreter
 from core.lexer.lexer import Lexer
 from core.parser.parser import Parser
 from core.runtime.context import RuntimeContext
+from core.runtime.script_command import load_script_command
 from core.semantic.semantic_analyzer import SemanticAnalyzer
 
 
@@ -22,6 +25,26 @@ def execute_with_context(source, context, source_path=None):
     return Interpreter(context).evaluate(
         ast,
         source_path=source_path,
+    )
+
+
+def execute_script_command(command, context, semantic=None):
+    script_command = load_script_command(
+        context,
+        command,
+    )
+
+    assert script_command is not None
+
+    semantic = semantic or SemanticAnalyzer(
+        function_exists=context.function_exists
+    )
+
+    semantic.analyze(script_command.ast)
+
+    return Interpreter(context).evaluate(
+        script_command.ast,
+        source_path=script_command.path,
     )
 
 
@@ -54,6 +77,90 @@ a = gcd(b);
     )
 
     assert context.variables["a"] == 5
+
+
+def test_bare_script_name_runs_script_from_current_directory(tmp_path):
+    write_function(
+        tmp_path,
+        "script_1",
+        """
+value = 4 + 1;
+""",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    result = execute_script_command(
+        "script_1",
+        context,
+    )
+
+    assert result == 5
+    assert context.variables["value"] == 5
+
+
+def test_bare_script_name_uses_script_local_functions(tmp_path):
+    write_function(
+        tmp_path,
+        "script_1",
+        """
+value = helper(4);
+
+function y = helper(x)
+    y = x + 1;
+end
+""",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    execute_script_command(
+        "script_1",
+        context,
+    )
+
+    assert context.variables["value"] == 5
+
+
+def test_bare_script_name_does_not_shadow_workspace_variable(tmp_path):
+    write_function(
+        tmp_path,
+        "script_1",
+        """
+value = 10;
+""",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+    context.set_variable("script_1", 7)
+
+    assert load_script_command(
+        context,
+        "script_1",
+    ) is None
+
+
+def test_bare_script_name_ignores_function_only_file(tmp_path):
+    write_function(
+        tmp_path,
+        "script_1",
+        """
+function y = script_1()
+    y = 10;
+end
+""",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    assert load_script_command(
+        context,
+        "script_1",
+    ) is None
 
 
 def test_function_file_can_call_sibling_function_file(tmp_path):
@@ -124,6 +231,8 @@ end
 
 
 def test_nested_function_is_available_before_its_declaration(tmp_path):
+    script_path = tmp_path / "nested.m"
+
     source = """
 value = outer(4);
 
@@ -136,13 +245,15 @@ function y = outer(x)
 end
 """
 
+    script_path.write_text(source, encoding="utf-8")
+
     context = RuntimeContext()
     context.set_current_working_directory(tmp_path)
 
     execute_with_context(
         source,
         context,
-        source_path=str(tmp_path / "nested.m"),
+        source_path=str(script_path),
     )
 
     assert context.variables["value"] == 5
@@ -345,3 +456,59 @@ end
     assert "conflicts with a built-in function" in str(
         error.value
     )
+
+
+def test_path_validation_skips_inaccessible_directory(
+    tmp_path,
+    monkeypatch,
+):
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    original_glob = Path.glob
+    inaccessible_directory = tmp_path.resolve()
+
+    def deny_glob(path, pattern):
+        if path == inaccessible_directory:
+            raise PermissionError("access denied")
+
+        return original_glob(path, pattern)
+
+    monkeypatch.setattr(Path, "glob", deny_glob)
+
+    context.validate_function_paths()
+
+
+def test_inaccessible_function_file_reports_runtime_error(
+    tmp_path,
+    monkeypatch,
+):
+    function_path = write_function(
+        tmp_path,
+        "blocked",
+        """
+function y = blocked()
+    y = 1;
+end
+""",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    original_read_text = Path.read_text
+    inaccessible_path = function_path.resolve()
+
+    def deny_read_text(path, *args, **kwargs):
+        if path == inaccessible_path:
+            raise PermissionError("access denied")
+
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", deny_read_text)
+
+    with pytest.raises(MathToolRuntimeError) as error:
+        context.resolve_function("blocked")
+
+    assert "Function file" in str(error.value)
+    assert "not accessible" in str(error.value)

@@ -1,8 +1,14 @@
+from pathlib import Path
+
 from core.lexer.lexer import Lexer
 from core.parser.parser import Parser
 from core.interpreter.interpreter import Interpreter
 from core.runtime.context import RuntimeContext
 from core.runtime.formatting import format_value
+from core.runtime.script_command import (
+    load_script_command,
+    script_command_name,
+)
 from core.semantic.semantic_analyzer import SemanticAnalyzer
 
 
@@ -43,6 +49,9 @@ class REPL:
             }
             or first_line_command.startswith("help ")
         ):
+            return first_line
+
+        if self.is_script_command(first_line):
             return first_line
 
         lines.append(first_line)
@@ -155,6 +164,26 @@ class REPL:
 
         self.context.validate_function_paths()
 
+        script_command = load_script_command(
+            self.context,
+            source,
+        )
+
+        if script_command is not None:
+            self.semantic_analyzer.analyze(
+                script_command.ast
+            )
+
+            result = self.interpreter.evaluate(
+                script_command.ast,
+                source_path=script_command.path,
+            )
+
+            if result is not None:
+                print(format_value(result))
+
+            return
+
         lexer = Lexer(source)
 
         tokens = lexer.tokenize()
@@ -169,3 +198,17 @@ class REPL:
 
         if result is not None:
             print(format_value(result))
+
+    def is_script_command(self, source):
+        name = script_command_name(source)
+
+        if name is None:
+            return False
+
+        if name in self.context.variables:
+            return False
+
+        return (
+            Path(self.context.current_working_directory)
+            / f"{name}.m"
+        ).is_file()

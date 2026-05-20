@@ -60,6 +60,8 @@ class TokenType(Enum):
 
     FUNCTION = auto()
     RETURN = auto()
+    BREAK = auto()
+    CONTINUE = auto()
 
     TRUE = auto()
     FALSE = auto()

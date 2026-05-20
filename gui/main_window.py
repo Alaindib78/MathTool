@@ -63,6 +63,9 @@ from core.runtime.formatting import format_value
 from core.runtime.function_resolver import (
     top_level_function_declarations,
 )
+from core.runtime.script_command import (
+    load_script_command,
+)
 from core.runtime.symbolic import SymbolicValue
 from gui.code_editor import (
     CodeEditor
@@ -555,6 +558,11 @@ class MainWindow(QMainWindow):
             }}
             """
         )
+
+        if hasattr(widget, "set_normal_text_color"):
+            widget.set_normal_text_color(
+                colors["editor_foreground"]
+            )
 
     def set_preference(self, key, value):
         self.preferences[key] = value
@@ -2572,6 +2580,27 @@ class MainWindow(QMainWindow):
 
         self.context.validate_function_paths()
 
+        script_command = load_script_command(
+            self.context,
+            source,
+        )
+
+        if script_command is not None:
+            self.semantic.analyze(
+                script_command.ast
+            )
+
+            result = self.interpreter.evaluate(
+                script_command.ast,
+                source_path=script_command.path,
+            )
+
+            self.refresh_workspace()
+
+            self.update_runtime_path_ui()
+
+            return result
+
         lexer = Lexer(source)
 
         tokens = lexer.tokenize()
@@ -2615,7 +2644,6 @@ class MainWindow(QMainWindow):
         widget.moveCursor(QTextCursor.End)
 
         cursor = widget.textCursor()
-        cursor.setCharFormat(QTextCharFormat())
 
         text_format = self.output_text_format(
             text,
@@ -2623,12 +2651,40 @@ class MainWindow(QMainWindow):
         )
 
         if text_format is None:
-            cursor.insertText(text)
-        else:
-            cursor.insertText(text, text_format)
+            text_format = self.normal_text_format(
+                widget
+            )
 
-        cursor.setCharFormat(QTextCharFormat())
+        cursor.insertText(text, text_format)
+
         widget.setTextCursor(cursor)
+        self.reset_text_format(widget)
+
+    def normal_text_format(self, widget):
+        text_format = QTextCharFormat()
+
+        color = "#D4D4D4"
+
+        if hasattr(self, "preferences"):
+            colors = theme_for_preferences(
+                self.preferences
+            )
+            color = colors["editor_foreground"]
+
+        text_format.setForeground(
+            QColor(color)
+        )
+
+        return text_format
+
+    def reset_text_format(self, widget):
+        text_format = self.normal_text_format(widget)
+
+        cursor = widget.textCursor()
+        cursor.setCharFormat(text_format)
+
+        widget.setTextCursor(cursor)
+        widget.setCurrentCharFormat(text_format)
 
     def output_text_format(self, text, message_type=None):
         stripped = str(text).lstrip()

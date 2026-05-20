@@ -230,7 +230,15 @@ class FileFunctionResolver:
     def load_file_functions(self, path):
         path = Path(path).resolve()
         cache_key = str(path)
-        modified_time = path.stat().st_mtime_ns
+
+        try:
+            modified_time = path.stat().st_mtime_ns
+        except OSError as error:
+            raise RuntimeError(
+                f"Function file '{path}' is not accessible: "
+                f"{error}"
+            ) from error
+
         cached = self.file_cache.get(cache_key)
 
         if cached and cached[0] == modified_time:
@@ -256,16 +264,25 @@ class FileFunctionResolver:
         return functions
 
     def parse_file(self, path):
-        source = Path(path).read_text(
-            encoding="utf-8"
-        )
+        try:
+            source = Path(path).read_text(
+                encoding="utf-8"
+            )
+        except OSError as error:
+            raise RuntimeError(
+                f"Function file '{path}' is not accessible: "
+                f"{error}"
+            ) from error
 
         tokens = Lexer(source).tokenize()
 
         return Parser(tokens).parse()
 
     def m_files(self, directory):
-        return sorted(
-            Path(directory).glob("*.m"),
-            key=lambda path: path.name.lower(),
-        )
+        try:
+            return sorted(
+                Path(directory).glob("*.m"),
+                key=lambda path: path.name.lower(),
+            )
+        except OSError:
+            return []

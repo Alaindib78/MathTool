@@ -8,9 +8,9 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Variables and assignment
 - Strings and comments
 - Boolean and comparison operators, including `&&`, `||`, `~`, `==`, and `~=`
-- `if`, `elseif`, `else`, `for`, and `while`
+- `if`, `elseif`, `else`, `for`, and `while`, with `break` and `continue`
 - User-defined functions, including recursive calls
-- Explicit `return` statements and MATLAB-style implicit return variables
+- Bare and value-returning `return` statements plus MATLAB-style implicit return variables
 - Ranges such as `1:5` and `0:0.1:1`
 - Vector and matrix literals
 - Matrix multiplication with `*`
@@ -75,8 +75,12 @@ who
 clear
 help
 help eig
+cwd
 exit
 ```
+
+If `script_1.m` is a script in the current working directory, type
+`script_1` in the REPL or GUI command window to run it.
 
 ## Run The GUI
 

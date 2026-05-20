@@ -352,6 +352,16 @@ class ReturnNode(ASTNode):
         return f"ReturnNode({self.value})"
 
 
+class BreakNode(ASTNode):
+    def __repr__(self):
+        return "BreakNode()"
+
+
+class ContinueNode(ASTNode):
+    def __repr__(self):
+        return "ContinueNode()"
+
+
 class SymsNode(ASTNode):
     def __init__(
         self,

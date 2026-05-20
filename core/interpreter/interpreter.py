@@ -20,6 +20,8 @@ from core.ast.nodes import (
     NameValueNode,
     FunctionDeclarationNode,
     ReturnNode,
+    BreakNode,
+    ContinueNode,
     SymsNode,
     TransposeNode,
 )
@@ -29,7 +31,11 @@ from core.runtime.function_resolver import (
     build_user_functions,
     top_level_function_declarations,
 )
-from core.interpreter.return_exception import ReturnException
+from core.interpreter.return_exception import (
+    BreakException,
+    ContinueException,
+    ReturnException,
+)
 from core.errors.errors import RuntimeError
 from core.runtime.call_stack import CallFrame
 from core.runtime.symbolic import (
@@ -118,6 +124,18 @@ class Interpreter:
                     )
 
             return result
+        except ReturnException as error:
+            raise RuntimeError(
+                "'return' can only be used inside a function"
+            ) from error
+        except BreakException as error:
+            raise RuntimeError(
+                "'break' can only be used inside a loop"
+            ) from error
+        except ContinueException as error:
+            raise RuntimeError(
+                "'continue' can only be used inside a loop"
+            ) from error
         finally:
             self.context.pop_file_functions()
     
@@ -375,8 +393,13 @@ class Interpreter:
         result = None
 
         while self.evaluate(node.condition):
-            for stmt in node.body:
-                result = self.evaluate(stmt)
+            try:
+                for stmt in node.body:
+                    result = self.evaluate(stmt)
+            except ContinueException:
+                continue
+            except BreakException:
+                break
 
         return result
     
@@ -396,8 +419,13 @@ class Interpreter:
                 value
             )
 
-            for stmt in node.body:
-                result = self.evaluate(stmt)
+            try:
+                for stmt in node.body:
+                    result = self.evaluate(stmt)
+            except ContinueException:
+                continue
+            except BreakException:
+                break
 
         return result
     
@@ -511,7 +539,23 @@ class Interpreter:
                 )
 
         except ReturnException as ret:
-            return ret.value
+            if ret.has_value:
+                return ret.value
+
+            if declaration.return_variable:
+                return local_context.get_variable(
+                    declaration.return_variable
+                )
+
+            return None
+        except BreakException as error:
+            raise RuntimeError(
+                "'break' can only be used inside a loop"
+            ) from error
+        except ContinueException as error:
+            raise RuntimeError(
+                "'continue' can only be used inside a loop"
+            ) from error
         finally:
             self.context.call_stack.pop()
 
@@ -625,9 +669,20 @@ class Interpreter:
         return None
     
     def visit_ReturnNode(self, node):
+        if node.value is None:
+            raise ReturnException(
+                has_value=False,
+            )
+
         value = self.evaluate(node.value)
 
         raise ReturnException(value)
+
+    def visit_BreakNode(self, node):
+        raise BreakException()
+
+    def visit_ContinueNode(self, node):
+        raise ContinueException()
 
     def visit_SymsNode(self, node):
         for name in node.names:

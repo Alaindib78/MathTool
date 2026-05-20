@@ -18,6 +18,8 @@ from core.ast.nodes import (
     NameValueNode,
     FunctionDeclarationNode,
     ReturnNode,
+    BreakNode,
+    ContinueNode,
     SymsNode,
     TransposeNode,
 )
@@ -65,6 +67,12 @@ class Parser:
 
         if self.match(TokenType.RETURN):
             return self.return_statement()
+
+        if self.match(TokenType.BREAK):
+            return self.break_statement()
+
+        if self.match(TokenType.CONTINUE):
+            return self.continue_statement()
 
         if self.is_syms_statement():
             return self.syms_statement()
@@ -303,9 +311,43 @@ class Parser:
         return start
     
     def return_statement(self):
-        value = self.expression()
+        command = self.previous()
+        value = None
 
-        return ReturnNode(value)
+        if not self.is_statement_boundary(command.line):
+            value = self.expression()
+
+        return ReturnNode(
+            value,
+            command.line,
+            command.column,
+        )
+
+    def break_statement(self):
+        command = self.previous()
+
+        self.consume_statement_boundary(
+            command,
+            "break",
+        )
+
+        return BreakNode(
+            command.line,
+            command.column,
+        )
+
+    def continue_statement(self):
+        command = self.previous()
+
+        self.consume_statement_boundary(
+            command,
+            "continue",
+        )
+
+        return ContinueNode(
+            command.line,
+            command.column,
+        )
 
     def syms_statement(self):
         command = self.consume(TokenType.IDENTIFIER)
@@ -1004,6 +1046,29 @@ class Parser:
                 or next_token.type == TokenType.EOF
                 or next_token.line != self.peek().line
             )
+        )
+
+    def is_statement_boundary(self, line):
+        return (
+            self.is_at_end()
+            or self.check(TokenType.SEMICOLON)
+            or self.check(TokenType.END)
+            or self.check(TokenType.ELSE)
+            or self.check(TokenType.ELSEIF)
+            or self.peek().line != line
+        )
+
+    def consume_statement_boundary(self, command, keyword):
+        if self.is_statement_boundary(command.line):
+            return
+
+        token = self.peek()
+
+        raise ParserError(
+            f"Unexpected token after '{keyword}'",
+            line=token.line,
+            column=token.column,
+            token=token.value,
         )
 
     def consume(self, token_type):
