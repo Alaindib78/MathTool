@@ -149,6 +149,7 @@ class FunctionHelpDatabase:
         return sorted(
             results,
             key=lambda entry: (
+                not entry.functionName.lower().startswith(query),
                 query not in entry.functionName.lower(),
                 entry.functionName.lower(),
             ),
