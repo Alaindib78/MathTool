@@ -29,6 +29,9 @@ def load_script_command(context, command):
     if name in context.variables:
         return None
 
+    if context.functions.is_builtin(name):
+        return None
+
     directory = Path(
         context.current_working_directory
     )

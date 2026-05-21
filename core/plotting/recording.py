@@ -9,16 +9,66 @@ class RecordingPlotEngine:
         self.current_plot = None
         self.next_id = 1
 
+    def figure(self, number=None):
+        figure_id = (
+            self.next_id
+            if number is None
+            else int(number)
+        )
+
+        existing_plot = self.find_plot(figure_id)
+
+        if existing_plot is not None:
+            self.current_plot = existing_plot
+            return
+
+        plot_spec = self.empty_plot(figure_id)
+
+        self.next_id = max(
+            self.next_id,
+            figure_id + 1,
+        )
+        self.plots.append(plot_spec)
+        self.current_plot = plot_spec
+
     def plot(self, x, y):
-        plot_spec = {
-            "id": self.next_id,
+        if self.current_plot is None:
+            self.figure()
+
+        self.current_plot["data"] = [
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "x": self.line_values(x),
+                "y": self.line_values(y),
+            },
+        ]
+
+    def close(self, target=None):
+        if target == "all":
+            self.clear()
+            return
+
+        if target is None:
+            if self.current_plot is not None:
+                self.remove_plot(
+                    self.current_plot["id"]
+                )
+
+            return
+
+        self.remove_plot(int(target))
+
+    def empty_plot(self, figure_id):
+        return {
+            "id": figure_id,
             "type": "plotly",
             "data": [
                 {
                     "type": "scatter",
                     "mode": "lines",
-                    "x": self.line_values(x),
-                    "y": self.line_values(y),
+                    "x": [],
+                    "y": [],
                 },
             ],
             "layout": {
@@ -40,9 +90,29 @@ class RecordingPlotEngine:
             },
         }
 
-        self.next_id += 1
-        self.plots.append(plot_spec)
-        self.current_plot = plot_spec
+    def remove_plot(self, figure_id):
+        self.plots = [
+            plot
+            for plot in self.plots
+            if plot["id"] != figure_id
+        ]
+
+        if (
+            self.current_plot is not None
+            and self.current_plot["id"] == figure_id
+        ):
+            self.current_plot = (
+                self.plots[-1]
+                if self.plots
+                else None
+            )
+
+    def find_plot(self, figure_id):
+        for plot in self.plots:
+            if plot["id"] == figure_id:
+                return plot
+
+        return None
 
     def title(self, text):
         plot_spec = self.ensure_current_plot()
@@ -84,7 +154,7 @@ class RecordingPlotEngine:
 
     def ensure_current_plot(self):
         if self.current_plot is None:
-            self.plot([], [])
+            self.figure()
 
         return self.current_plot
 

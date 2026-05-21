@@ -89,6 +89,12 @@ class Parser:
         if self.is_who_statement():
             return self.who_statement()
 
+        if self.is_figure_statement():
+            return self.figure_statement()
+
+        if self.is_close_statement():
+            return self.close_statement()
+
         # Assignment
         if self.is_assignment_start():
             return self.assignment()
@@ -498,6 +504,41 @@ class Parser:
         return FunctionCallNode(
             "who",
             [],
+            command.line,
+            command.column,
+        )
+
+    def figure_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        return FunctionCallNode(
+            "figure",
+            [],
+            command.line,
+            command.column,
+        )
+
+    def close_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+        arguments = []
+
+        if (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek().line == command.line
+            and self.peek().value == "all"
+        ):
+            argument = self.advance()
+            arguments.append(
+                StringNode(
+                    "all",
+                    argument.line,
+                    argument.column,
+                )
+            )
+
+        return FunctionCallNode(
+            "close",
+            arguments,
             command.line,
             command.column,
         )
@@ -1161,6 +1202,51 @@ class Parser:
             )
         )
 
+    def is_figure_statement(self):
+        next_token = self.peek_next()
+
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "figure"
+            and next_token.type != TokenType.LPAREN
+            and next_token.type != TokenType.EQUAL
+            and (
+                next_token.type == TokenType.SEMICOLON
+                or next_token.type == TokenType.EOF
+                or next_token.line != self.peek().line
+            )
+        )
+
+    def is_close_statement(self):
+        next_token = self.peek_next()
+
+        if (
+            self.peek().type != TokenType.IDENTIFIER
+            or self.peek().value != "close"
+            or next_token.type == TokenType.LPAREN
+            or next_token.type == TokenType.EQUAL
+        ):
+            return False
+
+        if (
+            next_token.type == TokenType.SEMICOLON
+            or next_token.type == TokenType.EOF
+            or next_token.line != self.peek().line
+        ):
+            return True
+
+        after_argument = self.peek_at(2)
+
+        return (
+            next_token.type == TokenType.IDENTIFIER
+            and next_token.value == "all"
+            and (
+                after_argument.type == TokenType.SEMICOLON
+                or after_argument.type == TokenType.EOF
+                or after_argument.line != self.peek().line
+            )
+        )
+
     def is_statement_boundary(self, line):
         return (
             self.is_at_end()
@@ -1222,6 +1308,14 @@ class Parser:
             return self.tokens[-1]
 
         return self.tokens[self.position + 1]
+
+    def peek_at(self, offset):
+        position = self.position + offset
+
+        if position >= len(self.tokens):
+            return self.tokens[-1]
+
+        return self.tokens[position]
 
     def previous(self):
         return self.tokens[self.position - 1]

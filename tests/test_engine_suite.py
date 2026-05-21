@@ -1,4 +1,5 @@
 from core.engine import MathToolSession
+from core.plotting.recording import RecordingPlotEngine
 from core.runtime.context import RuntimeContext
 
 
@@ -72,3 +73,29 @@ def test_session_handles_interactive_workspace_commands():
     assert who.value == ["A"]
     assert cleared.value == "Workspace cleared"
     assert "A" not in session.context.variables
+
+
+def test_session_executes_figure_and_close_commands():
+    plot_engine = RecordingPlotEngine()
+    session = MathToolSession(
+        plot_engine=plot_engine
+    )
+
+    session.execute(
+        """
+figure
+plot([1 2], [3 4]);
+figure(2);
+plot([5 6], [7 8]);
+close(1);
+"""
+    )
+
+    assert [
+        plot["id"]
+        for plot in plot_engine.serialize_plots()
+    ] == [2]
+
+    session.execute("close all")
+
+    assert plot_engine.serialize_plots() == []

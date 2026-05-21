@@ -12,6 +12,12 @@ class FakePlotEngine:
     def plot(self, x, y):
         self.calls.append(("plot", x, y))
 
+    def figure(self, number=None):
+        self.calls.append(("figure", number))
+
+    def close(self, target=None):
+        self.calls.append(("close", target))
+
     def title(self, text):
         self.calls.append(("title", text))
 
@@ -229,6 +235,11 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
     context.functions.get("ylabel")(context, "y")
     context.functions.get("grid")(context, True)
     context.functions.get("grid")(context, False)
+    context.functions.get("figure")(context)
+    context.functions.get("figure")(context, 2)
+    context.functions.get("close")(context)
+    context.functions.get("close")(context, 2)
+    context.functions.get("close")(context, "ALL")
 
     assert context.plot_engine.calls == [
         ("plot", [1, 2], [3, 4]),
@@ -237,6 +248,11 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
         ("ylabel", "y"),
         ("grid_on",),
         ("grid_off",),
+        ("figure", None),
+        ("figure", 2),
+        ("close", None),
+        ("close", 2),
+        ("close", "all"),
     ]
 
 
@@ -279,4 +295,55 @@ def test_plot_engine_displays_nonblocking_and_refreshes(monkeypatch):
         ("show", False),
         ("draw_idle",),
         ("flush_events",),
+    ]
+
+
+def test_plot_engine_supports_figure_and_close(monkeypatch):
+    calls = []
+
+    class FakeFigure:
+        def __init__(self, number):
+            self.number = number
+            self.canvas = None
+
+    def fake_figure(number=None):
+        calls.append(("figure", number))
+        return FakeFigure(number or 1)
+
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.figure",
+        fake_figure,
+    )
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.show",
+        lambda block=None: calls.append(("show", block)),
+    )
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.gcf",
+        lambda: FakeFigure(1),
+    )
+    monkeypatch.setattr(
+        "core.plotting.engine.plt.close",
+        lambda target=None: calls.append(("close", target)),
+    )
+
+    engine = PlotEngine()
+
+    engine.figure()
+    engine.figure(2)
+    engine.close()
+    engine.figure(3)
+    engine.close(3)
+    engine.close("all")
+
+    assert calls == [
+        ("figure", None),
+        ("show", False),
+        ("figure", 2),
+        ("show", False),
+        ("close", None),
+        ("figure", 3),
+        ("show", False),
+        ("close", 3),
+        ("close", "all"),
     ]

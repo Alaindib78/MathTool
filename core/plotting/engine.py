@@ -5,8 +5,42 @@ class PlotEngine:
     def __init__(self):
         self.current_figure = None
 
+    def figure(self, number=None):
+        self.current_figure = plt.figure(
+            None if number is None else int(number)
+        )
+
+        self.show()
+
+    def close(self, target=None):
+        if target == "all":
+            plt.close("all")
+            self.current_figure = None
+            return
+
+        if target is None:
+            plt.close()
+            self.current_figure = None
+            return
+
+        plt.close(int(target))
+
+        if (
+            self.current_figure is not None
+            and getattr(
+                self.current_figure,
+                "number",
+                None,
+            )
+            == int(target)
+        ):
+            self.current_figure = None
+
     def plot(self, x, y):
-        self.current_figure = plt.figure()
+        if self.current_figure is None:
+            self.current_figure = plt.figure()
+        else:
+            plt.figure(self.current_figure.number)
 
         plt.plot(x, y)
 

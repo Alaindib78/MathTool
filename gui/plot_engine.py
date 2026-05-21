@@ -19,6 +19,12 @@ class GuiPlotEngine(QObject):
     def plot(self, x, y):
         self.request.emit("plot", (x, y))
 
+    def figure(self, number=None):
+        self.request.emit("figure", (number,))
+
+    def close(self, target=None):
+        self.request.emit("close", (target,))
+
     def title(self, text):
         self.request.emit("title", (text,))
 

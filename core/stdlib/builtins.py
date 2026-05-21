@@ -868,6 +868,19 @@ def builtin_conv(context, a, b):
 def builtin_plot(context, x, y):
     context.plot_engine.plot(x, y)
 
+def builtin_figure(context, number=None):
+    context.plot_engine.figure(number)
+
+    return None
+
+def builtin_close(context, target=None):
+    if isinstance(target, str):
+        target = target.lower()
+
+    context.plot_engine.close(target)
+
+    return None
+
 def builtin_mod(context, a, b):
     return np.mod(a, b)
 
@@ -1353,6 +1366,8 @@ BUILTIN_FUNCTIONS = {
 
     "length": builtin_length,
     "plot": builtin_plot,
+    "figure": builtin_figure,
+    "close": builtin_close,
     "mod": builtin_mod,
     "title": builtin_title,
     "xlabel": builtin_xlabel,

@@ -158,6 +158,28 @@ def test_parser_builds_cwd_command_statement(parse):
     assert call.arguments == []
 
 
+def test_parser_builds_figure_and_close_command_statements(parse):
+    program = parse(
+        """
+figure
+close
+close all
+"""
+    )
+
+    figure_call = program.statements[0]
+    close_call = program.statements[1]
+    close_all_call = program.statements[2]
+
+    assert isinstance(figure_call, FunctionCallNode)
+    assert figure_call.name == "figure"
+    assert figure_call.arguments == []
+    assert close_call.name == "close"
+    assert close_call.arguments == []
+    assert close_all_call.name == "close"
+    assert close_all_call.arguments[0].value == "all"
+
+
 def test_parser_builds_return_break_and_continue_statements(parse):
     program = parse(
         """

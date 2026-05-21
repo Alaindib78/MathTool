@@ -518,6 +518,8 @@ for name, summary, signature, output, options, examples in [
 
 # Plotting
 for name, summary, signature, inputs, output, options in [
+    ("figure", "Create or activate a figure.", "figure or figure(n)", "n: optional figure number.", "Creates or activates a plotting figure. Returns no value.", "When n is omitted, creates the next figure."),
+    ("close", "Close one or more figures.", "close, close(n), or close all", "n: optional figure number. all: close every figure.", "Closes the current figure, a numbered figure, or all figures. Returns no value.", "Command syntax supports close all."),
     ("plot", "Plot x-y data.", "plot(x, y)", "x, y: numeric vectors of compatible length.", "Displays or updates a plot. Returns no value.", "Uses the configured plotting backend."),
     ("title", "Set current plot title.", "title(text)", "text: string.", "Updates the current plot title. Returns no value.", "No options."),
     ("xlabel", "Set current plot x-axis label.", "xlabel(text)", "text: string.", "Updates the current x label. Returns no value.", "No options."),

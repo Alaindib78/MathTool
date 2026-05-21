@@ -143,6 +143,24 @@ value = 10;
     ) is None
 
 
+def test_bare_script_name_does_not_shadow_builtin(tmp_path):
+    write_function(
+        tmp_path,
+        "figure",
+        """
+value = 99;
+""",
+    )
+
+    context = RuntimeContext()
+    context.set_current_working_directory(tmp_path)
+
+    assert load_script_command(
+        context,
+        "figure",
+    ) is None
+
+
 def test_bare_script_name_ignores_function_only_file(tmp_path):
     write_function(
         tmp_path,
