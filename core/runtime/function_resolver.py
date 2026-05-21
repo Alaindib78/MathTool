@@ -131,6 +131,23 @@ class FileFunctionResolver:
     def directory_entries(self):
         directories = []
 
+        for index, directory in enumerate(
+            getattr(
+                self.context,
+                "library_paths",
+                [],
+            ),
+            start=1,
+        ):
+            label = "Core library"
+
+            if index > 1:
+                label = f"Core library #{index}"
+
+            directories.append(
+                (label, directory)
+            )
+
         current_directory = (
             self.context.current_working_directory
         )

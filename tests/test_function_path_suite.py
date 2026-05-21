@@ -57,9 +57,9 @@ def write_function(directory, name, body):
 def test_current_working_directory_function_is_callable(tmp_path):
     write_function(
         tmp_path,
-        "gcd",
+        "cwd_only",
         """
-function y = gcd(x)
+function y = cwd_only(x)
     y = x + 1;
 end
 """,
@@ -71,7 +71,7 @@ end
     execute_with_context(
         """
 b = 4;
-a = gcd(b);
+a = cwd_only(b);
 """,
         context,
     )
@@ -166,9 +166,9 @@ end
 def test_function_file_can_call_sibling_function_file(tmp_path):
     write_function(
         tmp_path,
-        "gcd",
+        "sibling_only",
         """
-function y = gcd(x)
+function y = sibling_only(x)
     y = x + 1;
 end
 """,
@@ -179,7 +179,7 @@ end
         "myfile",
         """
 function y = myfile(x)
-    y = gcd(x);
+    y = sibling_only(x);
 end
 """,
     )
@@ -295,6 +295,162 @@ end
     )
 
     assert context.variables["value"] == 1
+
+
+def test_core_library_path_precedes_current_and_external_paths(
+    tmp_path,
+):
+    library = tmp_path / "library"
+    current = tmp_path / "current"
+    external = tmp_path / "external"
+
+    library.mkdir()
+    current.mkdir()
+    external.mkdir()
+
+    write_function(
+        library,
+        "library_pick",
+        """
+function y = library_pick()
+    y = 10;
+end
+""",
+    )
+
+    write_function(
+        current,
+        "library_pick",
+        """
+function y = library_pick()
+    y = 20;
+end
+""",
+    )
+
+    write_function(
+        external,
+        "library_pick",
+        """
+function y = library_pick()
+    y = 30;
+end
+""",
+    )
+
+    context = RuntimeContext()
+    context.library_paths = [
+        str(library.resolve())
+    ]
+    context.set_current_working_directory(current)
+    context.add_search_path(external)
+
+    execute_with_context(
+        "value = library_pick();",
+        context,
+    )
+
+    assert context.variables["value"] == 10
+
+
+def test_core_library_subdirectories_are_resolved(tmp_path):
+    library = tmp_path / "library"
+    nested = library / "signals" / "filters"
+
+    nested.mkdir(parents=True)
+
+    write_function(
+        nested,
+        "nested_pick",
+        """
+function y = nested_pick()
+    y = 42;
+end
+""",
+    )
+
+    context = RuntimeContext()
+    context.library_paths = [
+        str(library.resolve()),
+        str((library / "signals").resolve()),
+        str(nested.resolve()),
+    ]
+    context.set_current_working_directory(tmp_path)
+
+    execute_with_context(
+        "value = nested_pick();",
+        context,
+    )
+
+    assert context.variables["value"] == 42
+
+
+def test_same_file_function_precedes_core_library_path(
+    tmp_path,
+):
+    library = tmp_path / "library"
+    current = tmp_path / "current"
+    script_path = current / "caller.m"
+
+    library.mkdir()
+    current.mkdir()
+
+    write_function(
+        library,
+        "local_pick",
+        """
+function y = local_pick()
+    y = 10;
+end
+""",
+    )
+
+    source = """
+value = local_pick();
+
+function y = local_pick()
+    y = 5;
+end
+"""
+    script_path.write_text(source, encoding="utf-8")
+
+    context = RuntimeContext()
+    context.library_paths = [
+        str(library.resolve())
+    ]
+    context.set_current_working_directory(current)
+
+    execute_with_context(
+        source,
+        context,
+        source_path=str(script_path),
+    )
+
+    assert context.variables["value"] == 5
+
+
+def test_builtins_precede_core_library_path(tmp_path):
+    library = tmp_path / "library"
+    library.mkdir()
+
+    write_function(
+        library,
+        "sin",
+        """
+function y = sin(x)
+    y = 99;
+end
+""",
+    )
+
+    context = RuntimeContext()
+    context.library_paths = [
+        str(library.resolve())
+    ]
+
+    assert context.resolve_function("sin") is (
+        context.functions.get("sin")
+    )
 
 
 def test_external_search_paths_resolve_in_configured_order(tmp_path):

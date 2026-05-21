@@ -943,6 +943,12 @@ class MainWindow(QMainWindow):
 
     def show_search_path(self):
         path_lines = [
+            "Core library:",
+            *(
+                self.context.library_paths
+                or ["(not available)"]
+            ),
+            "",
             "Current directory:",
             self.context.current_working_directory,
             "",
@@ -1786,7 +1792,8 @@ class MainWindow(QMainWindow):
 
         summary = QLabel(
             "External paths are searched after built-ins, "
-            "same-file functions, and the current folder. "
+            "same-file functions, the core library, and "
+            "the current folder. "
             "Higher entries win when external paths contain "
             "the same function name."
         )
@@ -2203,7 +2210,8 @@ class MainWindow(QMainWindow):
         if hasattr(self, "path_summary_label"):
             self.path_summary_label.setText(
                 "Function search order: built-ins, "
-                "same-file/local functions, current folder "
+                "same-file/local functions, core library, "
+                "current folder "
                 f"({self.context.current_working_directory}), "
                 "then external paths in the order listed below."
             )
@@ -2265,7 +2273,8 @@ class MainWindow(QMainWindow):
         if not messages:
             messages.append(
                 "No duplicate function names detected "
-                "across the current folder and external paths."
+                "across the core library, current folder, "
+                "and external paths."
             )
 
         self.path_feedback_label.setText(

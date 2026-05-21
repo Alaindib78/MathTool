@@ -32,6 +32,7 @@ core/
   debugger/        Debugger hooks and call control
   errors/          MathTool error types
   interpreter/     Runtime evaluator
+  library/         Optional .m library functions loaded for every runtime
   lexer/           Tokenizer
   parser/          Parser
   plotting/        Matplotlib plotting bridge
@@ -259,3 +260,4 @@ The active pytest configuration runs tests from the `tests/` directory.
 - Built-in `disp`, `fprintf`, `warning`, and `error` write to the GUI console when an output callback is configured.
 - Plotting uses Matplotlib through `core.plotting.engine.PlotEngine`.
 - The GUI executes scripts on a worker thread and routes output/workspace updates back to the Qt main thread through signals.
+- `.m` function files placed in `core/library/` or any of its subdirectories are available to the CLI, GUI, and API. Built-ins still have highest priority, then same-file/local functions, then `core/library/`, then the current working directory and configured external search paths.

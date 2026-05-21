@@ -1,8 +1,12 @@
 import math
 
 import pytest
+from pathlib import Path
 
-from core.runtime.context import RuntimeContext
+from core.runtime.context import (
+    DEFAULT_LIBRARY_DIRECTORY,
+    RuntimeContext,
+)
 
 
 def test_runtime_context_loads_constants_and_hides_them_from_who():
@@ -59,3 +63,18 @@ def test_runtime_context_notifies_when_paths_change(tmp_path):
         tmp_path.resolve()
     )
     assert notifications == [True]
+
+
+def test_runtime_context_registers_default_core_library_path():
+    context = RuntimeContext()
+
+    assert context.library_paths[0] == str(
+        DEFAULT_LIBRARY_DIRECTORY.resolve()
+    )
+    assert all(
+        DEFAULT_LIBRARY_DIRECTORY.resolve()
+        in Path(path).resolve().parents
+        or Path(path).resolve()
+        == DEFAULT_LIBRARY_DIRECTORY.resolve()
+        for path in context.library_paths
+    )

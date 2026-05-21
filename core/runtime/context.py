@@ -23,6 +23,12 @@ DEFAULT_IMAGINARY_UNITS = {
     "j": 1j,
 }
 
+DEFAULT_LIBRARY_DIRECTORY = (
+    Path(__file__).resolve().parent.parent
+    / "library"
+)
+
+
 class RuntimeContext:
     def __init__(self):
         self.variables = {}
@@ -41,6 +47,8 @@ class RuntimeContext:
         )
 
         self.search_paths = []
+
+        self.library_paths = self.default_library_paths()
 
         self.function_resolver = FileFunctionResolver(
             self
@@ -98,6 +106,8 @@ class RuntimeContext:
 
         child.search_paths = self.search_paths
 
+        child.library_paths = self.library_paths
+
         child.function_resolver = self.function_resolver
 
         child.help_database = self.help_database
@@ -140,6 +150,24 @@ class RuntimeContext:
             self.function_resolver.invalidate()
 
             self.notify_path_changed()
+
+    def default_library_paths(self):
+        if not DEFAULT_LIBRARY_DIRECTORY.is_dir():
+            return []
+
+        directories = [
+            DEFAULT_LIBRARY_DIRECTORY,
+            *(
+                path
+                for path in DEFAULT_LIBRARY_DIRECTORY.rglob("*")
+                if path.is_dir()
+            ),
+        ]
+
+        return [
+            str(path.resolve())
+            for path in directories
+        ]
 
     def remove_search_path(self, path):
         try:
