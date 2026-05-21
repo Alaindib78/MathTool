@@ -100,3 +100,35 @@ def test_api_sets_cwd_and_search_paths(tmp_path):
     assert response.json()["paths"] == [
         str(library.resolve())
     ]
+
+
+def test_api_records_plot_specs_in_execution_response():
+    client = create_client()
+    session_id = create_session(client)
+
+    response = client.post(
+        f"/sessions/{session_id}/execute",
+        json={
+            "source": """
+x = [1 2 3];
+y = [4 5 6];
+plot(x, y);
+title("Line");
+xlabel("x");
+ylabel("y");
+grid(true);
+""",
+        },
+    )
+
+    assert response.status_code == 200
+
+    plot = response.json()["plots"][0]
+
+    assert plot["type"] == "plotly"
+    assert plot["data"][0]["x"] == [1, 2, 3]
+    assert plot["data"][0]["y"] == [4, 5, 6]
+    assert plot["layout"]["title"]["text"] == "Line"
+    assert plot["layout"]["xaxis"]["title"]["text"] == "x"
+    assert plot["layout"]["yaxis"]["title"]["text"] == "y"
+    assert plot["layout"]["xaxis"]["showgrid"] is True

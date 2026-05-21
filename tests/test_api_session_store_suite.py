@@ -1,6 +1,7 @@
 import pytest
 
 from api.session_store import SessionStore
+from core.plotting.recording import RecordingPlotEngine
 
 
 def test_session_store_creates_and_retrieves_sessions():
@@ -11,6 +12,10 @@ def test_session_store_creates_and_retrieves_sessions():
 
     assert retrieved is stored
     assert retrieved.session.context is stored.session.context
+    assert isinstance(
+        retrieved.session.context.plot_engine,
+        RecordingPlotEngine,
+    )
 
 
 def test_session_store_raises_for_missing_session():

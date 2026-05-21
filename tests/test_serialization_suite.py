@@ -4,8 +4,10 @@ import math
 import numpy as np
 
 from core.engine import MathToolSession
+from core.plotting.recording import RecordingPlotEngine
 from core.serialization import (
     serialize_execution_result,
+    serialize_plots,
     serialize_value,
     serialize_workspace,
 )
@@ -149,3 +151,44 @@ def test_serialize_execution_result_can_include_workspace():
     assert serialized["value"]["type"] == "array"
     assert serialized["workspace"]["variables"][0]["name"] == "A"
     assert_json_safe(serialized)
+
+
+def test_serialize_execution_result_can_include_plots():
+    session = MathToolSession(
+        plot_engine=RecordingPlotEngine()
+    )
+
+    result = session.execute(
+        """
+x = [1 2 3];
+y = [4 5 6];
+plot(x, y);
+title("Line");
+"""
+    )
+
+    serialized = serialize_execution_result(
+        result,
+        context=session.context,
+        include_plots=True,
+    )
+
+    assert serialized["plots"][0]["data"][0]["x"] == [
+        1,
+        2,
+        3,
+    ]
+    assert (
+        serialized["plots"][0]["layout"]["title"]["text"]
+        == "Line"
+    )
+    assert_json_safe(serialized)
+
+
+def test_serialize_plots_returns_empty_list_for_non_recording_engine():
+    class PlotEngineWithoutSerialization:
+        pass
+
+    assert serialize_plots(
+        PlotEngineWithoutSerialization()
+    ) == []

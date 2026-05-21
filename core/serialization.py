@@ -188,6 +188,7 @@ def serialize_execution_result(
     *,
     context=None,
     include_workspace=False,
+    include_plots=False,
 ):
     payload = {
         "type": "execution_result",
@@ -210,7 +211,24 @@ def serialize_execution_result(
             context
         )
 
+    if include_plots:
+        if context is None:
+            raise ValueError(
+                "context is required when include_plots=True"
+            )
+
+        payload["plots"] = serialize_plots(
+            context.plot_engine
+        )
+
     return payload
+
+
+def serialize_plots(plot_engine):
+    if hasattr(plot_engine, "serialize_plots"):
+        return plot_engine.serialize_plots()
+
+    return []
 
 
 def json_leaf(value):

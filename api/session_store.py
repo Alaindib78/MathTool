@@ -4,6 +4,7 @@ from threading import RLock
 from uuid import uuid4
 
 from core.engine import MathToolSession
+from core.plotting.recording import RecordingPlotEngine
 
 
 @dataclass
@@ -19,9 +20,13 @@ class StoredSession:
 
 
 class SessionStore:
-    def __init__(self):
+    def __init__(self, session_factory=None):
         self._sessions = {}
         self._lock = RLock()
+        self.session_factory = (
+            session_factory
+            or create_session
+        )
 
     def create(self):
         session_id = str(uuid4())
@@ -29,7 +34,7 @@ class SessionStore:
 
         stored_session = StoredSession(
             id=session_id,
-            session=MathToolSession(),
+            session=self.session_factory(),
             created_at=now,
             updated_at=now,
         )
@@ -69,3 +74,9 @@ class SessionStore:
 
 def utc_now():
     return datetime.now(timezone.utc)
+
+
+def create_session():
+    return MathToolSession(
+        plot_engine=RecordingPlotEngine()
+    )

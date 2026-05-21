@@ -7,11 +7,13 @@ class ExecuteRequest(BaseModel):
     allow_commands: bool = False
     allow_script_commands: bool = True
     include_workspace: bool = True
+    include_plots: bool = True
 
 
 class CommandRequest(BaseModel):
     source: str
     include_workspace: bool = True
+    include_plots: bool = True
 
 
 class PathRequest(BaseModel):

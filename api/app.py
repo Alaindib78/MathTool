@@ -80,6 +80,7 @@ def create_app(session_store=None):
                 result,
                 context=stored.session.context,
                 include_workspace=request.include_workspace,
+                include_plots=request.include_plots,
             )
 
     @app.post("/sessions/{session_id}/command")
@@ -106,6 +107,7 @@ def create_app(session_store=None):
                 result,
                 context=stored.session.context,
                 include_workspace=request.include_workspace,
+                include_plots=request.include_plots,
             )
 
     @app.get("/sessions/{session_id}/workspace")
