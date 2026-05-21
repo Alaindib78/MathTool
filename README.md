@@ -134,6 +134,7 @@ session-based REST endpoints for executing MathTool code, reading the
 workspace, managing the current working directory/search path, and
 querying help text. Interactive API docs are available at
 `http://127.0.0.1:8000/docs` when the server is running.
+The first web HMI is served from `http://127.0.0.1:8000/`.
 
 Basic flow:
 

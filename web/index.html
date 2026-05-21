@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MathTool Web</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="brand">
+          <div class="brand-mark">M</div>
+          <div>
+            <h1>MathTool</h1>
+            <p id="sessionStatus">Starting session</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="newSessionButton" type="button">New Session</button>
+          <button id="clearWorkspaceButton" type="button">Clear Workspace</button>
+          <button id="runButton" class="primary" type="button">Run</button>
+        </div>
+      </header>
+
+      <main class="workbench">
+        <section class="editor-region" aria-labelledby="editorTitle">
+          <div class="panel-header">
+            <h2 id="editorTitle">Editor</h2>
+            <span id="cwdText" class="muted">cwd</span>
+          </div>
+          <textarea id="sourceEditor" spellcheck="false">t = 0:0.1:6.28;
+y = sin(t);
+plot(t, y);
+title("sine wave");
+xlabel("time");
+ylabel("value");
+grid(true);
+
+A = [1 2; 3 4];
+disp(A);</textarea>
+          <div class="command-row">
+            <input id="commandInput" type="text" autocomplete="off" value="who">
+            <button id="commandButton" type="button">Command</button>
+          </div>
+        </section>
+
+        <section class="console-region" aria-labelledby="consoleTitle">
+          <div class="panel-header">
+            <h2 id="consoleTitle">Console</h2>
+            <button id="clearConsoleButton" type="button">Clear</button>
+          </div>
+          <pre id="consoleOutput"></pre>
+        </section>
+
+        <section class="workspace-region" aria-labelledby="workspaceTitle">
+          <div class="panel-header">
+            <h2 id="workspaceTitle">Workspace</h2>
+            <span id="workspaceCount" class="muted">0 variables</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Preview</th>
+                </tr>
+              </thead>
+              <tbody id="workspaceBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="plot-region" aria-labelledby="plotTitle">
+          <div class="panel-header">
+            <h2 id="plotTitle">Plots</h2>
+            <span id="plotCount" class="muted">0 plots</span>
+          </div>
+          <div id="plotPanel" class="plot-panel"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

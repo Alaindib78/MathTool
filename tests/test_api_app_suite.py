@@ -132,3 +132,18 @@ grid(true);
     assert plot["layout"]["xaxis"]["title"]["text"] == "x"
     assert plot["layout"]["yaxis"]["title"]["text"] == "y"
     assert plot["layout"]["xaxis"]["showgrid"] is True
+
+
+def test_api_serves_web_hmi_assets():
+    client = create_client()
+
+    index = client.get("/")
+    script = client.get("/assets/app.js")
+    styles = client.get("/assets/styles.css")
+
+    assert index.status_code == 200
+    assert "MathTool" in index.text
+    assert script.status_code == 200
+    assert "createSession" in script.text
+    assert styles.status_code == 200
+    assert ".workbench" in styles.text

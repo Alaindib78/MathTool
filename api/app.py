@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from api.schemas import (
     CommandRequest,
@@ -13,6 +17,9 @@ from core.serialization import (
 )
 
 
+WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
+
+
 def create_app(session_store=None):
     store = session_store or SessionStore()
 
@@ -22,6 +29,19 @@ def create_app(session_store=None):
     )
 
     app.state.session_store = store
+
+    if WEB_ROOT.exists():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(WEB_ROOT)),
+            name="assets",
+        )
+
+        @app.get("/", include_in_schema=False)
+        def web_hmi():
+            return FileResponse(
+                WEB_ROOT / "index.html"
+            )
 
     @app.get("/health")
     def health():
