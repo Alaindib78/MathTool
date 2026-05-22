@@ -42,6 +42,10 @@ from core.runtime.symbolic import (
     NameValueOption,
     SymbolicEquation,
     SymbolicValue,
+    is_symbolic,
+    symbolic_equal,
+    sympy_text,
+    to_sympy_expression,
 )
 
 class Interpreter:
@@ -202,7 +206,7 @@ class Interpreter:
     def visit_UnaryOpNode(self, node):
         value = self.evaluate(node.operand)
 
-        if isinstance(value, SymbolicValue):
+        if is_symbolic(value):
             return self.symbolic_unary_operation(
                 node.operator,
                 value
@@ -630,7 +634,7 @@ class Interpreter:
         )
 
     def should_expand_matrix_element(self, value):
-        if isinstance(value, (str, SymbolicValue)):
+        if isinstance(value, str) or is_symbolic(value):
             return False
 
         if not self.is_array_like(value):
@@ -731,10 +735,8 @@ class Interpreter:
         right
     ):
         return (
-            isinstance(left, SymbolicValue)
-            or isinstance(left, SymbolicEquation)
-            or isinstance(right, SymbolicValue)
-            or isinstance(right, SymbolicEquation)
+            is_symbolic(left)
+            or is_symbolic(right)
         )
 
     def symbolic_binary_operation(
@@ -743,33 +745,51 @@ class Interpreter:
         operator,
         right
     ):
-        operators = {
-            TokenType.PLUS: "+",
-            TokenType.MINUS: "-",
-            TokenType.STAR: "*",
-            TokenType.SLASH: "/",
-            TokenType.CARET: "^",
-            TokenType.DOTSTAR: ".*",
-            TokenType.DOTSLASH: "./",
-            TokenType.DOTCARET: ".^",
-        }
+        left_expression = to_sympy_expression(left)
+        right_expression = to_sympy_expression(right)
 
         if operator == TokenType.EQEQ:
             return SymbolicEquation(
-                self.symbolic_text(left),
-                self.symbolic_text(right)
+                left_expression,
+                right_expression,
             )
 
-        if operator not in operators:
-            raise RuntimeError(
-                f"Unsupported symbolic operator "
-                f"{operator}"
+        if operator == TokenType.PLUS:
+            return SymbolicValue(
+                left_expression + right_expression
             )
 
-        return SymbolicValue(
-            f"{self.symbolic_text(left)} "
-            f"{operators[operator]} "
-            f"{self.symbolic_text(right)}"
+        if operator == TokenType.MINUS:
+            return SymbolicValue(
+                left_expression - right_expression
+            )
+
+        if operator in (TokenType.STAR, TokenType.DOTSTAR):
+            return SymbolicValue(
+                left_expression * right_expression
+            )
+
+        if operator in (TokenType.SLASH, TokenType.DOTSLASH):
+            return SymbolicValue(
+                left_expression / right_expression
+            )
+
+        if operator in (TokenType.CARET, TokenType.DOTCARET):
+            return SymbolicValue(
+                left_expression ** right_expression
+            )
+
+        if operator == TokenType.NEQ:
+            return not (
+                symbolic_equal(
+                    left_expression,
+                    right_expression,
+                )
+            )
+
+        raise RuntimeError(
+            f"Unsupported symbolic operator "
+            f"{operator}"
         )
 
     def symbolic_unary_operation(
@@ -777,12 +797,18 @@ class Interpreter:
         operator,
         value
     ):
+        expression = to_sympy_expression(value)
+
         if operator == TokenType.PLUS:
-            return value
+            return SymbolicValue(expression)
 
         if operator == TokenType.MINUS:
-            return SymbolicValue(
-                f"-{self.symbolic_text(value)}"
+            return SymbolicValue(-expression)
+
+        if operator == TokenType.NOT:
+            raise RuntimeError(
+                f"Unsupported symbolic operator "
+                f"{operator}"
             )
 
         raise RuntimeError(
@@ -791,13 +817,4 @@ class Interpreter:
         )
 
     def symbolic_text(self, value):
-        if isinstance(value, SymbolicValue):
-            return str(value)
-
-        if isinstance(value, SymbolicEquation):
-            return str(value)
-
-        if isinstance(value, float) and value.is_integer():
-            return str(int(value))
-
-        return str(value)
+        return sympy_text(value)

@@ -1,30 +1,26 @@
 import math
-from pydoc import text
 import numpy as np
 import sympy as sp
-from sympy.parsing.sympy_parser import (
-    convert_xor,
-    parse_expr,
-    standard_transformations,
-)
 
-from core.runtime.formatting import format_value
 from core.runtime.symbolic import (
     NameValueOption,
     SymbolicEquation,
     SymbolicValue,
+    as_sequence,
+    from_sympy_equation,
+    from_sympy_value,
+    is_symbolic,
+    symbol_from_variable,
+    symbol_sort_key,
+    sympy_symbols_for,
+    to_sympy_equation,
+    to_sympy_expression,
 )
 from core.stdlib.console import (
     disp,
     error as console_error,
     fprintf,
     warning,
-)
-
-
-SYMPY_TRANSFORMATIONS = (
-    standard_transformations
-    + (convert_xor,)
 )
 
 
@@ -1270,14 +1266,177 @@ def builtin_solve(context, *arguments):
     )
 
 
-def builtin_class(context, value):
-    if isinstance(
-        value,
-        (
-            SymbolicValue,
-            SymbolicEquation,
+def builtin_simplify(context, value):
+    if isinstance(value, SymbolicEquation):
+        return from_sympy_equation(
+            sp.simplify(value.left_expr),
+            sp.simplify(value.right_expr),
         )
-    ):
+
+    return from_sympy_value(
+        sp.simplify(
+            to_sympy_expression(value)
+        ),
+        simplify=False,
+    )
+
+
+def builtin_expand(context, value):
+    if isinstance(value, SymbolicEquation):
+        return from_sympy_equation(
+            sp.expand(value.left_expr),
+            sp.expand(value.right_expr),
+        )
+
+    return from_sympy_value(
+        sp.expand(
+            to_sympy_expression(value)
+        ),
+        simplify=False,
+    )
+
+
+def builtin_develop(context, value):
+    return builtin_expand(context, value)
+
+
+def builtin_collect(context, value, variable):
+    symbol = symbol_from_variable(variable)
+
+    return from_sympy_value(
+        sp.collect(
+            to_sympy_expression(value),
+            symbol,
+        ),
+        simplify=False,
+    )
+
+
+def builtin_factor(context, value):
+    if is_symbolic(value):
+        return from_sympy_value(
+            sp.factor(
+                to_sympy_expression(value)
+            ),
+            simplify=False,
+        )
+
+    return integer_prime_factors(value)
+
+
+def builtin_subs(context, value, variable, replacement):
+    expression = to_sympy_expression(value)
+    replacements = substitution_pairs(
+        variable,
+        replacement,
+    )
+
+    result = expression.subs(replacements)
+
+    if isinstance(value, SymbolicEquation):
+        return SymbolicEquation(
+            value.left_expr.subs(replacements),
+            value.right_expr.subs(replacements),
+        )
+
+    return from_sympy_value(
+        result,
+        simplify=False,
+    )
+
+
+def builtin_coeffs(context, value, variable=None):
+    expression = to_sympy_expression(value)
+
+    if variable is None:
+        symbols = sympy_symbols_for(value)
+        variable = preferred_symbol(symbols)
+    else:
+        variable = symbol_from_variable(variable)
+
+    try:
+        polynomial = sp.Poly(
+            expression,
+            variable,
+        )
+    except sp.PolynomialError as error:
+        raise Exception(
+            f"coeffs: expression is not polynomial in {variable}"
+        ) from error
+
+    return np.array(
+        [
+            from_sympy_value(coefficient)
+            for coefficient in polynomial.all_coeffs()
+        ],
+        dtype=object,
+    )
+
+
+def substitution_pairs(variable, replacement):
+    variables = as_sequence(variable)
+    replacements = as_sequence(replacement)
+
+    if len(variables) != len(replacements):
+        raise Exception(
+            "subs requires the same number of variables and values"
+        )
+
+    return {
+        symbol_from_variable(var): to_sympy_expression(value)
+        for var, value in zip(variables, replacements)
+    }
+
+
+def integer_prime_factors(value):
+    if isinstance(value, np.ndarray):
+        if value.size != 1:
+            raise Exception(
+                "factor: numeric input must be a scalar integer"
+            )
+
+        value = value.item()
+
+    if isinstance(value, np.generic):
+        value = value.item()
+
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise Exception(
+                "factor: numeric input must be an integer"
+            )
+
+        value = int(value)
+
+    if not isinstance(value, int):
+        raise Exception(
+            "factor: numeric input must be an integer or symbolic expression"
+        )
+
+    if value < 2:
+        raise Exception(
+            "factor: numeric input must be >= 2"
+        )
+
+    factors = []
+    remaining = value
+    divisor = 2
+
+    while divisor * divisor <= remaining:
+        while remaining % divisor == 0:
+            factors.append(divisor)
+            remaining //= divisor
+
+        divisor = 3 if divisor == 2 else divisor + 2
+
+    if remaining > 1:
+        factors.append(remaining)
+
+    return np.array(factors)
+
+
+def builtin_class(context, value):
+    if is_symbolic(value):
         return "sym"
 
     if isinstance(value, (bool, np.bool_)):
@@ -1314,92 +1473,6 @@ def split_name_value_options(arguments):
     return positional, options
 
 
-def as_sequence(value):
-    if isinstance(value, np.ndarray):
-        return list(value.flatten())
-
-    if isinstance(value, (list, tuple)):
-        return list(value)
-
-    return [value]
-
-
-def to_sympy_equation(value):
-    if isinstance(value, SymbolicEquation):
-        return sp.Eq(
-            to_sympy_expression(value.left),
-            to_sympy_expression(value.right),
-        )
-
-    expression = to_sympy_expression(value)
-
-    return sp.Eq(expression, 0)
-
-
-def to_sympy_expression(value):
-    if isinstance(value, SymbolicValue):
-        value = value.expression
-
-    if isinstance(value, SymbolicEquation):
-        value = value.expression
-
-    if isinstance(value, bool):
-        return sp.sympify(value)
-
-    if isinstance(value, (int, float, complex, np.number)):
-        return sp.sympify(value)
-
-    text_value = str(value)
-
-    return parse_expr(
-        text_value.replace("^", "**"),
-        transformations=SYMPY_TRANSFORMATIONS,
-        evaluate=True,
-    )
-
-
-def sympy_symbols_for(value):
-    symbols = set()
-
-    for item in as_sequence(value):
-        if isinstance(item, SymbolicEquation):
-            symbols.update(
-                to_sympy_expression(item.left).free_symbols
-            )
-            symbols.update(
-                to_sympy_expression(item.right).free_symbols
-            )
-        else:
-            symbols.update(
-                to_sympy_expression(item).free_symbols
-            )
-
-    return sorted(
-        symbols,
-        key=symbol_sort_key,
-    )
-
-
-def symbol_sort_key(symbol):
-    preferred_names = [
-        "x",
-        "y",
-        "z",
-        "t",
-    ]
-
-    if symbol.name in preferred_names:
-        return (
-            0,
-            preferred_names.index(symbol.name),
-        )
-
-    return (
-        1,
-        symbol.name,
-    )
-
-
 def preferred_symbol(symbols):
     if not symbols:
         raise Exception(
@@ -1410,18 +1483,6 @@ def preferred_symbol(symbols):
         symbols,
         key=symbol_sort_key,
     )[0]
-
-
-def symbol_from_variable(value):
-    if isinstance(value, SymbolicValue):
-        return sp.Symbol(value.expression)
-
-    if isinstance(value, str):
-        return sp.Symbol(value)
-
-    raise Exception(
-        "solve variables must be symbolic variables"
-    )
 
 
 def is_real_solution(value):
@@ -1478,22 +1539,6 @@ def converted_solution_dict(
             )
 
     return result
-
-
-def from_sympy_value(value):
-    value = sp.simplify(value)
-
-    return SymbolicValue(
-        sympy_text(value)
-    )
-
-
-def sympy_text(value):
-    text_value = sp.sstr(value)
-    text_value = text_value.replace("**", "^")
-    text_value = text_value.replace("I", "1i")
-
-    return text_value
 
 
 BUILTIN_FUNCTIONS = {
@@ -1632,4 +1677,11 @@ BUILTIN_FUNCTIONS = {
     "complex": builtin_complex,
     "solve": builtin_solve,
     "symvar": builtin_symvar,
+    "simplify": builtin_simplify,
+    "collect": builtin_collect,
+    "expand": builtin_expand,
+    "develop": builtin_develop,
+    "factor": builtin_factor,
+    "subs": builtin_subs,
+    "coeffs": builtin_coeffs,
 }

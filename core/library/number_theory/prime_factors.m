@@ -1,9 +1,11 @@
-function factors = factor(n)
-    % factor(n) returns the prime factorization of n as a vector
-    % Example: qfactor(60) returns [2, 2, 3, 5]
+function factors = prime_factors(n)
+    % PRIME_FACTORS Returns the prime factorization of n as a vector.
+    % Inputs: n is an integer greater than or equal to 2.
+    % Returns: factors is a row vector containing prime factors of n.
+    % Example: prime_factors(60) returns [2, 2, 3, 5].
     
     if n < 2
-        error('qfactor: Input must be >= 2');
+        error('prime_factors: input must be >= 2');
     end
     
     factors = [];

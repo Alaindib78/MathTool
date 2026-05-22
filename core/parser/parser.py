@@ -707,7 +707,7 @@ class Parser:
         return node
 
     def factor(self):
-        node = self.power()
+        node = self.unary()
 
         while self.match(
             TokenType.STAR,
@@ -730,9 +730,9 @@ class Parser:
         return node
 
     def power(self):
-        node = self.unary()
+        node = self.postfix()
 
-        while self.match(
+        if self.match(
             TokenType.CARET,
             TokenType.DOTCARET
         ):
@@ -775,7 +775,7 @@ class Parser:
                 operator.column
             )
 
-        return self.postfix()
+        return self.power()
 
     def primary(self):
         if self.match(TokenType.STRING):
@@ -1030,14 +1030,14 @@ class Parser:
 
     def matrix_atom(self):
         if self.match(TokenType.MINUS):
-            operand = self.postfix()
+            operand = self.power()
 
             return UnaryOpNode(
                 TokenType.MINUS,
                 operand
             )
 
-        return self.postfix()
+        return self.power()
 
     def is_imaginary_literal(self, token):
         return (

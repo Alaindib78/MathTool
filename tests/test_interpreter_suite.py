@@ -206,9 +206,7 @@ auto_vars = symvar(eqns);
         analyze=True,
     )
 
-    assert str(context.variables["eqn"]) == (
-        "a * x ^ 2 + b * x + c == 0"
-    )
+    assert str(context.variables["eqn"]) == "a*x^2 + b*x + c == 0"
     assert [
         str(solution)
         for solution in context.variables["S"]
@@ -229,6 +227,62 @@ auto_vars = symvar(eqns);
         str(variable)
         for variable in context.variables["auto_vars"]
     ] == ["u", "v"]
+
+
+def test_interpreter_builds_valid_symbolic_expression_trees(execute):
+    _, context = execute(
+        """
+syms a b c x
+
+exp1 = a^2 + 5*b + 6;
+exp2 = (c + b) * (a + 1);
+expr = exp1 * exp2;
+expanded = expand(expr);
+collected = collect(expanded, a);
+factored = factor(expanded);
+same = simplify(expr - factored);
+replaced = subs(expr, a, 2);
+coefficients = coeffs(x^2 + 2*x + 1, x);
+numeric_factors = factor(60);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["expr"]) == (
+        "(a + 1)*(b + c)*(a^2 + 5*b + 6)"
+    )
+    assert "a^3*b" in str(context.variables["expanded"])
+    assert "a^3*(b + c)" in str(context.variables["collected"])
+    assert str(context.variables["factored"]) == (
+        "(a + 1)*(b + c)*(a^2 + 5*b + 6)"
+    )
+    assert str(context.variables["same"]) == "0"
+    assert str(context.variables["replaced"]) == (
+        "3*(b + c)*(5*b + 10)"
+    )
+    assert [
+        str(value)
+        for value in context.variables["coefficients"]
+    ] == ["1", "2", "1"]
+    np.testing.assert_array_equal(
+        context.variables["numeric_factors"],
+        np.array([2, 2, 3, 5]),
+    )
+
+
+def test_interpreter_uses_symbolic_power_precedence_and_associativity(execute):
+    _, context = execute(
+        """
+syms x
+symbolic_power = -x^2;
+numeric_power = -2^2;
+right_assoc = 2^3^2;
+"""
+    )
+
+    assert str(context.variables["symbolic_power"]) == "-x^2"
+    assert context.variables["numeric_power"] == -4
+    assert context.variables["right_assoc"] == 512
 
 
 def test_interpreter_symbolic_variable_can_be_overwritten_by_double(execute):

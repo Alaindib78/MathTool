@@ -80,6 +80,7 @@ db = db20(10);
 stress = axial_stress(100, 2);
 polar = solid_circular_polar_j(2);
 g = standard_gravity();
+pf = prime_factors(60);
 """
     )
 
@@ -98,6 +99,10 @@ g = standard_gravity();
     assert variables["stress"] == pytest.approx(50)
     assert variables["polar"] == pytest.approx(np.pi / 2)
     assert variables["g"] == pytest.approx(9.80665)
+    np.testing.assert_array_equal(
+        variables["pf"],
+        np.array([2, 2, 3, 5]),
+    )
 
 
 def test_control_ode_and_data_helpers_execute_from_library():
