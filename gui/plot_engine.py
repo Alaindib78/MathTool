@@ -19,6 +19,18 @@ class GuiPlotEngine(QObject):
     def plot(self, x, y):
         self.request.emit("plot", (x, y))
 
+    def bode(self, frequency, magnitude_db, phase_deg):
+        self.request.emit(
+            "bode",
+            (frequency, magnitude_db, phase_deg),
+        )
+
+    def nyquist(self, real_values, imag_values):
+        self.request.emit(
+            "nyquist",
+            (real_values, imag_values),
+        )
+
     def figure(self, number=None):
         self.request.emit("figure", (number,))
 

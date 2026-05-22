@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from core.plotting.engine import PlotEngine
+from core.plotting.recording import RecordingPlotEngine
 from core.runtime.context import RuntimeContext
 
 
@@ -254,6 +255,48 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
         ("close", 2),
         ("close", "all"),
     ]
+
+
+def test_bode_and_nyquist_builtins_record_control_plots():
+    context = RuntimeContext()
+    context.plot_engine = RecordingPlotEngine()
+    functions = context.functions
+    frequency = np.array([0.1, 1.0, 10.0])
+
+    functions.get("bode")(
+        context,
+        np.array([1.0]),
+        np.array([1.0, 1.0]),
+        frequency,
+    )
+    functions.get("nyquist")(
+        context,
+        np.array([1.0]),
+        np.array([1.0, 1.0]),
+        np.array([0.0, 1.0]),
+    )
+
+    plots = context.plot_engine.serialize_plots()
+
+    assert [
+        plot["layout"]["title"]["text"]
+        for plot in plots
+    ] == [
+        "Bode Diagram - Magnitude",
+        "Bode Diagram - Phase",
+        "Nyquist Diagram",
+    ]
+    np.testing.assert_allclose(
+        plots[0]["data"][0]["y"],
+        np.array([-0.04321374, -3.01029996, -20.04321374]),
+    )
+    np.testing.assert_allclose(
+        plots[1]["data"][0]["y"],
+        np.array([-5.71059314, -45.0, -84.28940686]),
+    )
+    assert plots[0]["layout"]["xaxis"]["type"] == "log"
+    assert plots[2]["data"][0]["x"] == [1.0, 0.5, 0.5, 1.0]
+    assert plots[2]["data"][0]["y"] == [0.0, -0.5, 0.5, -0.0]
 
 
 def test_plot_engine_displays_nonblocking_and_refreshes(monkeypatch):

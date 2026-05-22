@@ -68,6 +68,36 @@ def test_recording_plot_engine_flattens_column_vectors():
     assert trace["y"] == [4, 5, 6]
 
 
+def test_recording_plot_engine_records_bode_and_nyquist_specs():
+    engine = RecordingPlotEngine()
+
+    engine.bode(
+        np.array([0.1, 1.0]),
+        np.array([-0.04321374, -3.01029996]),
+        np.array([-5.71059314, -45.0]),
+    )
+    engine.nyquist(
+        np.array([1.0, 0.5, 0.5, 1.0]),
+        np.array([0.0, -0.5, 0.5, 0.0]),
+    )
+
+    plots = engine.serialize_plots()
+
+    assert [
+        plot["layout"]["title"]["text"]
+        for plot in plots
+    ] == [
+        "Bode Diagram - Magnitude",
+        "Bode Diagram - Phase",
+        "Nyquist Diagram",
+    ]
+    assert plots[0]["layout"]["xaxis"]["type"] == "log"
+    assert plots[1]["layout"]["xaxis"]["type"] == "log"
+    assert plots[2]["data"][0]["x"] == [1.0, 0.5, 0.5, 1.0]
+
+    json.dumps(plots, allow_nan=False)
+
+
 def test_recording_plot_engine_creates_empty_current_plot_for_labels():
     engine = RecordingPlotEngine()
 

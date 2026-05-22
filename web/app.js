@@ -231,10 +231,16 @@ function renderPlots(plots) {
 
 function renderPlot(plot) {
   const trace = (plot.data || [])[0] || {};
-  const xValues = numericValues(trace.x || []);
-  const yValues = numericValues(trace.y || []);
+  const xAxisType = plot.layout?.xaxis?.type === "log" ? "log" : "linear";
+  const pointValues = pairedNumericValues(
+    trace.x || [],
+    trace.y || [],
+    xAxisType,
+  );
+  const xValues = pointValues.map((point) => point.xPlot);
+  const yValues = pointValues.map((point) => point.y);
 
-  if (!xValues.length || !yValues.length || xValues.length !== yValues.length) {
+  if (!pointValues.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.textContent = "Plot data unavailable";
@@ -253,8 +259,9 @@ function renderPlot(plot) {
   const plotHeight = height - margin.top - margin.bottom;
   const xDomain = paddedDomain(xValues);
   const yDomain = paddedDomain(yValues);
-  const points = xValues.map((x, index) => {
-    const y = yValues[index];
+  const points = pointValues.map((point) => {
+    const x = point.xPlot;
+    const y = point.y;
     return [
       margin.left + ((x - xDomain.min) / (xDomain.max - xDomain.min)) * plotWidth,
       margin.top + plotHeight - ((y - yDomain.min) / (yDomain.max - yDomain.min)) * plotHeight,
@@ -337,8 +344,8 @@ function renderPlot(plot) {
   const yAxisLabel = svgText(yLabel, 18, margin.top + plotHeight / 2, "middle", "12");
   yAxisLabel.setAttribute("transform", `rotate(-90 18 ${margin.top + plotHeight / 2})`);
   svg.appendChild(yAxisLabel);
-  svg.appendChild(svgText(formatTick(xDomain.min), margin.left, height - 34, "middle", "11"));
-  svg.appendChild(svgText(formatTick(xDomain.max), margin.left + plotWidth, height - 34, "middle", "11"));
+  svg.appendChild(svgText(formatAxisTick(xDomain.min, xAxisType), margin.left, height - 34, "middle", "11"));
+  svg.appendChild(svgText(formatAxisTick(xDomain.max, xAxisType), margin.left + plotWidth, height - 34, "middle", "11"));
   svg.appendChild(svgText(formatTick(yDomain.min), margin.left - 10, margin.top + plotHeight + 4, "end", "11"));
   svg.appendChild(svgText(formatTick(yDomain.max), margin.left - 10, margin.top + 4, "end", "11"));
 
@@ -414,20 +421,41 @@ function typeLabel(value) {
   return value.type;
 }
 
-function numericValues(values) {
-  return values
-    .map((value) => {
-      if (typeof value === "number") {
-        return value;
-      }
+function pairedNumericValues(xValues, yValues, xAxisType) {
+  const length = Math.min(xValues.length, yValues.length);
+  const points = [];
 
-      if (value && typeof value.real === "number" && value.imag === 0) {
-        return value.real;
-      }
+  for (let index = 0; index < length; index += 1) {
+    const x = numericValue(xValues[index]);
+    const y = numericValue(yValues[index]);
 
-      return Number.NaN;
-    })
-    .filter((value) => Number.isFinite(value));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      continue;
+    }
+
+    if (xAxisType === "log" && x <= 0) {
+      continue;
+    }
+
+    points.push({
+      xPlot: xAxisType === "log" ? Math.log10(x) : x,
+      y,
+    });
+  }
+
+  return points;
+}
+
+function numericValue(value) {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (value && typeof value.real === "number" && value.imag === 0) {
+    return value.real;
+  }
+
+  return Number.NaN;
 }
 
 function paddedDomain(values) {
@@ -449,6 +477,14 @@ function paddedDomain(values) {
 
 function formatTick(value) {
   return Number(value).toPrecision(4).replace(/\.?0+$/, "");
+}
+
+function formatAxisTick(value, axisType) {
+  if (axisType === "log") {
+    return formatTick(10 ** value);
+  }
+
+  return formatTick(value);
 }
 
 function svgElement(name, attributes) {

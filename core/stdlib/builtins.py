@@ -865,6 +865,258 @@ def builtin_polyfit(context, x, y, degree):
 def builtin_conv(context, a, b):
     return np.convolve(_as_array(a), _as_array(b))
 
+
+def _polynomial_coefficients(function_name, argument_name, value):
+    try:
+        coefficients = np.asarray(
+            value,
+            dtype=complex,
+        ).reshape(-1)
+    except (TypeError, ValueError) as error:
+        raise Exception(
+            f"{function_name}: {argument_name} must be a numeric "
+            "coefficient vector"
+        ) from error
+
+    if coefficients.size == 0:
+        raise Exception(
+            f"{function_name}: {argument_name} must contain at least "
+            "one coefficient"
+        )
+
+    if not np.all(np.isfinite(coefficients)):
+        raise Exception(
+            f"{function_name}: {argument_name} coefficients must be finite"
+        )
+
+    return coefficients
+
+
+def _validate_transfer_function(function_name, numerator, denominator):
+    num = _polynomial_coefficients(
+        function_name,
+        "numerator",
+        numerator,
+    )
+    den = _polynomial_coefficients(
+        function_name,
+        "denominator",
+        denominator,
+    )
+
+    if np.all(den == 0):
+        raise Exception(
+            f"{function_name}: denominator must not be the zero polynomial"
+        )
+
+    return num, den
+
+
+def _frequency_vector(function_name, value, *, allow_zero=False):
+    try:
+        frequency = np.asarray(
+            value,
+            dtype=float,
+        ).reshape(-1)
+    except (TypeError, ValueError) as error:
+        raise Exception(
+            f"{function_name}: frequency must be a numeric vector"
+        ) from error
+
+    if frequency.size == 0:
+        raise Exception(
+            f"{function_name}: frequency must contain at least one value"
+        )
+
+    if not np.all(np.isfinite(frequency)):
+        raise Exception(
+            f"{function_name}: frequency values must be finite"
+        )
+
+    lower_bound_ok = (
+        frequency >= 0
+        if allow_zero
+        else frequency > 0
+    )
+
+    if not np.all(lower_bound_ok):
+        qualifier = "nonnegative" if allow_zero else "positive"
+        raise Exception(
+            f"{function_name}: frequency values must be {qualifier}"
+        )
+
+    return frequency
+
+
+def _nonzero_finite_root_magnitudes(*polynomials):
+    magnitudes = []
+
+    for coefficients in polynomials:
+        trimmed = np.trim_zeros(
+            coefficients,
+            trim="f",
+        )
+
+        if trimmed.size <= 1:
+            continue
+
+        roots = np.roots(trimmed)
+
+        for value in np.abs(roots):
+            if np.isfinite(value) and value > 0:
+                magnitudes.append(value)
+
+    return np.asarray(magnitudes, dtype=float)
+
+
+def _default_frequency_vector(num, den):
+    magnitudes = _nonzero_finite_root_magnitudes(
+        num,
+        den,
+    )
+
+    if magnitudes.size == 0:
+        low_exp = -2
+        high_exp = 2
+    else:
+        low_exp = int(
+            np.floor(np.log10(np.min(magnitudes)))
+        ) - 2
+        high_exp = int(
+            np.ceil(np.log10(np.max(magnitudes)))
+        ) + 2
+
+    low_exp = max(low_exp, -12)
+    high_exp = min(high_exp, 12)
+
+    if low_exp >= high_exp:
+        low_exp -= 1
+        high_exp += 1
+
+    return np.logspace(low_exp, high_exp, 300)
+
+
+def _transfer_response(num, den, frequency):
+    s = 1j * frequency
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.polyval(num, s) / np.polyval(den, s)
+
+
+def _plot_bode_fallback(context, frequency, magnitude_db, phase_deg):
+    x_values = np.log10(frequency)
+
+    context.plot_engine.figure()
+    context.plot_engine.plot(x_values, magnitude_db)
+    context.plot_engine.title("Bode Diagram - Magnitude")
+    context.plot_engine.xlabel("log10 Frequency (rad/s)")
+    context.plot_engine.ylabel("Magnitude (dB)")
+    context.plot_engine.grid_on()
+
+    context.plot_engine.figure()
+    context.plot_engine.plot(x_values, phase_deg)
+    context.plot_engine.title("Bode Diagram - Phase")
+    context.plot_engine.xlabel("log10 Frequency (rad/s)")
+    context.plot_engine.ylabel("Phase (deg)")
+    context.plot_engine.grid_on()
+
+
+def _plot_nyquist_fallback(context, real_values, imag_values):
+    context.plot_engine.figure()
+    context.plot_engine.plot(real_values, imag_values)
+    context.plot_engine.title("Nyquist Diagram")
+    context.plot_engine.xlabel("Real")
+    context.plot_engine.ylabel("Imaginary")
+    context.plot_engine.grid_on()
+
+
+def builtin_bode(context, numerator, denominator, frequency=None):
+    num, den = _validate_transfer_function(
+        "bode",
+        numerator,
+        denominator,
+    )
+
+    if frequency is None:
+        frequency = _default_frequency_vector(num, den)
+    else:
+        frequency = _frequency_vector(
+            "bode",
+            frequency,
+        )
+
+    response = _transfer_response(
+        num,
+        den,
+        frequency,
+    )
+    magnitude_db = 20 * np.log10(np.abs(response))
+    phase_deg = np.rad2deg(
+        np.unwrap(np.angle(response))
+    )
+
+    if hasattr(context.plot_engine, "bode"):
+        context.plot_engine.bode(
+            frequency,
+            magnitude_db,
+            phase_deg,
+        )
+    else:
+        _plot_bode_fallback(
+            context,
+            frequency,
+            magnitude_db,
+            phase_deg,
+        )
+
+    return None
+
+
+def builtin_nyquist(context, numerator, denominator, frequency=None):
+    num, den = _validate_transfer_function(
+        "nyquist",
+        numerator,
+        denominator,
+    )
+
+    if frequency is None:
+        frequency = _default_frequency_vector(num, den)
+    else:
+        frequency = _frequency_vector(
+            "nyquist",
+            frequency,
+            allow_zero=True,
+        )
+
+    response = _transfer_response(
+        num,
+        den,
+        frequency,
+    )
+    curve = np.concatenate(
+        [
+            response,
+            np.conj(response[::-1]),
+        ]
+    )
+
+    real_values = np.real(curve)
+    imag_values = np.imag(curve)
+
+    if hasattr(context.plot_engine, "nyquist"):
+        context.plot_engine.nyquist(
+            real_values,
+            imag_values,
+        )
+    else:
+        _plot_nyquist_fallback(
+            context,
+            real_values,
+            imag_values,
+        )
+
+    return None
+
 def builtin_plot(context, x, y):
     context.plot_engine.plot(x, y)
 
@@ -1363,6 +1615,8 @@ BUILTIN_FUNCTIONS = {
     "polyval": builtin_polyval,
     "polyfit": builtin_polyfit,
     "conv": builtin_conv,
+    "bode": builtin_bode,
+    "nyquist": builtin_nyquist,
 
     "length": builtin_length,
     "plot": builtin_plot,

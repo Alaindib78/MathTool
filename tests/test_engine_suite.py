@@ -99,3 +99,27 @@ close(1);
     session.execute("close all")
 
     assert plot_engine.serialize_plots() == []
+
+
+def test_session_executes_bode_and_nyquist_plots():
+    plot_engine = RecordingPlotEngine()
+    session = MathToolSession(
+        plot_engine=plot_engine
+    )
+
+    session.execute(
+        """
+w = [0.1 1 10];
+bode([1], [1 1], w);
+nyquist([1], [1 1], [0 1]);
+"""
+    )
+
+    plots = plot_engine.serialize_plots()
+
+    assert len(plots) == 3
+    assert plots[0]["layout"]["title"]["text"] == (
+        "Bode Diagram - Magnitude"
+    )
+    assert plots[0]["layout"]["xaxis"]["type"] == "log"
+    assert plots[2]["layout"]["title"]["text"] == "Nyquist Diagram"

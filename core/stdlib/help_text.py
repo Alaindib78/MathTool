@@ -525,8 +525,11 @@ for name, summary, signature, inputs, output, options in [
     ("xlabel", "Set current plot x-axis label.", "xlabel(text)", "text: string.", "Updates the current x label. Returns no value.", "No options."),
     ("ylabel", "Set current plot y-axis label.", "ylabel(text)", "text: string.", "Updates the current y label. Returns no value.", "No options."),
     ("grid", "Toggle current plot grid.", "grid(value)", "value: optional logical true/false.", "Turns plot grid on or off. Returns no value.", "Defaults to true."),
+    ("bode", "Plot Bode magnitude and phase diagrams for a transfer function.", ["bode(num, den)", "bode(num, den, w)"], "num, den: descending-power transfer-function coefficient vectors. w: optional frequency vector in rad/s.", "Creates magnitude and phase plots. Returns no value.", "When w is omitted, a logarithmic frequency range is chosen from poles and zeros."),
+    ("nyquist", "Plot a Nyquist diagram for a transfer function.", ["nyquist(num, den)", "nyquist(num, den, w)"], "num, den: descending-power transfer-function coefficient vectors. w: optional nonnegative frequency vector in rad/s.", "Creates a Nyquist plot. Returns no value.", "When w is omitted, a logarithmic frequency range is chosen from poles and zeros."),
 ]:
-    add(name, "plotting", summary, signature, inputs, output, options, [signature])
+    examples = signature if isinstance(signature, list) else [signature]
+    add(name, "plotting", summary, signature, inputs, output, options, examples)
 
 
 # Symbolic and type helpers

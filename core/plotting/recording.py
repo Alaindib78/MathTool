@@ -44,6 +44,31 @@ class RecordingPlotEngine:
             },
         ]
 
+    def bode(self, frequency, magnitude_db, phase_deg):
+        self.figure()
+        self.plot(frequency, magnitude_db)
+        self.title("Bode Diagram - Magnitude")
+        self.xlabel("Frequency (rad/s)")
+        self.ylabel("Magnitude (dB)")
+        self.grid_on()
+        self.current_plot["layout"]["xaxis"]["type"] = "log"
+
+        self.figure()
+        self.plot(frequency, phase_deg)
+        self.title("Bode Diagram - Phase")
+        self.xlabel("Frequency (rad/s)")
+        self.ylabel("Phase (deg)")
+        self.grid_on()
+        self.current_plot["layout"]["xaxis"]["type"] = "log"
+
+    def nyquist(self, real_values, imag_values):
+        self.figure()
+        self.plot(real_values, imag_values)
+        self.title("Nyquist Diagram")
+        self.xlabel("Real")
+        self.ylabel("Imaginary")
+        self.grid_on()
+
     def close(self, target=None):
         if target == "all":
             self.clear()

@@ -672,6 +672,11 @@ def test_interpreter_supports_help_command_and_function_call(execute):
     assert "Create linearly spaced points" in result
     assert "linspace(start, stop, num)" in result
 
+    result, _ = execute("help bode;")
+
+    assert "Plot Bode magnitude and phase" in result
+    assert "bode(num, den, w)" in result
+
     context = RuntimeContext()
     output = []
     context.output_callback = output.append
