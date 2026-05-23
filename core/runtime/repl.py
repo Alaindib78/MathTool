@@ -29,9 +29,11 @@ class REPL:
                 "who",
                 "clear",
                 "help",
+                "doc",
                 "cwd",
             }
             or first_line_command.startswith("help ")
+            or first_line_command.startswith("doc ")
             or first_line_command.startswith("lookfor ")
         ):
             return first_line

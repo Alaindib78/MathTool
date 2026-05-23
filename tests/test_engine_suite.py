@@ -75,6 +75,27 @@ def test_session_handles_interactive_workspace_commands():
     assert "A" not in session.context.variables
 
 
+def test_session_handles_doc_command_and_semicolon_help_topic():
+    session = MathToolSession()
+
+    help_result = session.execute(
+        "help plot;",
+        allow_commands=True,
+    )
+    doc_result = session.execute(
+        "doc plotting-guide",
+        allow_commands=True,
+    )
+
+    assert help_result.command == "help"
+    assert help_result.help_topic == "plot"
+    assert "Plot x-y data" in help_result.value
+
+    assert doc_result.command == "doc"
+    assert doc_result.help_topic == "plotting-guide"
+    assert "Plotting Guide" in doc_result.value
+
+
 def test_session_executes_figure_and_close_commands():
     plot_engine = RecordingPlotEngine()
     session = MathToolSession(

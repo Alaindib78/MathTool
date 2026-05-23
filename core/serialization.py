@@ -196,6 +196,7 @@ def serialize_execution_result(
         "output": list(result.output),
         "source_path": result.source_path,
         "command": result.command,
+        "help_topic": result.help_topic,
         "workspace_changed": result.workspace_changed,
         "clear_output": result.clear_output,
         "should_exit": result.should_exit,

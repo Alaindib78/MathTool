@@ -82,6 +82,7 @@ class MathToolSyntaxHighlighter(
             "continue",
             "syms",
             "help",
+            "doc",
             "true",
             "false",
         ]

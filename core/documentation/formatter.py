@@ -2,10 +2,19 @@ from core.documentation.models import FunctionHelp
 
 
 def format_function_help(function_help):
+    heading = function_help.display_name
     lines = [
-        function_help.functionName,
-        "-" * len(function_help.functionName),
+        heading,
+        "-" * len(heading),
     ]
+
+    if function_help.category:
+        lines.extend(
+            [
+                f"Category: {function_help.category}",
+                "",
+            ]
+        )
 
     if function_help.signature:
         lines.extend(
@@ -23,7 +32,7 @@ def format_function_help(function_help):
         lines.extend(
             [
                 "",
-                "See also: " + ", ".join(function_help.seeAlso),
+                "Related: " + ", ".join(function_help.seeAlso),
             ]
         )
 
@@ -42,8 +51,9 @@ def format_help_overview(entries):
     ]
 
     for entry in entries:
+        name = entry.display_name
         suffix = f" - {entry.h1Line}" if entry.h1Line else ""
-        lines.append(f"  {entry.functionName}{suffix}")
+        lines.append(f"  {name}{suffix}")
 
     return "\n".join(lines)
 

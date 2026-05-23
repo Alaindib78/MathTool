@@ -132,3 +132,40 @@ def test_function_help_database_can_be_used_without_context():
     database = FunctionHelpDatabase()
 
     assert database.get("sqrt").isBuiltin is True
+
+
+def test_help_database_loads_markdown_guides_and_indexes_them():
+    database = FunctionHelpDatabase()
+
+    plotting = database.get("plotting-guide")
+
+    assert plotting is not None
+    assert plotting.display_name == "Plotting Guide"
+    assert plotting.category == "Plotting"
+    assert "plot" in plotting.keywords
+
+    categories = database.entries_by_category()
+    assert "Plotting" in categories
+    assert plotting in categories["Plotting"]
+
+    letters = database.entries_by_letter()
+    assert plotting in letters["P"]
+
+
+def test_help_database_search_ranks_partial_and_fuzzy_matches():
+    database = FunctionHelpDatabase()
+
+    partial_names = [
+        entry.functionName
+        for entry in database.search("plo")[:6]
+    ]
+
+    assert "plot" in partial_names
+    assert "plotting-guide" in partial_names
+
+    fuzzy_names = [
+        entry.functionName
+        for entry in database.search("plt")[:6]
+    ]
+
+    assert "plot" in fuzzy_names

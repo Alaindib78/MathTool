@@ -17,6 +17,7 @@ class ExecutionResult:
     output: list[str] = field(default_factory=list)
     source_path: str | None = None
     command: str | None = None
+    help_topic: str | None = None
     workspace_changed: bool = True
     clear_output: bool = False
     should_exit: bool = False
@@ -174,22 +175,44 @@ class MathToolSession:
             return ExecutionResult(
                 value=self.context.help_database.format_help(),
                 command=lowered,
+                help_topic=None,
                 workspace_changed=False,
             )
 
         if lowered.startswith("help "):
-            topic = command[5:].strip()
+            topic = self.command_argument(command, "help")
 
             return ExecutionResult(
                 value=self.context.help_database.format_help(
                     topic
                 ),
                 command="help",
+                help_topic=topic,
+                workspace_changed=False,
+            )
+
+        if lowered == "doc":
+            return ExecutionResult(
+                value=self.context.help_database.format_help(),
+                command=lowered,
+                help_topic=None,
+                workspace_changed=False,
+            )
+
+        if lowered.startswith("doc "):
+            topic = self.command_argument(command, "doc")
+
+            return ExecutionResult(
+                value=self.context.help_database.format_help(
+                    topic
+                ),
+                command="doc",
+                help_topic=topic,
                 workspace_changed=False,
             )
 
         if lowered.startswith("lookfor "):
-            keyword = command[8:].strip()
+            keyword = self.command_argument(command, "lookfor")
 
             return ExecutionResult(
                 value=self.context.help_database.format_lookfor(
@@ -200,6 +223,21 @@ class MathToolSession:
             )
 
         return None
+
+    def command_argument(self, command, name):
+        argument = command[len(name):].strip()
+
+        if argument.endswith(";"):
+            argument = argument[:-1].strip()
+
+        if (
+            len(argument) >= 2
+            and argument[0] == argument[-1]
+            and argument[0] in {"'", '"'}
+        ):
+            argument = argument[1:-1]
+
+        return argument
 
     def output_routing(self, output_callback):
         return OutputRouting(

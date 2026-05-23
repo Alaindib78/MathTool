@@ -10,6 +10,11 @@ from api.schemas import (
     PathRequest,
     SearchPathsRequest,
 )
+from core.documentation.formatter import format_function_help
+from core.documentation.html import (
+    function_help_to_html,
+    help_home_to_html,
+)
 from api.session_store import SessionStore
 from core.serialization import (
     serialize_execution_result,
@@ -306,6 +311,264 @@ def create_app(session_store=None):
             "text": text,
         }
 
+    @app.get("/sessions/{session_id}/help/home")
+    def help_home(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            help_database = (
+                stored.session.context.help_database
+            )
+
+            try:
+                help_database.refresh()
+                return {
+                    "title": "Help Home",
+                    "html": help_home_to_html(
+                        help_database
+                    ),
+                    "popular": [
+                        serialize_help_topic(
+                            entry,
+                            include_text=False,
+                        )
+                        for entry in help_database.popular_entries()
+                    ],
+                    "categories": [
+                        {
+                            "category": category,
+                            "count": len(entries),
+                        }
+                        for category, entries in (
+                            help_database
+                            .entries_by_category()
+                            .items()
+                        )
+                    ],
+                }
+            except Exception as error:
+                raise bad_request(error) from error
+
+    @app.get("/sessions/{session_id}/help/topics")
+    def help_topics(
+        session_id: str,
+        include_text: bool = False,
+        include_html: bool = False,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                entries = (
+                    stored
+                    .session
+                    .context
+                    .help_database
+                    .all_entries()
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "count": len(entries),
+                "topics": [
+                    serialize_help_topic(
+                        entry,
+                        include_text=include_text,
+                        include_html=include_html,
+                    )
+                    for entry in entries
+                ],
+            }
+
+    @app.get("/sessions/{session_id}/help/search")
+    def help_search(
+        session_id: str,
+        q: str = Query(""),
+        limit: int = Query(50, ge=1, le=250),
+        include_text: bool = False,
+        include_html: bool = False,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                results = (
+                    stored
+                    .session
+                    .context
+                    .help_database
+                    .search(q)
+                )[:limit]
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "query": q,
+                "count": len(results),
+                "results": [
+                    serialize_help_topic(
+                        entry,
+                        include_text=include_text,
+                        include_html=include_html,
+                    )
+                    for entry in results
+                ],
+            }
+
+    @app.get("/sessions/{session_id}/help/index")
+    def help_index(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                letters = (
+                    stored
+                    .session
+                    .context
+                    .help_database
+                    .entries_by_letter()
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "letters": [
+                    {
+                        "letter": letter,
+                        "topics": [
+                            serialize_help_topic(
+                                entry,
+                                include_text=False,
+                            )
+                            for entry in entries
+                        ],
+                    }
+                    for letter, entries in letters.items()
+                ],
+            }
+
+    @app.get("/sessions/{session_id}/help/categories")
+    def help_categories(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                categories = (
+                    stored
+                    .session
+                    .context
+                    .help_database
+                    .entries_by_category()
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "categories": [
+                    {
+                        "category": category,
+                        "count": len(entries),
+                        "topics": [
+                            serialize_help_topic(
+                                entry,
+                                include_text=False,
+                            )
+                            for entry in entries
+                        ],
+                    }
+                    for category, entries in categories.items()
+                ],
+            }
+
+    @app.get("/sessions/{session_id}/help/examples")
+    def help_examples(session_id: str):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                entries = [
+                    entry
+                    for entry in (
+                        stored
+                        .session
+                        .context
+                        .help_database
+                        .all_entries()
+                    )
+                    if entry.examples
+                ]
+            except Exception as error:
+                raise bad_request(error) from error
+
+            return {
+                "count": len(entries),
+                "examples": [
+                    {
+                        "topic": serialize_help_topic(
+                            entry,
+                            include_text=False,
+                        ),
+                        "items": list(entry.examples),
+                    }
+                    for entry in entries
+                ],
+            }
+
+    @app.get("/sessions/{session_id}/help/topic/{topic}")
+    def structured_help_topic(
+        session_id: str,
+        topic: str,
+        include_text: bool = True,
+        include_html: bool = True,
+    ):
+        stored = get_stored_session(
+            store,
+            session_id,
+        )
+
+        with stored.lock:
+            try:
+                entry = (
+                    stored
+                    .session
+                    .context
+                    .help_database
+                    .get(topic)
+                )
+            except Exception as error:
+                raise bad_request(error) from error
+
+            if entry is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Help topic not found: {topic}",
+                )
+
+            return serialize_help_topic(
+                entry,
+                include_text=include_text,
+                include_html=include_html,
+            )
+
     @app.get("/sessions/{session_id}/help/{topic}")
     def help_topic(
         session_id: str,
@@ -385,6 +648,37 @@ def bad_request(error):
         status_code=400,
         detail=str(error),
     )
+
+
+def serialize_help_topic(
+    entry,
+    *,
+    include_text=False,
+    include_html=False,
+):
+    payload = {
+        "id": entry.functionName,
+        "name": entry.functionName,
+        "title": entry.display_name,
+        "category": entry.category,
+        "kind": entry.kind,
+        "summary": entry.h1Line,
+        "signature": entry.signature,
+        "keywords": list(entry.keywords),
+        "aliases": list(entry.aliases),
+        "related": list(entry.seeAlso),
+        "examples": list(entry.examples),
+        "source_path": entry.sourcePath,
+        "is_builtin": entry.isBuiltin,
+    }
+
+    if include_text:
+        payload["text"] = format_function_help(entry)
+
+    if include_html:
+        payload["html"] = function_help_to_html(entry)
+
+    return payload
 
 
 app = create_app()

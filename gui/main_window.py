@@ -1650,7 +1650,22 @@ class MainWindow(QMainWindow):
         )
         help_menu.addAction(documentation_action)
 
-    def show_documentation_panel(self):
+        quick_help_action = QAction(
+            "Quick Help Search",
+            self,
+        )
+        quick_help_action.setShortcut(
+            QKeySequence("Ctrl+K")
+        )
+        quick_help_action.triggered.connect(
+            self.quick_help_search
+        )
+        help_menu.addAction(quick_help_action)
+
+    def show_documentation_panel(self, topic=None):
+        if isinstance(topic, bool):
+            topic = None
+
         if not hasattr(self, "documentation_dock"):
             return
 
@@ -1659,7 +1674,17 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, "documentation_panel"):
             self.documentation_panel.refresh()
-            self.documentation_panel.search_edit.setFocus()
+
+            if topic:
+                self.documentation_panel.open_topic(topic)
+            else:
+                self.documentation_panel.focus_search()
+
+    def quick_help_search(self):
+        self.show_documentation_panel()
+
+        if hasattr(self, "documentation_panel"):
+            self.documentation_panel.focus_search()
 
     def setup_current_directory_panel(self):
         dock = QDockWidget("Current Folder", self)
@@ -2751,6 +2776,14 @@ class MainWindow(QMainWindow):
         if result.clear_output:
             self.command_window.clear()
             return None
+
+        if result.command in {"help", "doc"}:
+            self.show_documentation_panel(
+                result.help_topic
+            )
+
+            if result.command == "doc":
+                return None
 
         if result.workspace_changed:
             if hasattr(self, "refresh_workspace"):

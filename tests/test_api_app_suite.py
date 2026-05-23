@@ -65,6 +65,79 @@ def test_api_supports_interactive_commands():
     assert response.json()["value"]["items"][0]["value"] == "alpha"
 
 
+def test_api_exposes_structured_help_browser_data():
+    client = create_client()
+    session_id = create_session(client)
+
+    search = client.get(
+        f"/sessions/{session_id}/help/search",
+        params={
+            "q": "plo",
+        },
+    )
+    assert search.status_code == 200
+    result_ids = [
+        item["id"]
+        for item in search.json()["results"][:6]
+    ]
+    assert "plot" in result_ids
+    assert "plotting-guide" in result_ids
+
+    topic = client.get(
+        f"/sessions/{session_id}/help/topic/plotting-guide",
+        params={
+            "include_html": True,
+        },
+    )
+    assert topic.status_code == 200
+    payload = topic.json()
+    assert payload["title"] == "Plotting Guide"
+    assert payload["category"] == "Plotting"
+    assert "Plotting Guide" in payload["html"]
+
+    index = client.get(
+        f"/sessions/{session_id}/help/index"
+    )
+    assert index.status_code == 200
+    assert any(
+        group["letter"] == "P"
+        for group in index.json()["letters"]
+    )
+
+    categories = client.get(
+        f"/sessions/{session_id}/help/categories"
+    )
+    assert categories.status_code == 200
+    assert any(
+        group["category"] == "Plotting"
+        for group in categories.json()["categories"]
+    )
+
+    examples = client.get(
+        f"/sessions/{session_id}/help/examples"
+    )
+    assert examples.status_code == 200
+    assert examples.json()["count"] > 0
+
+
+def test_api_command_response_includes_doc_help_topic():
+    client = create_client()
+    session_id = create_session(client)
+
+    response = client.post(
+        f"/sessions/{session_id}/command",
+        json={
+            "source": "doc plot",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["command"] == "doc"
+    assert payload["help_topic"] == "plot"
+    assert "Plot x-y data" in payload["value"]["value"]
+
+
 def test_api_returns_404_for_missing_session():
     client = create_client()
 

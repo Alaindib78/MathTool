@@ -6,6 +6,7 @@ os.environ.setdefault(
 )
 
 import pytest
+from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QApplication
 
 from core.runtime.context import RuntimeContext
@@ -51,3 +52,17 @@ end
     panel.open_topic("sqrt")
 
     assert "sqrt" in panel.signature_label.text()
+
+
+def test_documentation_panel_navigates_topic_links(app):
+    context = RuntimeContext()
+    panel = DocumentationPanel(context.help_database)
+
+    panel.on_anchor_clicked(QUrl("topic:plotting-guide"))
+
+    assert panel.current_topic == "plotting-guide"
+    assert "Plotting Guide" in panel.browser.toPlainText()
+
+    panel.on_anchor_clicked(QUrl("category:Plotting"))
+
+    assert "Plotting" in panel.search_edit.text()
