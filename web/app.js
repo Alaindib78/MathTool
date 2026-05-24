@@ -9,6 +9,7 @@ const elements = {
   cwdText: document.querySelector("#cwdText"),
   sourceEditor: document.querySelector("#sourceEditor"),
   runButton: document.querySelector("#runButton"),
+  helpButton: document.querySelector("#helpButton"),
   newSessionButton: document.querySelector("#newSessionButton"),
   clearWorkspaceButton: document.querySelector("#clearWorkspaceButton"),
   clearConsoleButton: document.querySelector("#clearConsoleButton"),
@@ -23,6 +24,7 @@ const elements = {
 
 document.addEventListener("DOMContentLoaded", () => {
   elements.runButton.addEventListener("click", runSource);
+  elements.helpButton.addEventListener("click", openHelpPage);
   elements.commandButton.addEventListener("click", runCommand);
   elements.newSessionButton.addEventListener("click", createSession);
   elements.clearWorkspaceButton.addEventListener("click", clearWorkspace);
@@ -35,6 +37,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   createSession();
 });
+
+function openHelpPage() {
+  const target = state.sessionId
+    ? `/help?session=${encodeURIComponent(state.sessionId)}`
+    : "/help";
+
+  window.open(target, "_blank", "noopener");
+}
 
 async function createSession() {
   setBusy(true);

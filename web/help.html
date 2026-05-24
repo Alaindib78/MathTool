@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MathTool Help</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body class="help-page">
+    <div class="doc-app">
+      <header class="doc-top-bar">
+        <div class="brand">
+          <div class="brand-mark">M</div>
+          <div>
+            <h1>MathTool Help</h1>
+            <p id="helpSessionStatus">Connecting</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <a class="button-link" href="/">Workbench</a>
+          <button id="helpHomeButton" type="button">Home</button>
+        </div>
+      </header>
+
+      <main class="doc-workbench">
+        <aside class="doc-sidebar">
+          <div class="doc-search">
+            <input id="helpSearch" type="search" autocomplete="off" placeholder="Search documentation">
+          </div>
+
+          <div class="doc-tabs" role="tablist" aria-label="Documentation navigation">
+            <button class="doc-tab active" data-panel="resultsPanel" type="button">Search</button>
+            <button class="doc-tab" data-panel="indexPanel" type="button">A-Z</button>
+            <button class="doc-tab" data-panel="categoriesPanel" type="button">Categories</button>
+            <button class="doc-tab" data-panel="examplesPanel" type="button">Examples</button>
+          </div>
+
+          <div class="doc-panel active" id="resultsPanel"></div>
+          <div class="doc-panel" id="indexPanel"></div>
+          <div class="doc-panel" id="categoriesPanel"></div>
+          <div class="doc-panel" id="examplesPanel"></div>
+        </aside>
+
+        <article class="doc-view">
+          <div class="doc-view-header">
+            <div>
+              <h2 id="docTitle">Help Home</h2>
+              <p id="docMeta" class="muted"></p>
+            </div>
+          </div>
+          <div id="docContent" class="doc-content"></div>
+        </article>
+      </main>
+    </div>
+
+    <script src="/assets/help.js" defer></script>
+  </body>
+</html>

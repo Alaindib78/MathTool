@@ -211,12 +211,21 @@ def test_api_serves_web_hmi_assets():
     client = create_client()
 
     index = client.get("/")
+    help_page = client.get("/help")
     script = client.get("/assets/app.js")
+    help_script = client.get("/assets/help.js")
     styles = client.get("/assets/styles.css")
 
     assert index.status_code == 200
     assert "MathTool" in index.text
+    assert "helpButton" in index.text
+    assert help_page.status_code == 200
+    assert "helpSearch" in help_page.text
     assert script.status_code == 200
     assert "createSession" in script.text
+    assert "openHelpPage" in script.text
+    assert help_script.status_code == 200
+    assert "runHelpSearch" in help_script.text
     assert styles.status_code == 200
     assert ".workbench" in styles.text
+    assert ".doc-workbench" in styles.text

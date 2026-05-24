@@ -48,6 +48,12 @@ def create_app(session_store=None):
                 WEB_ROOT / "index.html"
             )
 
+        @app.get("/help", include_in_schema=False)
+        def web_help():
+            return FileResponse(
+                WEB_ROOT / "help.html"
+            )
+
     @app.get("/health")
     def health():
         return {
