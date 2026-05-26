@@ -338,6 +338,174 @@ v(2) = 9;
     )
 
 
+def test_interpreter_supports_basic_struct_field_assignment(execute):
+    _, context = execute(
+        """
+s.name = 'Alice';
+s.age = 30;
+x = s.name;
+y = s.age;
+"""
+    )
+
+    assert context.variables["s"]["name"] == "Alice"
+    assert context.variables["s"]["age"] == 30
+    assert context.variables["x"] == "Alice"
+    assert context.variables["y"] == 30
+
+
+def test_interpreter_supports_nested_struct_assignment(execute):
+    _, context = execute(
+        """
+user.name = 'Bob';
+user.address.city = 'Boston';
+user.address.zip = 2108;
+city = user.address.city;
+zipCode = user.address.zip;
+"""
+    )
+
+    assert context.variables["user"]["name"] == "Bob"
+    assert context.variables["user"]["address"]["city"] == "Boston"
+    assert context.variables["city"] == "Boston"
+    assert context.variables["zipCode"] == 2108
+
+
+def test_interpreter_overwrites_struct_fields(execute):
+    _, context = execute(
+        """
+s.x = 1;
+s.x = 2;
+y = s.x;
+"""
+    )
+
+    assert context.variables["s"]["x"] == 2
+    assert context.variables["y"] == 2
+
+
+def test_interpreter_supports_struct_constructor_and_empty_struct(execute):
+    _, context = execute(
+        """
+p = struct('name', 'Alice', 'age', 30);
+n = p.name;
+a = p.age;
+
+s = struct();
+s.x = 5;
+y = s.x;
+kind = class(s);
+"""
+    )
+
+    assert context.variables["p"]["name"] == "Alice"
+    assert context.variables["p"]["age"] == 30
+    assert context.variables["n"] == "Alice"
+    assert context.variables["a"] == 30
+    assert context.variables["s"]["x"] == 5
+    assert context.variables["y"] == 5
+    assert context.variables["kind"] == "struct"
+
+
+def test_interpreter_supports_nested_struct_constructor(execute):
+    _, context = execute(
+        """
+user = struct('address', struct('city', 'Boston'));
+city = user.address.city;
+"""
+    )
+
+    assert context.variables["user"]["address"]["city"] == "Boston"
+    assert context.variables["city"] == "Boston"
+
+
+def test_interpreter_raises_for_missing_struct_field(execute):
+    with pytest.raises(MathToolRuntimeError) as error:
+        execute(
+            """
+s = struct('a', 1);
+x = s.b;
+"""
+        )
+
+    assert "Reference to non-existent field 'b'" in str(error.value)
+
+
+def test_interpreter_raises_for_non_struct_dot_access(execute):
+    with pytest.raises(MathToolRuntimeError) as error:
+        execute(
+            """
+x = 5;
+y = x.name;
+"""
+        )
+
+    assert "non-struct" in str(error.value)
+
+
+def test_interpreter_raises_for_invalid_struct_constructor_arguments(execute):
+    with pytest.raises(MathToolRuntimeError) as odd_error:
+        execute("s = struct('a');")
+
+    assert "name/value pairs" in str(odd_error.value)
+
+    with pytest.raises(MathToolRuntimeError) as name_error:
+        execute("s = struct(123, 456);")
+
+    assert "field names must be strings" in str(name_error.value)
+
+
+def test_interpreter_supports_struct_fields_in_expressions_and_indexing(execute):
+    _, context = execute(
+        """
+s.x = 10;
+s.grades = [95 88 91];
+y = s.x + 5;
+z = s.grades(2);
+avgGrade = mean(s.grades);
+"""
+    )
+
+    assert context.variables["y"] == 15
+    assert context.variables["z"] == 88
+    assert context.variables["avgGrade"] == pytest.approx(91.3333333333)
+
+
+def test_interpreter_supports_struct_arrays(execute):
+    _, context = execute(
+        """
+students(1).name = 'Alice';
+students(1).grade = 95;
+students(2).name = 'Bob';
+students(2).grade = 88;
+first = students(1).name;
+secondGrade = students(2).grade;
+"""
+    )
+
+    assert context.variables["students"][0]["name"] == "Alice"
+    assert context.variables["students"][1]["name"] == "Bob"
+    assert context.variables["first"] == "Alice"
+    assert context.variables["secondGrade"] == 88
+
+
+def test_interpreter_struct_support_preserves_decimal_and_elementwise_ops(execute):
+    _, context = execute(
+        """
+x = 3.14;
+y = x + 1;
+A = [1 2 3];
+B = A .* 2;
+"""
+    )
+
+    assert context.variables["y"] == pytest.approx(4.14)
+    np.testing.assert_array_equal(
+        context.variables["B"],
+        np.array([2, 4, 6]),
+    )
+
+
 def test_interpreter_supports_matrix_builtins(execute):
     _, context = execute(
         """

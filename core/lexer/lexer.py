@@ -202,6 +202,19 @@ class Lexer:
                 self.advance()
                 continue
 
+            if char == ".":
+                tokens.append(
+                    Token(
+                        TokenType.DOT,
+                        ".",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                continue
+
             # Single-character tokens
             single_char_tokens = {
                 "+": TokenType.PLUS,
@@ -408,6 +421,7 @@ class Lexer:
             TokenType.DOTSTAR,
             TokenType.DOTSLASH,
             TokenType.DOTCARET,
+            TokenType.DOT,
             TokenType.EQEQ,
             TokenType.NEQ,
             TokenType.LT,

@@ -17,6 +17,7 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Element-wise operators: `.*`, `./`, `.^` (`.*` requires same-size array operands)
 - Matrix transpose with `'`
 - One-based indexing such as `M(2, 1)`
+- MATLAB-style structs with dot assignment/access, nested fields, `struct(...)`, and one-dimensional struct arrays such as `students(1).name`
 - MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, `exp`, `angle`, `conj`, `real`, `imag`, and `isreal`
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
 - Symbolic equation solving with `solve`, `symvar`, and `Name=Value` options such as `Real=true`
@@ -203,6 +204,26 @@ syms u v
 eqns = [2*u + v == 0, u - v == 1];
 Y = solve(eqns, [u v]);
 ```
+
+Struct example:
+
+```matlab
+student.name = 'Alice';
+student.id = 12345;
+student.grades = [95 88 91];
+
+user.address.city = 'Boston';
+city = user.address.city;
+
+person = struct('name', 'Bob', 'age', 30);
+students(1).name = 'Alice';
+students(2).name = 'Bob';
+```
+
+Missing field reads raise an error such as
+`Reference to non-existent field 'city'`. Dot assignment auto-creates
+missing intermediate structs, while dot access does not. Struct arrays
+currently support one-dimensional indexing for field assignment/access.
 
 Complex number example:
 

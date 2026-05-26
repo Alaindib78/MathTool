@@ -103,6 +103,27 @@ def test_lexer_tokenizes_imaginary_number_suffixes():
     assert tokens[8].value == 3j
 
 
+def test_lexer_tokenizes_dot_access_without_breaking_decimals_or_elementwise_ops():
+    tokens = Lexer("s.x = 3.14; B = A .* 2;").tokenize()
+
+    assert [token.type for token in tokens] == [
+        TokenType.IDENTIFIER,
+        TokenType.DOT,
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.NUMBER,
+        TokenType.SEMICOLON,
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.IDENTIFIER,
+        TokenType.DOTSTAR,
+        TokenType.NUMBER,
+        TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+    assert tokens[4].value == 3.14
+
+
 def test_lexer_distinguishes_single_quoted_strings_from_transpose():
     tokens = Lexer("f = sym('x'); T = M';").tokenize()
 

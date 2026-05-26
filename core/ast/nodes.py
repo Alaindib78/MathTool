@@ -314,6 +314,54 @@ class FunctionCallNode(ASTNode):
         )
 
 
+class FieldAccessNode(ASTNode):
+    def __init__(
+        self,
+        target,
+        field_name,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
+        self.target = target
+        self.field_name = field_name
+
+    def __repr__(self):
+        return (
+            f"FieldAccessNode("
+            f"target={self.target}, "
+            f"field_name={self.field_name})"
+        )
+
+
+class IndexAccessNode(ASTNode):
+    def __init__(
+        self,
+        target,
+        arguments,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
+        self.target = target
+        self.arguments = arguments
+
+    def __repr__(self):
+        return (
+            f"IndexAccessNode("
+            f"target={self.target}, "
+            f"arguments={self.arguments})"
+        )
+
+
 class NameValueNode(ASTNode):
     def __init__(
         self,

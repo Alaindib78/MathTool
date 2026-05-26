@@ -15,6 +15,8 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    FieldAccessNode,
+    IndexAccessNode,
     NameValueNode,
     FunctionDeclarationNode,
     ReturnNode,
@@ -44,6 +46,11 @@ from core.runtime.symbolic import (
     symbolic_equal,
     sympy_text,
     to_sympy_expression,
+)
+from core.runtime.struct import (
+    MatlabStruct,
+    is_struct,
+    missing_field_message,
 )
 
 class Interpreter:
@@ -198,6 +205,22 @@ class Interpreter:
                     node.line,
                     node.column
                 )
+
+            return value
+
+        if isinstance(node.target, FieldAccessNode):
+            self.assign_field(
+                node.target,
+                value,
+            )
+
+            return value
+
+        if isinstance(node.target, IndexAccessNode):
+            self.assign_indexed_expression(
+                node.target,
+                value,
+            )
 
             return value
 
@@ -475,6 +498,49 @@ class Interpreter:
     def visit_FunctionCallNode(self, node):
         return self.evaluate_function_call(node)
 
+    def visit_FieldAccessNode(self, node):
+        target = self.evaluate(node.target)
+
+        if not is_struct(target):
+            raise RuntimeError(
+                f"Cannot access field '{node.field_name}' "
+                "on non-struct value",
+                node.line,
+                node.column,
+            )
+
+        if node.field_name not in target:
+            raise RuntimeError(
+                missing_field_message(node.field_name),
+                node.line,
+                node.column,
+            )
+
+        return target[node.field_name]
+
+    def visit_IndexAccessNode(self, node):
+        target = self.evaluate(node.target)
+        indices = self.coerce_indices([
+            self.evaluate(arg)
+            for arg in node.arguments
+        ])
+
+        if not indices:
+            raise RuntimeError(
+                "Indexed expression requires at least one index",
+                node.line,
+                node.column,
+            )
+
+        try:
+            return target[self.index_key(indices)]
+        except (IndexError, KeyError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                f"Invalid indexed expression: {error}",
+                node.line,
+                node.column,
+            ) from error
+
     def evaluate_function_call(
         self,
         node,
@@ -536,6 +602,204 @@ class Interpreter:
             )
 
         return target[self.index_key(indices)]
+
+    def assign_field(
+        self,
+        node,
+        value,
+    ):
+        target = self.struct_for_field_write(
+            node.target,
+            node.line,
+            node.column,
+        )
+
+        target[node.field_name] = value
+
+    def struct_for_field_write(
+        self,
+        node,
+        line,
+        column,
+    ):
+        if isinstance(node, IdentifierNode):
+            try:
+                value = self.context.get_variable(
+                    node.name
+                )
+            except Exception:
+                value = MatlabStruct()
+
+                self.context.set_variable(
+                    node.name,
+                    value,
+                )
+
+            if not is_struct(value):
+                raise RuntimeError(
+                    f"Cannot assign field on non-struct "
+                    f"value '{node.name}'",
+                    line,
+                    column,
+                )
+
+            return value
+
+        if isinstance(node, FieldAccessNode):
+            parent = self.struct_for_field_write(
+                node.target,
+                line,
+                column,
+            )
+
+            if node.field_name not in parent:
+                parent[node.field_name] = MatlabStruct()
+
+            value = parent[node.field_name]
+
+            if not is_struct(value):
+                raise RuntimeError(
+                    f"Cannot assign field on non-struct "
+                    f"field '{node.field_name}'",
+                    line,
+                    column,
+                )
+
+            return value
+
+        if isinstance(node, FunctionCallNode):
+            return self.indexed_struct_for_field_write(
+                node.name,
+                node.arguments,
+                line,
+                column,
+            )
+
+        if isinstance(node, IndexAccessNode):
+            target = self.evaluate(node.target)
+            indices = self.coerce_indices([
+                self.evaluate(arg)
+                for arg in node.arguments
+            ])
+
+            return self.ensure_indexed_struct(
+                target,
+                indices,
+                line,
+                column,
+            )
+
+        raise RuntimeError(
+            "Invalid field assignment target",
+            line,
+            column,
+        )
+
+    def indexed_struct_for_field_write(
+        self,
+        name,
+        arguments,
+        line,
+        column,
+    ):
+        indices = self.coerce_indices([
+            self.evaluate(arg)
+            for arg in arguments
+        ])
+
+        if len(indices) != 1:
+            raise RuntimeError(
+                "Struct array field assignment supports "
+                "one index",
+                line,
+                column,
+            )
+
+        try:
+            target = self.context.get_variable(name)
+        except Exception:
+            target = []
+            self.context.set_variable(name, target)
+
+        return self.ensure_indexed_struct(
+            target,
+            indices,
+            line,
+            column,
+        )
+
+    def ensure_indexed_struct(
+        self,
+        target,
+        indices,
+        line,
+        column,
+    ):
+        if len(indices) != 1:
+            raise RuntimeError(
+                "Struct array field assignment supports "
+                "one index",
+                line,
+                column,
+            )
+
+        index = indices[0]
+
+        if index < 0:
+            raise RuntimeError(
+                "Index must be positive",
+                line,
+                column,
+            )
+
+        if not isinstance(target, list):
+            raise RuntimeError(
+                "Cannot assign field on indexed non-struct value",
+                line,
+                column,
+            )
+
+        while len(target) <= index:
+            target.append(None)
+
+        if target[index] is None:
+            target[index] = MatlabStruct()
+
+        if not is_struct(target[index]):
+            raise RuntimeError(
+                "Cannot assign field on indexed non-struct value",
+                line,
+                column,
+            )
+
+        return target[index]
+
+    def assign_indexed_expression(
+        self,
+        node,
+        value,
+    ):
+        target = self.evaluate(node.target)
+        indices = self.coerce_indices([
+            self.evaluate(arg)
+            for arg in node.arguments
+        ])
+
+        if not indices:
+            raise RuntimeError(
+                "Indexed assignment requires at least one index",
+                node.line,
+                node.column,
+            )
+
+        try:
+            target[self.index_key(indices)] = value
+        except (IndexError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                f"Invalid indexed assignment: {error}",
+                node.line,
+                node.column,
+            )
 
     def call_user_function(
         self,

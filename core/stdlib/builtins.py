@@ -2,6 +2,7 @@ import math
 import numpy as np
 import sympy as sp
 
+from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.runtime.symbolic import (
     NameValueOption,
     SymbolicEquation,
@@ -16,6 +17,7 @@ from core.runtime.symbolic import (
     to_sympy_equation,
     to_sympy_expression,
 )
+from core.runtime.struct import MatlabStruct
 from core.stdlib.console import (
     disp,
     error as console_error,
@@ -92,6 +94,27 @@ def builtin_cwd(context):
 
 def builtin_who(context):
     return context.who()
+
+
+def builtin_struct(context, *arguments):
+    if len(arguments) % 2 != 0:
+        raise MathToolRuntimeError(
+            "struct expects name/value pairs"
+        )
+
+    result = MatlabStruct()
+
+    for index in range(0, len(arguments), 2):
+        field_name = arguments[index]
+
+        if not isinstance(field_name, str):
+            raise MathToolRuntimeError(
+                "struct field names must be strings"
+            )
+
+        result[field_name] = arguments[index + 1]
+
+    return result
 
 
 def builtin_sin(context,x):
@@ -1550,6 +1573,7 @@ BUILTIN_FUNCTIONS = {
     "lookfor": builtin_lookfor,
     "cwd": builtin_cwd,
     "who": builtin_who,
+    "struct": builtin_struct,
 
     "sin": builtin_sin,
     "cos": builtin_cos,

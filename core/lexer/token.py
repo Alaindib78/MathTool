@@ -21,6 +21,7 @@ class TokenType(Enum):
     DOTSTAR = auto()
     DOTSLASH = auto()
     DOTCARET = auto()
+    DOT = auto()
 
     # Assignment
     EQUAL = auto()

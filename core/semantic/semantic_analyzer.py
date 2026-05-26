@@ -123,20 +123,27 @@ class SemanticAnalyzer:
             self.visit_MultiAssignmentNode(node)
             return
 
-        name = node.target.name
-
-        if name in IMMUTABLE_CONSTANTS:
-            raise SemanticError(
-                f"Cannot assign to constant '{name}'"
-            )
-
         self.analyze(node.value)
 
         if isinstance(node.target, IdentifierNode):
+            name = node.target.name
+
+            if name in IMMUTABLE_CONSTANTS:
+                raise SemanticError(
+                    f"Cannot assign to constant '{name}'"
+                )
+
             self.current_scope.define(name)
             return
 
         if isinstance(node.target, FunctionCallNode):
+            name = node.target.name
+
+            if name in IMMUTABLE_CONSTANTS:
+                raise SemanticError(
+                    f"Cannot assign to constant '{name}'"
+                )
+
             if not self.current_scope.exists(name):
                 raise SemanticError(
                     f"Undefined variable '{name}'"
@@ -152,9 +159,70 @@ class SemanticAnalyzer:
 
             return
 
+        if isinstance(node.target, FieldAccessNode):
+            self.analyze_field_assignment_target(
+                node.target
+            )
+            return
+
+        if isinstance(node.target, IndexAccessNode):
+            self.analyze_index_assignment_target(
+                node.target
+            )
+            return
+
         raise SemanticError(
             "Invalid assignment target"
         )
+
+    def analyze_field_assignment_target(self, node):
+        root = self.field_assignment_root(node)
+
+        if root is not None:
+            if root in IMMUTABLE_CONSTANTS:
+                raise SemanticError(
+                    f"Cannot assign to constant '{root}'"
+                )
+
+            self.current_scope.define(root)
+
+    def field_assignment_root(self, node):
+        target = node.target
+
+        if isinstance(target, IdentifierNode):
+            return target.name
+
+        if isinstance(target, FieldAccessNode):
+            return self.field_assignment_root(target)
+
+        if isinstance(target, FunctionCallNode):
+            if not target.arguments:
+                raise SemanticError(
+                    "Indexed assignment requires at least one index"
+                )
+
+            for arg in target.arguments:
+                self.analyze(arg)
+
+            return target.name
+
+        if isinstance(target, IndexAccessNode):
+            self.analyze_index_assignment_target(target)
+            return None
+
+        self.analyze(target)
+        return None
+
+    def analyze_index_assignment_target(self, node):
+        self.analyze(node.target)
+
+        if not node.arguments:
+            raise SemanticError(
+                "Indexed assignment requires at least one index"
+            )
+
+        for arg in node.arguments:
+            self.analyze(arg)
 
     def visit_MultiAssignmentNode(self, node):
         self.analyze(node.value)
@@ -181,6 +249,15 @@ class SemanticAnalyzer:
 
     def visit_TransposeNode(self, node):
         self.analyze(node.operand)
+
+    def visit_FieldAccessNode(self, node):
+        self.analyze(node.target)
+
+    def visit_IndexAccessNode(self, node):
+        self.analyze(node.target)
+
+        for arg in node.arguments:
+            self.analyze(arg)
 
     def visit_RangeNode(self, node):
         self.analyze(node.start)

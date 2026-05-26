@@ -196,6 +196,22 @@ M(1,1) = 5;
     SemanticAnalyzer().analyze(program)
 
 
+def test_semantic_analyzer_accepts_struct_assignment_and_access(parse):
+    from core.semantic.semantic_analyzer import SemanticAnalyzer
+
+    program = parse(
+        """
+s.name = 'Alice';
+s.age = 30;
+name = s.name;
+user.address.city = 'Boston';
+city = user.address.city;
+"""
+    )
+
+    SemanticAnalyzer().analyze(program)
+
+
 def test_semantic_analyzer_accepts_symbolic_workflow(parse):
     from core.semantic.semantic_analyzer import SemanticAnalyzer
 

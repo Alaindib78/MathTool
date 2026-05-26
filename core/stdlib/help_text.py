@@ -535,6 +535,7 @@ for name, summary, signature, inputs, output, options in [
 # Symbolic and type helpers
 for name, summary, signature, inputs, output, options, examples in [
     ("sym", "Create or preserve a symbolic expression.", "sym(value)", "value: string, number, or symbolic value.", "Symbolic value.", "String input preserves exact text.", ["sym('1/33')"]),
+    ("struct", "Create a MATLAB-style struct from name/value pairs.", "struct('field', value, ...)", "Field names must be strings. Values may be numbers, strings, arrays, logicals, structs, or expressions.", "Struct value with the requested fields.", "Use struct() to create an empty struct. Dot assignment also creates structs.", ["struct('name', 'Alice', 'age', 30)", "s.x = 5"]),
     ("class", "Return MathTool type/class name.", "class(value)", "value: any MathTool value.", "Class string such as double, char, logical, sym, or struct.", "No options.", ["class([1 2])"]),
     ("solve", "Solve symbolic equations.", "solve(equations, variables, Name=Value)", "equations: symbolic equation(s). variables: optional symbolic variable(s).", "Symbolic solution, vector of solutions, or struct mapping variable names to solutions.", "Supports Real=true to filter real-valued solutions.", ["solve(x^2 - 1 == 0, x)", "solve(eqns, [u v], Real=true)"]),
     ("symvar", "List symbolic variables present in an expression.", "symvar(value)", "value: symbolic expression, equation, or array of either.", "Vector of symbolic variables.", "Variables are sorted with x, y, z, t preferred first.", ["symvar(x + y)"]),

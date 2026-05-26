@@ -6,6 +6,8 @@ from core.ast.nodes import (
     BreakNode,
     ContinueNode,
     FunctionCallNode,
+    FieldAccessNode,
+    IndexAccessNode,
     FunctionDeclarationNode,
     IfNode,
     MatrixNode,
@@ -131,6 +133,32 @@ M(1, 2) = 9;
     assert assignment.target.name == "M"
     assert len(assignment.target.arguments) == 2
     assert assignment.value.value == 9
+
+
+def test_parser_builds_dotted_field_assignment_and_access(parse):
+    program = parse(
+        """
+user.address.city = 'Boston';
+city = user.address.city;
+grade = student.grades(2);
+"""
+    )
+
+    assignment = program.statements[0]
+    read_assignment = program.statements[1]
+    indexed_read = program.statements[2]
+
+    assert isinstance(assignment.target, FieldAccessNode)
+    assert assignment.target.field_name == "city"
+    assert assignment.target.target.field_name == "address"
+    assert assignment.target.target.target.name == "user"
+
+    assert isinstance(read_assignment.value, FieldAccessNode)
+    assert read_assignment.value.field_name == "city"
+
+    assert isinstance(indexed_read.value, IndexAccessNode)
+    assert isinstance(indexed_read.value.target, FieldAccessNode)
+    assert indexed_read.value.target.field_name == "grades"
 
 
 def test_parser_builds_matlab_logical_not(parse):

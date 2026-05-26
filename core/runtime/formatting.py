@@ -18,10 +18,22 @@ def format_value(value):
 
 
 def format_struct(value):
-    return "\n".join(
-        f"{key}: {format_value(field_value)}"
+    if not value:
+        return "struct with no fields"
+
+    fields = "\n".join(
+        f"    {key}: {format_struct_field_value(field_value)}"
         for key, field_value in value.items()
     )
+
+    return f"struct with fields:\n{fields}"
+
+
+def format_struct_field_value(value):
+    if isinstance(value, str):
+        return f"'{value}'"
+
+    return format_value(value)
 
 
 def format_array(value):

@@ -39,4 +39,30 @@ lookfor matrix
 doc matrices
 ```
 
+## Structs
+
+Structs use MATLAB-style dot assignment and dot access:
+
+```mathtool
+student.name = 'Alice';
+student.id = 12345;
+student.grades = [95 88 91];
+
+user.address.city = 'Boston';
+city = user.address.city;
+
+person = struct('name', 'Bob', 'age', 30);
+```
+
+Assigning a dotted field creates missing structs along the path.
+Reading a missing field raises an error such as
+`Reference to non-existent field 'city'`. One-dimensional struct arrays
+are supported for field assignment and access:
+
+```mathtool
+students(1).name = 'Alice';
+students(2).name = 'Bob';
+first = students(1).name;
+```
+
 Related: [Variables](topic:variables), [Matrices](topic:matrices), [Control Flow](topic:control-flow).

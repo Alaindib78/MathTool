@@ -16,6 +16,8 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    FieldAccessNode,
+    IndexAccessNode,
     NameValueNode,
     FunctionDeclarationNode,
     ReturnNode,
@@ -309,29 +311,47 @@ class Parser:
             identifier.column
         )
 
-        if not self.match(TokenType.LPAREN):
-            return target
+        return self.assignment_target_postfix(target)
 
-        arguments = []
+    def assignment_target_postfix(self, target):
+        while True:
+            if self.match(TokenType.LPAREN):
+                paren = self.previous()
+                arguments = self.function_arguments()
 
-        if not self.check(TokenType.RPAREN):
-            arguments.append(
-                self.expression()
-            )
+                self.consume(TokenType.RPAREN)
 
-            while self.match(TokenType.COMMA):
-                arguments.append(
-                    self.expression()
+                if isinstance(target, IdentifierNode):
+                    target = FunctionCallNode(
+                        target.name,
+                        arguments,
+                        target.line,
+                        target.column,
+                    )
+                else:
+                    target = IndexAccessNode(
+                        target,
+                        arguments,
+                        paren.line,
+                        paren.column,
+                    )
+
+                continue
+
+            if self.match(TokenType.DOT):
+                dot = self.previous()
+                field = self.consume(TokenType.IDENTIFIER)
+
+                target = FieldAccessNode(
+                    target,
+                    field.value,
+                    dot.line,
+                    dot.column,
                 )
 
-        self.consume(TokenType.RPAREN)
+                continue
 
-        return FunctionCallNode(
-            identifier.value,
-            arguments,
-            identifier.line,
-            identifier.column
-        )
+            return target
 
     def expression(self):
         return self.range_expression()
@@ -837,11 +857,55 @@ class Parser:
     def postfix(self):
         expr = self.primary()
 
-        while self.match(TokenType.TRANSPOSE):
-            operator = self.previous()
-            expr = TransposeNode(expr, operator.line, operator.column)
+        while True:
+            if self.match(TokenType.LPAREN):
+                paren = self.previous()
+                arguments = self.function_arguments()
 
-        return expr
+                self.consume(TokenType.RPAREN)
+
+                if isinstance(expr, IdentifierNode):
+                    expr = FunctionCallNode(
+                        expr.name,
+                        arguments,
+                        expr.line,
+                        expr.column,
+                    )
+                else:
+                    expr = IndexAccessNode(
+                        expr,
+                        arguments,
+                        paren.line,
+                        paren.column,
+                    )
+
+                continue
+
+            if self.match(TokenType.DOT):
+                dot = self.previous()
+                field = self.consume(TokenType.IDENTIFIER)
+
+                expr = FieldAccessNode(
+                    expr,
+                    field.value,
+                    dot.line,
+                    dot.column,
+                )
+
+                continue
+
+            if self.match(TokenType.TRANSPOSE):
+                operator = self.previous()
+                expr = TransposeNode(
+                    expr,
+                    operator.line,
+                    operator.column,
+                )
+
+                continue
+
+            return expr
+
 
     def unary(self):
         if self.match(
@@ -909,26 +973,6 @@ class Parser:
 
         if self.match(TokenType.IDENTIFIER):
             identifier = self.previous()
-
-            # Function call
-            if self.match(TokenType.LPAREN):
-                arguments = self.function_arguments()
-
-                self.consume(TokenType.RPAREN)
-
-                # Indexing if variable exists syntax-style
-#                if len(arguments) > 0:
-#                    return IndexNode(
-#                        IdentifierNode(identifier.value),
-#                        arguments
-#                    )
-
-                return FunctionCallNode(
-                    identifier.value,
-                    arguments,
-                    identifier.line,
-                    identifier.column
-                )
 
             return IdentifierNode(identifier.value, identifier.line, identifier.column)
         
@@ -1202,34 +1246,30 @@ class Parser:
         if self.peek().type != TokenType.IDENTIFIER:
             return False
 
-        if self.peek_next().type == TokenType.EQUAL:
-            return True
-
-        if self.peek_next().type != TokenType.LPAREN:
-            return False
-
         depth = 0
-        position = self.position + 1
+        start_line = self.peek().line
+        position = self.position
 
         while position < len(self.tokens):
-            token_type = self.tokens[position].type
+            current = self.tokens[position]
+            token_type = current.type
+
+            if current.line != start_line:
+                return False
 
             if token_type == TokenType.LPAREN:
                 depth += 1
             elif token_type == TokenType.RPAREN:
-                depth -= 1
-
-                if depth == 0:
-                    next_position = position + 1
-
-                    if next_position >= len(self.tokens):
-                        return False
-
-                    return (
-                        self.tokens[next_position].type
-                        == TokenType.EQUAL
-                    )
-            elif token_type == TokenType.EOF:
+                depth = max(depth - 1, 0)
+            elif depth == 0 and token_type == TokenType.EQUAL:
+                return True
+            elif (
+                depth == 0
+                and token_type in (
+                    TokenType.SEMICOLON,
+                    TokenType.EOF,
+                )
+            ):
                 return False
 
             position += 1
