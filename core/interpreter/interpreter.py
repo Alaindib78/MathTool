@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import product
 
 from core.ast.nodes import (
     ProgramNode,
@@ -12,6 +13,8 @@ from core.ast.nodes import (
     IfNode,
     WhileNode,
     RangeNode,
+    ColonNode,
+    EndKeywordNode,
     MatrixNode,
     ForNode,
     FunctionCallNode,
@@ -56,6 +59,7 @@ from core.runtime.struct import (
 class Interpreter:
     def __init__(self, context):
         self.context = context
+        self.end_value_stack = []
 
     def evaluate(self, node, source_path=None):
         previous_source_path = None
@@ -185,26 +189,12 @@ class Interpreter:
                 node.target.name
             )
 
-            indices = self.coerce_indices([
-                self.evaluate(arg)
-                for arg in node.target.arguments
-            ])
-
-            if not indices:
-                raise RuntimeError(
-                    "Indexed assignment requires at least one index",
-                    node.line,
-                    node.column
-                )
-
-            try:
-                target[self.index_key(indices)] = value
-            except (IndexError, TypeError, ValueError) as error:
-                raise RuntimeError(
-                    f"Invalid indexed assignment: {error}",
-                    node.line,
-                    node.column
-                )
+            self.assign_indexed_target(
+                target,
+                node.target.arguments,
+                value,
+                node,
+            )
 
             return value
 
@@ -274,7 +264,12 @@ class Interpreter:
             return +value
         
         if node.operator == TokenType.NOT:
-            return not value
+            result = np.logical_not(value)
+
+            if isinstance(result, np.generic):
+                return result.item()
+
+            return result
 
         raise RuntimeError(
             f"Unsupported unary operator "
@@ -360,9 +355,21 @@ class Interpreter:
             return left >= right
 
         if operator == TokenType.AND:
+            if (
+                self.is_array_like(left)
+                or self.is_array_like(right)
+            ):
+                return np.logical_and(left, right)
+
             return left and right
 
         if operator == TokenType.OR:
+            if (
+                self.is_array_like(left)
+                or self.is_array_like(right)
+            ):
+                return np.logical_or(left, right)
+
             return left or right
 
         raise RuntimeError(
@@ -407,8 +414,10 @@ class Interpreter:
         current = start
 
         if step == 0:
-            raise Exception(
-                "Range step cannot be zero"
+            raise RuntimeError(
+                "Range step cannot be zero",
+                node.line,
+                node.column,
             )
 
         if step > 0:
@@ -520,42 +529,28 @@ class Interpreter:
 
     def visit_IndexAccessNode(self, node):
         target = self.evaluate(node.target)
-        indices = self.coerce_indices([
-            self.evaluate(arg)
-            for arg in node.arguments
-        ])
 
-        if not indices:
-            raise RuntimeError(
-                "Indexed expression requires at least one index",
-                node.line,
-                node.column,
-            )
-
-        try:
-            return target[self.index_key(indices)]
-        except (IndexError, KeyError, TypeError, ValueError) as error:
-            raise RuntimeError(
-                f"Invalid indexed expression: {error}",
-                node.line,
-                node.column,
-            ) from error
+        return self.evaluate_indexed_target(
+            target,
+            node.arguments,
+            node,
+        )
 
     def evaluate_function_call(
         self,
         node,
         expected_output_count=None,
     ):
-        arguments = [
-            self.evaluate(arg)
-            for arg in node.arguments
-        ]
-
         function = self.context.resolve_function(
             node.name
         )
 
         if function is not None:
+            arguments = [
+                self.evaluate(arg)
+                for arg in node.arguments
+            ]
+
             if callable(function):
                 return function(
                     self.context,
@@ -588,8 +583,6 @@ class Interpreter:
                 node.column,
             ) from error
 
-        indices = self.coerce_indices(arguments)
-
         if (
             expected_output_count is not None
             and expected_output_count > 1
@@ -601,7 +594,11 @@ class Interpreter:
                 node.column,
             )
 
-        return target[self.index_key(indices)]
+        return self.evaluate_indexed_target(
+            target,
+            node.arguments,
+            node,
+        )
 
     def assign_field(
         self,
@@ -780,26 +777,495 @@ class Interpreter:
         value,
     ):
         target = self.evaluate(node.target)
-        indices = self.coerce_indices([
-            self.evaluate(arg)
-            for arg in node.arguments
-        ])
 
-        if not indices:
+        self.assign_indexed_target(
+            target,
+            node.arguments,
+            value,
+            node,
+        )
+
+    def evaluate_indexed_target(
+        self,
+        target,
+        arguments,
+        node,
+    ):
+        if not arguments:
+            raise RuntimeError(
+                "Indexed expression requires at least one index",
+                node.line,
+                node.column,
+            )
+
+        array = self.indexable_array(
+            target,
+            node,
+        )
+
+        if len(arguments) == 1:
+            return self.evaluate_linear_index(
+                array,
+                arguments[0],
+                node,
+            )
+
+        array = self.array_for_subscript_count(
+            array,
+            len(arguments),
+            node,
+        )
+
+        return self.evaluate_subscript_index(
+            array,
+            arguments,
+            node,
+        )
+
+    def assign_indexed_target(
+        self,
+        target,
+        arguments,
+        value,
+        node,
+    ):
+        if not arguments:
             raise RuntimeError(
                 "Indexed assignment requires at least one index",
                 node.line,
                 node.column,
             )
 
-        try:
-            target[self.index_key(indices)] = value
-        except (IndexError, TypeError, ValueError) as error:
+        array = self.indexable_array(
+            target,
+            node,
+        )
+
+        if len(arguments) == 1:
+            coords, shape, _ = self.linear_index_coords(
+                array,
+                arguments[0],
+                node,
+            )
+        else:
+            array = self.array_for_subscript_count(
+                array,
+                len(arguments),
+                node,
+            )
+            coords, shape = self.subscript_index_coords(
+                array,
+                arguments,
+                node,
+            )
+
+        self.assign_coords(
+            target,
+            array,
+            coords,
+            shape,
+            value,
+            node,
+        )
+
+    def indexable_array(self, target, node):
+        array = np.asarray(target)
+
+        if array.ndim == 0:
             raise RuntimeError(
-                f"Invalid indexed assignment: {error}",
+                "Cannot index scalar value",
                 node.line,
                 node.column,
             )
+
+        return array
+
+    def array_for_subscript_count(
+        self,
+        array,
+        subscript_count,
+        node,
+    ):
+        if array.ndim == 1 and subscript_count == 2:
+            return array.reshape(1, -1)
+
+        if subscript_count > array.ndim:
+            raise RuntimeError(
+                "Too many indices for array",
+                node.line,
+                node.column,
+            )
+
+        return array
+
+    def evaluate_linear_index(
+        self,
+        array,
+        argument,
+        node,
+    ):
+        coords, shape, is_logical = self.linear_index_coords(
+            array,
+            argument,
+            node,
+        )
+
+        values = np.array(
+            [
+                array[coord]
+                for coord in coords
+            ]
+        )
+
+        if shape == ():
+            return values[0].item() if hasattr(values[0], "item") else values[0]
+
+        if isinstance(argument, ColonNode) or is_logical:
+            return values.reshape(-1, 1)
+
+        return values.reshape(shape, order="F")
+
+    def linear_index_coords(
+        self,
+        array,
+        argument,
+        node,
+    ):
+        if isinstance(argument, ColonNode):
+            indices = np.arange(array.size)
+
+            return self.coords_from_linear_indices(
+                array,
+                indices,
+            ), (array.size, 1), False
+
+        value = self.evaluate_subscript_value(
+            argument,
+            array.size,
+        )
+
+        if self.is_logical_subscript(value):
+            mask = np.asarray(value, dtype=bool)
+
+            if mask.size != array.size:
+                raise RuntimeError(
+                    "Logical index mask must have the same "
+                    "number of elements as the indexed array",
+                    node.line,
+                    node.column,
+                )
+
+            indices = np.flatnonzero(
+                mask.reshape(-1, order="F")
+            )
+
+            return self.coords_from_linear_indices(
+                array,
+                indices,
+            ), (len(indices), 1), True
+
+        indices, shape, is_scalar = self.numeric_indices(
+            value,
+            array.size,
+            node,
+        )
+
+        return self.coords_from_linear_indices(
+            array,
+            indices,
+        ), (() if is_scalar else shape), False
+
+    def evaluate_subscript_index(
+        self,
+        array,
+        arguments,
+        node,
+    ):
+        index_arrays, scalar_flags = self.subscript_indices(
+            array,
+            arguments,
+            node,
+        )
+
+        selected = array[np.ix_(*index_arrays)]
+
+        if all(scalar_flags):
+            value = selected.reshape(-1)[0]
+            return value.item() if hasattr(value, "item") else value
+
+        if len(arguments) == 2:
+            if scalar_flags[0] and not scalar_flags[1]:
+                return selected.reshape(-1)
+
+            if not scalar_flags[0] and scalar_flags[1]:
+                return selected.reshape(-1, 1)
+
+            return selected
+
+        squeeze_axes = tuple(
+            index
+            for index, is_scalar in enumerate(scalar_flags)
+            if is_scalar
+        )
+
+        if squeeze_axes:
+            return np.squeeze(
+                selected,
+                axis=squeeze_axes,
+            )
+
+        return selected
+
+    def subscript_index_coords(
+        self,
+        array,
+        arguments,
+        node,
+    ):
+        index_arrays, _ = self.subscript_indices(
+            array,
+            arguments,
+            node,
+        )
+
+        coords = [
+            tuple(reversed(reversed_coord))
+            for reversed_coord in product(
+                *reversed(index_arrays)
+            )
+        ]
+
+        return coords, tuple(
+            len(indices)
+            for indices in index_arrays
+        )
+
+    def subscript_indices(
+        self,
+        array,
+        arguments,
+        node,
+    ):
+        index_arrays = []
+        scalar_flags = []
+
+        for dimension, argument in enumerate(arguments):
+            end_value = array.shape[dimension]
+
+            if isinstance(argument, ColonNode):
+                index_arrays.append(
+                    np.arange(end_value)
+                )
+                scalar_flags.append(False)
+                continue
+
+            value = self.evaluate_subscript_value(
+                argument,
+                end_value,
+            )
+
+            if self.is_logical_subscript(value):
+                mask = np.asarray(value, dtype=bool)
+
+                if mask.size != end_value:
+                    raise RuntimeError(
+                        "Logical subscript must match the "
+                        "dimension length",
+                        node.line,
+                        node.column,
+                    )
+
+                index_arrays.append(
+                    np.flatnonzero(
+                        mask.reshape(-1, order="F")
+                    )
+                )
+                scalar_flags.append(False)
+                continue
+
+            indices, _, is_scalar = self.numeric_indices(
+                value,
+                end_value,
+                node,
+            )
+            index_arrays.append(indices)
+            scalar_flags.append(is_scalar)
+
+        return index_arrays, scalar_flags
+
+    def evaluate_subscript_value(
+        self,
+        node,
+        end_value,
+    ):
+        self.end_value_stack.append(end_value)
+
+        try:
+            return self.evaluate(node)
+        finally:
+            self.end_value_stack.pop()
+
+    def numeric_indices(
+        self,
+        value,
+        end_value,
+        node,
+    ):
+        if isinstance(value, np.ndarray):
+            values = value.reshape(-1, order="F")
+            shape = value.shape
+            is_scalar = value.ndim == 0
+        elif isinstance(value, (list, tuple)):
+            values = np.asarray(value).reshape(-1, order="F")
+            shape = np.asarray(value).shape
+            is_scalar = False
+        else:
+            values = np.asarray([value])
+            shape = ()
+            is_scalar = True
+
+        indices = []
+
+        for raw_value in values:
+            index = self.one_based_index(
+                raw_value,
+                end_value,
+                node,
+            )
+            indices.append(index)
+
+        return (
+            np.asarray(indices, dtype=int),
+            shape,
+            is_scalar,
+        )
+
+    def one_based_index(
+        self,
+        value,
+        end_value,
+        node,
+    ):
+        if isinstance(value, np.generic):
+            value = value.item()
+
+        if isinstance(value, bool):
+            raise RuntimeError(
+                "Logical values must be used as logical masks",
+                node.line,
+                node.column,
+            )
+
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError(
+                "Array indices must be positive integers "
+                "or logical values",
+                node.line,
+                node.column,
+            ) from error
+
+        if not numeric_value.is_integer():
+            raise RuntimeError(
+                "Array indices must be positive integers",
+                node.line,
+                node.column,
+            )
+
+        index = int(numeric_value)
+
+        if index < 1 or index > end_value:
+            raise RuntimeError(
+                f"Index {index} is out of bounds "
+                f"for dimension with size {end_value}",
+                node.line,
+                node.column,
+            )
+
+        return index - 1
+
+    def is_logical_subscript(self, value):
+        if isinstance(value, (bool, np.bool_)):
+            return True
+
+        if isinstance(value, np.ndarray):
+            return np.issubdtype(value.dtype, np.bool_)
+
+        if isinstance(value, (list, tuple)):
+            array = np.asarray(value)
+            return np.issubdtype(array.dtype, np.bool_)
+
+        return False
+
+    def coords_from_linear_indices(
+        self,
+        array,
+        indices,
+    ):
+        if len(indices) == 0:
+            return []
+
+        coords = np.unravel_index(
+            indices,
+            array.shape,
+            order="F",
+        )
+
+        return list(zip(*coords))
+
+    def assign_coords(
+        self,
+        target,
+        array,
+        coords,
+        shape,
+        value,
+        node,
+    ):
+        if not coords:
+            return
+
+        values = self.assignment_values(
+            value,
+            len(coords),
+            node,
+        )
+
+        for coord, assigned_value in zip(coords, values):
+            if isinstance(target, list) and len(coord) == 1:
+                target[coord[0]] = assigned_value
+            else:
+                array[coord] = assigned_value
+
+    def assignment_values(
+        self,
+        value,
+        count,
+        node,
+    ):
+        if self.is_scalar_value(value):
+            return [value] * count
+
+        values = np.asarray(value).reshape(-1, order="F")
+
+        if values.size != count:
+            raise RuntimeError(
+                "Indexed assignment dimensions do not match",
+                node.line,
+                node.column,
+            )
+
+        return values.tolist()
+
+    def is_scalar_value(self, value):
+        if isinstance(value, str):
+            return True
+
+        if isinstance(value, np.ndarray):
+            return value.ndim == 0
+
+        return not isinstance(value, (list, tuple))
 
     def call_user_function(
         self,
@@ -963,6 +1429,23 @@ class Interpreter:
             )
 
         return values
+
+    def visit_ColonNode(self, node):
+        raise RuntimeError(
+            "Colon ':' can only be used in an indexing expression",
+            node.line,
+            node.column,
+        )
+
+    def visit_EndKeywordNode(self, node):
+        if not self.end_value_stack:
+            raise RuntimeError(
+                "'end' can only be used in an indexing expression",
+                node.line,
+                node.column,
+            )
+
+        return self.end_value_stack[-1]
     
     def visit_IndexNode(self, node):
         target = self.evaluate(node.target)

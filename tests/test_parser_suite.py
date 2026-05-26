@@ -4,7 +4,9 @@ from core.ast.nodes import (
     AssignmentNode,
     BinaryOpNode,
     BreakNode,
+    ColonNode,
     ContinueNode,
+    EndKeywordNode,
     FunctionCallNode,
     FieldAccessNode,
     IndexAccessNode,
@@ -159,6 +161,34 @@ grade = student.grades(2);
     assert isinstance(indexed_read.value, IndexAccessNode)
     assert isinstance(indexed_read.value.target, FieldAccessNode)
     assert indexed_read.value.target.field_name == "grades"
+
+
+def test_parser_builds_colon_and_end_indexing_arguments(parse):
+    program = parse(
+        """
+row = A(2, :);
+tail = A(end-1:end, :);
+flat = A(:);
+"""
+    )
+
+    row_assignment = program.statements[0]
+    tail_assignment = program.statements[1]
+    flat_assignment = program.statements[2]
+
+    assert isinstance(row_assignment.value, FunctionCallNode)
+    assert isinstance(row_assignment.value.arguments[1], ColonNode)
+
+    assert isinstance(tail_assignment.value.arguments[0], RangeNode)
+    assert isinstance(
+        tail_assignment.value.arguments[0].start,
+        BinaryOpNode,
+    )
+    assert isinstance(
+        tail_assignment.value.arguments[0].start.left,
+        EndKeywordNode,
+    )
+    assert isinstance(flat_assignment.value.arguments[0], ColonNode)
 
 
 def test_parser_builds_matlab_logical_not(parse):

@@ -152,6 +152,204 @@ transpose = M';
     )
 
 
+def test_interpreter_supports_colon_matrix_indexing(execute):
+    _, context = execute(
+        """
+A = [1 2 3; 4 5 6; 7 8 9];
+row = A(1, :);
+col = A(:, 2);
+block = A(1:2, 2:3);
+"""
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["row"],
+        np.array([1, 2, 3]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["col"],
+        np.array([[2], [5], [8]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["block"],
+        np.array([[2, 3], [5, 6]]),
+    )
+
+
+def test_interpreter_supports_end_keyword_in_indexing(execute):
+    _, context = execute(
+        """
+A = [1 2 3; 4 5 6; 7 8 9];
+last = A(end, end);
+middle_row = A(end-1, :);
+last_col = A(:, end);
+tail = A(end-2:end, :);
+v = [1 2 3 4 5];
+v_last = v(end);
+v_middle = v(2:end-1);
+"""
+    )
+
+    assert context.variables["last"] == 9
+    np.testing.assert_array_equal(
+        context.variables["middle_row"],
+        np.array([4, 5, 6]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["last_col"],
+        np.array([[3], [6], [9]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["tail"],
+        np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
+    )
+    assert context.variables["v_last"] == 5
+    np.testing.assert_array_equal(
+        context.variables["v_middle"],
+        np.array([2, 3, 4]),
+    )
+
+
+def test_interpreter_supports_vector_and_linear_indexing(execute):
+    _, context = execute(
+        """
+A = [1 2 3; 4 5 6; 7 8 9];
+rows = A([1 3], :);
+cols = A(:, [1 2]);
+first = A(1);
+third = A(3);
+fifth = A(5);
+last = A(end);
+picked = A([1 5 9]);
+"""
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["rows"],
+        np.array([[1, 2, 3], [7, 8, 9]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["cols"],
+        np.array([[1, 2], [4, 5], [7, 8]]),
+    )
+    assert context.variables["first"] == 1
+    assert context.variables["third"] == 7
+    assert context.variables["fifth"] == 5
+    assert context.variables["last"] == 9
+    np.testing.assert_array_equal(
+        context.variables["picked"],
+        np.array([1, 5, 9]),
+    )
+
+
+def test_interpreter_supports_advanced_indexed_assignment(execute):
+    _, context = execute(
+        """
+A = zeros(3, 3);
+A(1, 1) = 5;
+single = A(1, 1);
+A(2, :) = [10 11 12];
+row = A(2, :);
+A(1:2, 1:2) = 99;
+block = A(1:2, 1:2);
+A(:, 3) = 7;
+col = A(:, 3);
+"""
+    )
+
+    assert context.variables["single"] == 5
+    np.testing.assert_array_equal(
+        context.variables["row"],
+        np.array([10, 11, 12]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["block"],
+        np.array([[99, 99], [99, 99]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["col"],
+        np.array([[7], [7], [7]]),
+    )
+
+
+def test_interpreter_supports_logical_indexing_and_assignment(execute):
+    _, context = execute(
+        """
+A = [1 2 3; 4 5 6; 7 8 9];
+mask = A > 5;
+selected = A(mask);
+A(A > 5 & A < 9) = 0;
+row1 = A(1, :);
+row3 = A(3, :);
+"""
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["selected"],
+        np.array([[7], [8], [6], [9]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["row1"],
+        np.array([1, 2, 3]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["row3"],
+        np.array([0, 0, 9]),
+    )
+
+
+def test_interpreter_supports_flattening_and_stepped_ranges(execute):
+    _, context = execute(
+        """
+A = [1 2 3; 4 5 6];
+flat = A(:);
+A(:) = 0;
+v = [1 2 3 4 5 6 7 8 9 10];
+odd = v(1:2:10);
+tail = v(end-2:end);
+"""
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["flat"],
+        np.array([[1], [4], [2], [5], [3], [6]]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["A"],
+        np.zeros((2, 3)),
+    )
+    np.testing.assert_array_equal(
+        context.variables["odd"],
+        np.array([1, 3, 5, 7, 9]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["tail"],
+        np.array([8, 9, 10]),
+    )
+
+
+def test_interpreter_reports_indexing_errors(execute):
+    with pytest.raises(MathToolRuntimeError) as bounds_error:
+        execute(
+            """
+A = [1 2 3; 4 5 6];
+x = A(5, 5);
+"""
+        )
+
+    assert "out of bounds" in str(bounds_error.value)
+
+    with pytest.raises(MathToolRuntimeError) as scalar_error:
+        execute(
+            """
+x = 5;
+y = x(1, 1);
+"""
+        )
+
+    assert "Cannot index scalar" in str(scalar_error.value)
+
+
 def test_interpreter_rejects_mismatched_elementwise_multiply_sizes(execute):
     with pytest.raises(MathToolRuntimeError) as error:
         execute(

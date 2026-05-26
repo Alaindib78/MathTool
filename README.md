@@ -16,7 +16,7 @@ MathTool is a small MATLAB-like interpreter written in Python. It includes a lex
 - Matrix multiplication with `*`
 - Element-wise operators: `.*`, `./`, `.^` (`.*` requires same-size array operands)
 - Matrix transpose with `'`
-- One-based indexing such as `M(2, 1)`
+- MATLAB-style indexing: `M(2, 1)`, `M(:, 2)`, `M(1:2, :)`, `M(end)`, `M([1 3], :)`, `M(M > 0)`, and `M(:)`
 - MATLAB-style structs with dot assignment/access, nested fields, `struct(...)`, and one-dimensional struct arrays such as `students(1).name`
 - MATLAB-style complex numbers with `i`, `j`, `1i`, `complex`, `sqrt`, `exp`, `angle`, `conj`, `real`, `imag`, and `isreal`
 - Symbolic variables with `syms`, `sym`, `class`, and `ans`
@@ -176,6 +176,25 @@ TM1 = M1' * M2;
 
 disp(TM1);
 ```
+
+Indexing example:
+
+```matlab
+A = [1 2 3; 4 5 6; 7 8 9];
+
+row = A(2, :);
+col = A(:, end);
+block = A(1:2, 2:3);
+linear = A([1 5 9]);
+positive = A(A > 5);
+flat = A(:);
+
+A(1:2, 1:2) = 99;
+A(A > 5 & A < 9) = 0;
+```
+
+Subscripts are 1-based. Single-subscript indexing uses MATLAB-style
+column-major order, and `A(:)` returns a column vector in that order.
 
 Symbolic example:
 

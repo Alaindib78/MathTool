@@ -144,6 +144,19 @@ class Lexer:
                 self.advance()
                 continue
 
+            if char == "&":
+                tokens.append(
+                    Token(
+                        TokenType.AND,
+                        "&",
+                        self.line,
+                        self.column
+                    )
+                )
+
+                self.advance()
+                continue
+
 
             if char == "|" and self.peek_next() == "|":
                 tokens.append(
@@ -156,6 +169,19 @@ class Lexer:
                 )   
 
                 self.advance()
+                self.advance()
+                continue
+
+            if char == "|":
+                tokens.append(
+                    Token(
+                        TokenType.OR,
+                        "|",
+                        self.line,
+                        self.column
+                    )
+                )
+
                 self.advance()
                 continue
 

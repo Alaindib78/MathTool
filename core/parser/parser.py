@@ -13,6 +13,8 @@ from core.ast.nodes import (
     IfNode,
     WhileNode,
     RangeNode,
+    ColonNode,
+    EndKeywordNode,
     MatrixNode,
     ForNode,
     FunctionCallNode,
@@ -971,6 +973,14 @@ class Parser:
 
             return NumberNode(False, token.line, token.column)
 
+        if self.match(TokenType.END):
+            token = self.previous()
+
+            return EndKeywordNode(
+                token.line,
+                token.column,
+            )
+
         if self.match(TokenType.IDENTIFIER):
             identifier = self.previous()
 
@@ -1011,6 +1021,14 @@ class Parser:
         return arguments
 
     def function_argument(self):
+        if self.match(TokenType.COLON):
+            token = self.previous()
+
+            return ColonNode(
+                token.line,
+                token.column,
+            )
+
         if (
             self.check(TokenType.IDENTIFIER)
             and self.peek_next().type == TokenType.EQUAL
@@ -1088,6 +1106,7 @@ class Parser:
                 TokenType.MINUS,
                 TokenType.STRING,
                 TokenType.LPAREN,
+                TokenType.END,
             ):
                 continue
 

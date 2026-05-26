@@ -264,6 +264,12 @@ class SemanticAnalyzer:
         self.analyze(node.step)
         self.analyze(node.end)
 
+    def visit_ColonNode(self, node):
+        pass
+
+    def visit_EndKeywordNode(self, node):
+        pass
+
     def visit_MatrixNode(self, node):
         for row in node.rows:
             for value in row:

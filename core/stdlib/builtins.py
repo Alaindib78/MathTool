@@ -581,7 +581,12 @@ def builtin_unique(context, value):
 
 
 def builtin_find(context, value):
-    return np.flatnonzero(_as_array(value)) + 1
+    return (
+        np.flatnonzero(
+            _as_array(value).reshape(-1, order="F")
+        )
+        + 1
+    )
 
 
 def builtin_prod(context, value, dim=None):

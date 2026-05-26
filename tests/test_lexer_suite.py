@@ -49,7 +49,7 @@ def test_lexer_reports_unexpected_character_location():
 
 
 def test_lexer_tokenizes_matlab_not_operators():
-    tokens = Lexer("A = ~false; B = 1 ~= 2;").tokenize()
+    tokens = Lexer("A = ~false; B = 1 ~= 2; C = A & B | A;").tokenize()
 
     assert [token.type for token in tokens] == [
         TokenType.IDENTIFIER,
@@ -63,10 +63,20 @@ def test_lexer_tokenizes_matlab_not_operators():
         TokenType.NEQ,
         TokenType.NUMBER,
         TokenType.SEMICOLON,
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.IDENTIFIER,
+        TokenType.AND,
+        TokenType.IDENTIFIER,
+        TokenType.OR,
+        TokenType.IDENTIFIER,
+        TokenType.SEMICOLON,
         TokenType.EOF,
     ]
     assert tokens[2].value == "~"
     assert tokens[8].value == "~="
+    assert tokens[14].value == "&"
+    assert tokens[16].value == "|"
 
 
 def test_lexer_tokenizes_loop_control_keywords():

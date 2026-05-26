@@ -247,6 +247,16 @@ class RangeNode(ASTNode):
             f"step={self.step}, "
             f"end={self.end})"
         )
+
+
+class ColonNode(ASTNode):
+    def __repr__(self):
+        return "ColonNode()"
+
+
+class EndKeywordNode(ASTNode):
+    def __repr__(self):
+        return "EndKeywordNode()"
     
 class MatrixNode(ASTNode):
     def __init__(
