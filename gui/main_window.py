@@ -1055,6 +1055,7 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
+        self.tabs.setMovable(True)
         self.tabs.tabCloseRequested.connect(
             self.close_tab
         )
@@ -1486,6 +1487,13 @@ class MainWindow(QMainWindow):
         save_as_action.triggered.connect(self.save_file_as)
         file_menu.addAction(save_as_action)
 
+        close_tab_action = QAction("Close Tab", self)
+        close_tab_action.setShortcut(QKeySequence.Close)
+        close_tab_action.triggered.connect(
+            self.close_current_tab
+        )
+        file_menu.addAction(close_tab_action)
+
         file_menu.addSeparator()
 
         exit_action = QAction("Exit", self)
@@ -1499,16 +1507,25 @@ class MainWindow(QMainWindow):
 
         undo_action = QAction("Undo", self)
         undo_action.setShortcut(QKeySequence.Undo)
+        undo_action.triggered.connect(
+            lambda: self.invoke_editor_action("undo")
+        )
         edit_menu.addAction(undo_action)
 
         redo_action = QAction("Redo", self)
         redo_action.setShortcut(QKeySequence.Redo)
+        redo_action.triggered.connect(
+            lambda: self.invoke_editor_action("redo")
+        )
         edit_menu.addAction(redo_action)
 
         edit_menu.addSeparator()
 
         select_all_action = QAction("Select All", self)
         select_all_action.setShortcut(QKeySequence.SelectAll)
+        select_all_action.triggered.connect(
+            lambda: self.invoke_editor_action("selectAll")
+        )
         edit_menu.addAction(select_all_action)
 
         # Run Menu
@@ -1615,7 +1632,7 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(show_path_action)
 
         show_path_manager_action = QAction(
-            "Show Path Manager",
+            "Show Function Path",
             self,
         )
         show_path_manager_action.triggered.connect(
@@ -1918,6 +1935,8 @@ class MainWindow(QMainWindow):
             Qt.RightDockWidgetArea,
             dock,
         )
+
+        dock.hide()
 
     def refresh_directory_browser(self):
         if not hasattr(self, "directory_table"):
@@ -2532,6 +2551,11 @@ class MainWindow(QMainWindow):
             filename
         )
 
+        self.tabs.setTabToolTip(
+            index,
+            filename,
+        )
+
         self.tabs.setCurrentIndex(index)
 
         editor.document().modificationChanged.connect(
@@ -2539,29 +2563,232 @@ class MainWindow(QMainWindow):
             self.update_tab_title(e, changed)
         )
 
+        editor.document().setModified(False)
+
         return editor
 
     def current_editor(self):
         return self.tabs.currentWidget()
 
+    def invoke_editor_action(self, action_name):
+        editor = self.current_editor()
+
+        if editor is None:
+            return
+
+        action = getattr(editor, action_name, None)
+
+        if action is None:
+            return
+
+        action()
+
+    def close_current_tab(self):
+        self.close_tab(
+            self.tabs.currentIndex()
+        )
+
+    def editor_display_name(self, editor):
+        if getattr(editor, "file_path", None):
+            return os.path.basename(editor.file_path)
+
+        index = self.tabs.indexOf(editor)
+
+        if index != -1:
+            title = self.tabs.tabText(index)
+
+            if title.endswith("*"):
+                title = title[:-1]
+
+            if title:
+                return title
+
+        return "Untitled"
+
+    def set_editor_tab_title(self, editor):
+        index = self.tabs.indexOf(editor)
+
+        if index == -1:
+            return
+
+        title = self.editor_display_name(editor)
+
+        if editor.document().isModified():
+            title = f"{title}*"
+
+        self.tabs.setTabText(
+            index,
+            title,
+        )
+
+        tooltip = (
+            editor.file_path
+            if getattr(editor, "file_path", None)
+            else "Unsaved script"
+        )
+
+        self.tabs.setTabToolTip(
+            index,
+            tooltip,
+        )
+
+    def unsaved_editors(self):
+        return [
+            editor
+            for editor in self.all_code_editors()
+            if editor.document().isModified()
+        ]
+
+    def prompt_unsaved_changes(self, editors, action):
+        names = [
+            self.editor_display_name(editor)
+            for editor in editors
+        ]
+
+        message_box = QMessageBox(self)
+        message_box.setIcon(
+            QMessageBox.Icon.Warning
+        )
+        message_box.setWindowTitle(
+            "Unsaved Changes"
+        )
+
+        if action == "quit":
+            message_box.setText(
+                "Save changes before quitting MathTool?"
+            )
+        else:
+            message_box.setText(
+                f"Save changes to {names[0]} before closing?"
+            )
+
+        if len(names) == 1:
+            detail = f"Unsaved script: {names[0]}"
+        else:
+            visible_names = names[:5]
+            detail = (
+                "Unsaved scripts:\n"
+                + "\n".join(
+                    f"- {name}"
+                    for name in visible_names
+                )
+            )
+
+            remaining_count = len(names) - len(visible_names)
+
+            if remaining_count:
+                detail += (
+                    f"\n- and {remaining_count} more"
+                )
+
+        message_box.setInformativeText(
+            detail
+            + "\n\nChoose Save to keep your changes, "
+            "Discard to close without saving, or "
+            "Cancel to keep editing."
+        )
+
+        save_button = message_box.addButton(
+            "Save",
+            QMessageBox.ButtonRole.AcceptRole,
+        )
+        discard_button = message_box.addButton(
+            "Discard",
+            QMessageBox.ButtonRole.DestructiveRole,
+        )
+        cancel_button = message_box.addButton(
+            "Cancel",
+            QMessageBox.ButtonRole.RejectRole,
+        )
+
+        message_box.setDefaultButton(save_button)
+        message_box.setEscapeButton(cancel_button)
+
+        message_box.exec()
+
+        clicked_button = message_box.clickedButton()
+
+        if clicked_button == save_button:
+            return "save"
+
+        if clicked_button == discard_button:
+            return "discard"
+
+        return "cancel"
+
+    def confirm_close_editors(self, editors, action):
+        dirty_editors = [
+            editor
+            for editor in editors
+            if (
+                editor is not None
+                and editor.document().isModified()
+            )
+        ]
+
+        if not dirty_editors:
+            return True
+
+        for editor in dirty_editors:
+            self.tabs.setCurrentWidget(editor)
+            self.set_editor_tab_title(editor)
+
+        response = self.prompt_unsaved_changes(
+            dirty_editors,
+            action,
+        )
+
+        if response == "cancel":
+            if hasattr(self, "status_label"):
+                self.status_label.setText(
+                    "Close canceled"
+                )
+
+            return False
+
+        if response == "discard":
+            return True
+
+        for editor in dirty_editors:
+            self.tabs.setCurrentWidget(editor)
+
+            if not self.save_editor(editor):
+                if hasattr(self, "status_label"):
+                    self.status_label.setText(
+                        "Close canceled"
+                    )
+
+                return False
+
+        return True
+
     def close_tab(self, index):
-        if self.tabs.count() == 1:
+        if index < 0 or index >= self.tabs.count():
             return
 
         editor = self.tabs.widget(index)
 
-        if editor.document().isModified():
-            result = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                "This tab has unsaved changes. "
-                "Close anyway?",
-            )
-
-            if result != QMessageBox.Yes:
-                return
+        if not self.confirm_close_editors(
+            [editor],
+            "close",
+        ):
+            return
 
         self.tabs.removeTab(index)
+
+        if self.tabs.count() == 0:
+            self.create_new_tab()
+
+    def can_reuse_current_untitled_editor(self):
+        editor = self.current_editor()
+
+        return (
+            editor is not None
+            and self.tabs.count() == 1
+            and not getattr(editor, "file_path", None)
+            and not editor.document().isModified()
+            and not editor.toPlainText()
+        )
 
     def new_file(self):
         self.create_new_tab()
@@ -2598,102 +2825,141 @@ class MainWindow(QMainWindow):
 
         filename = os.path.basename(path)
 
-        editor = self.create_new_tab(
-            content,
-            filename
-        )
+        if self.can_reuse_current_untitled_editor():
+            editor = self.current_editor()
+            editor.setPlainText(content)
+        else:
+            editor = self.create_new_tab(
+                content,
+                filename
+            )
 
         editor.file_path = path
+        editor.document().setModified(False)
+        self.set_editor_tab_title(editor)
 
     def save_file(self):
-        editor = self.current_editor()
+        return self.save_editor(
+            self.current_editor()
+        )
 
+    def save_file_as(self):
+        return self.save_editor_as(
+            self.current_editor()
+        )
+
+    def save_editor(self, editor):
         if editor is None:
-            return
+            return False
 
-        if not editor.file_path:
-            self.save_file_as()
-            return
+        if not getattr(editor, "file_path", None):
+            return self.save_editor_as(editor)
 
-        with open(
-            editor.file_path,
-            "w",
-            encoding="utf-8"
-        ) as f:
-            f.write(
-                editor.toPlainText()
+        try:
+            with open(
+                editor.file_path,
+                "w",
+                encoding="utf-8"
+            ) as f:
+                f.write(
+                    editor.toPlainText()
+                )
+        except OSError as error:
+            QMessageBox.critical(
+                self,
+                "Save File",
+                f"Could not save file:\n{error}",
             )
+
+            return False
 
         self.console.appendPlainText(
             f"Saved: {editor.file_path}"
         )
 
         editor.document().setModified(False)
+        self.set_editor_tab_title(editor)
 
-    def save_file_as(self):
-        editor = self.current_editor()
+        if hasattr(self, "status_label"):
+            self.status_label.setText(
+                f"Saved {self.editor_display_name(editor)}"
+            )
 
+        return True
+
+    def save_editor_as(self, editor):
         if editor is None:
-            return
+            return False
+
+        suggested_path = (
+            editor.file_path
+            if getattr(editor, "file_path", None)
+            else os.path.join(
+                self.context.current_working_directory,
+                self.editor_display_name(editor),
+            )
+        )
 
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Save File As",
-            self.context.current_working_directory,
+            suggested_path,
             "MathTool Files (*.m);;All Files (*)",
         )
 
         if not path:
-            return
+            return False
 
-        with open(
-            path,
-            "w",
-            encoding="utf-8"
-        ) as f:
-            f.write(
-                editor.toPlainText()
+        try:
+            with open(
+                path,
+                "w",
+                encoding="utf-8"
+            ) as f:
+                f.write(
+                    editor.toPlainText()
+                )
+        except OSError as error:
+            QMessageBox.critical(
+                self,
+                "Save File As",
+                f"Could not save file:\n{error}",
             )
 
+            return False
+
         editor.file_path = path
-
-        filename = os.path.basename(path)
-
-        index = self.tabs.currentIndex()
-
-        self.tabs.setTabText(
-            index,
-            filename
-        )
 
         self.console.appendPlainText(
             f"Saved: {path}"
         )
 
         editor.document().setModified(False)
+        self.set_editor_tab_title(editor)
+
+        if hasattr(self, "status_label"):
+            self.status_label.setText(
+                f"Saved {self.editor_display_name(editor)}"
+            )
+
+        return True
 
     def update_tab_title(
         self,
         editor,
         changed
     ):
-        index = self.tabs.indexOf(editor)
+        self.set_editor_tab_title(editor)
 
-        if index == -1:
+    def closeEvent(self, event):
+        if self.confirm_close_editors(
+            self.unsaved_editors(),
+            "quit",
+        ):
+            event.accept()
             return
 
-        title = self.tabs.tabText(index)
-
-        if changed:
-            if not title.endswith("*"):
-                title += "*"
-        else:
-            title = title.rstrip("*")
-
-        self.tabs.setTabText(
-            index,
-            title
-        )
+        event.ignore()
 
     def setup_command_window(self):
         dock = QDockWidget(
