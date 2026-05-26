@@ -149,6 +149,28 @@ class AssignmentNode(ASTNode):
             f"{self.value})"
         )
     
+
+class MultiAssignmentTargetNode(ASTNode):
+    def __init__(
+        self,
+        targets,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
+        self.targets = targets
+
+    def __repr__(self):
+        return (
+            f"MultiAssignmentTargetNode("
+            f"{self.targets})"
+        )
+
+
 class IfNode(ASTNode):
     def __init__(
         self,
@@ -323,6 +345,7 @@ class FunctionDeclarationNode(ASTNode):
         parameters,
         body,
         return_variable,
+        return_variables=None,
         line=None,
         column=None,    
     ):
@@ -334,6 +357,15 @@ class FunctionDeclarationNode(ASTNode):
         self.parameters = parameters
         self.body = body
         self.return_variable = return_variable
+        self.return_variables = (
+            list(return_variables)
+            if return_variables is not None
+            else (
+                [return_variable]
+                if return_variable
+                else []
+            )
+        )
 
     def __repr__(self):
         return (

@@ -533,6 +533,46 @@ B = first_positive(9);
     assert context.call_stack.format_stack() == ""
 
 
+def test_interpreter_supports_matlab_style_multi_output_functions(execute):
+    _, context = execute(
+        """
+function [m, s] = stat(x)
+    n = length(x);
+    m = sum(x) / n;
+    s = sqrt(sum((x - m) .^ 2 / n));
+end
+
+values = [12.7, 45.4, 98.9, 26.6, 53.1];
+[ave, stdev] = stat(values);
+first = stat(values);
+""",
+        analyze=True,
+    )
+
+    assert context.variables["ave"] == pytest.approx(47.34)
+    assert context.variables["stdev"] == pytest.approx(
+        29.4124,
+        rel=1e-5,
+    )
+    assert context.variables["first"] == pytest.approx(47.34)
+
+
+def test_interpreter_rejects_too_many_requested_function_outputs(execute):
+    with pytest.raises(MathToolRuntimeError) as error:
+        execute(
+            """
+function [a, b] = pair()
+    a = 1;
+    b = 2;
+end
+
+[x, y, z] = pair();
+"""
+        )
+
+    assert "were requested" in str(error.value)
+
+
 def test_interpreter_bare_return_exits_function(execute):
     _, context = execute(
         """

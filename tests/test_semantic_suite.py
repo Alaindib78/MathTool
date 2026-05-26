@@ -25,6 +25,23 @@ answer = square(total);
     SemanticAnalyzer().analyze(program)
 
 
+def test_semantic_analyzer_accepts_multi_output_functions(parse):
+    from core.semantic.semantic_analyzer import SemanticAnalyzer
+
+    program = parse(
+        """
+function [m, s] = stat(x)
+    m = x;
+    s = x + 1;
+end
+
+[ave, stdev] = stat(3);
+"""
+    )
+
+    SemanticAnalyzer().analyze(program)
+
+
 def test_semantic_analyzer_accepts_return_break_and_continue(parse):
     from core.semantic.semantic_analyzer import SemanticAnalyzer
 

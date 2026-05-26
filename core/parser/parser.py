@@ -9,6 +9,7 @@ from core.ast.nodes import (
     BinaryOpNode,
     UnaryOpNode,
     AssignmentNode,
+    MultiAssignmentTargetNode,
     IfNode,
     WhileNode,
     RangeNode,
@@ -257,6 +258,49 @@ class Parser:
         )
 
     def assignment_target(self):
+        if self.match(TokenType.LBRACKET):
+            bracket = self.previous()
+            targets = []
+
+            if self.check(TokenType.RBRACKET):
+                raise ParserError(
+                    "Expected assignment target",
+                    line=bracket.line,
+                    column=bracket.column,
+                    token=bracket.value,
+                )
+
+            targets.append(
+                self.assignment_target_identifier()
+            )
+
+            while not self.check(TokenType.RBRACKET):
+                self.match(TokenType.COMMA)
+
+                targets.append(
+                    self.assignment_target_identifier()
+                )
+
+            self.consume(TokenType.RBRACKET)
+
+            return MultiAssignmentTargetNode(
+                targets,
+                bracket.line,
+                bracket.column,
+            )
+
+        return self.single_assignment_target()
+
+    def assignment_target_identifier(self):
+        identifier = self.consume(TokenType.IDENTIFIER)
+
+        return IdentifierNode(
+            identifier.value,
+            identifier.line,
+            identifier.column
+        )
+
+    def single_assignment_target(self):
         identifier = self.consume(TokenType.IDENTIFIER)
 
         target = IdentifierNode(
@@ -545,13 +589,29 @@ class Parser:
     
     def function_declaration(self):
         return_variable = None
+        return_variables = []
 
-        # Optional return variable
-        if self.check(TokenType.IDENTIFIER):
+        # Optional return variable(s)
+        if self.match(TokenType.LBRACKET):
+            return_variables = self.function_return_list()
+            return_variable = (
+                return_variables[0]
+                if return_variables
+                else None
+            )
+
+            self.consume(TokenType.EQUAL)
+
+            function_name = self.consume(
+                TokenType.IDENTIFIER
+            )
+
+        elif self.check(TokenType.IDENTIFIER):
             identifier = self.advance()
 
             if self.match(TokenType.EQUAL):
                 return_variable = identifier.value
+                return_variables = [return_variable]
 
                 function_name = self.consume(
                     TokenType.IDENTIFIER
@@ -607,8 +667,33 @@ class Parser:
             function_name.value,
             parameters,
             body,
-            return_variable
+            return_variable,
+            return_variables
         )
+
+    def function_return_list(self):
+        return_variables = []
+
+        if self.check(TokenType.RBRACKET):
+            raise ParserError(
+                "Expected function return variable",
+                line=self.peek().line,
+                column=self.peek().column,
+                token=self.peek().value,
+            )
+
+        identifier = self.consume(TokenType.IDENTIFIER)
+        return_variables.append(identifier.value)
+
+        while not self.check(TokenType.RBRACKET):
+            self.match(TokenType.COMMA)
+
+            identifier = self.consume(TokenType.IDENTIFIER)
+            return_variables.append(identifier.value)
+
+        self.consume(TokenType.RBRACKET)
+
+        return return_variables
 
     def logical_or(self):
         node = self.logical_and()
@@ -1111,6 +1196,9 @@ class Parser:
         return False
 
     def is_assignment_start(self):
+        if self.peek().type == TokenType.LBRACKET:
+            return self.is_multi_assignment_start()
+
         if self.peek().type != TokenType.IDENTIFIER:
             return False
 
@@ -1129,6 +1217,35 @@ class Parser:
             if token_type == TokenType.LPAREN:
                 depth += 1
             elif token_type == TokenType.RPAREN:
+                depth -= 1
+
+                if depth == 0:
+                    next_position = position + 1
+
+                    if next_position >= len(self.tokens):
+                        return False
+
+                    return (
+                        self.tokens[next_position].type
+                        == TokenType.EQUAL
+                    )
+            elif token_type == TokenType.EOF:
+                return False
+
+            position += 1
+
+        return False
+
+    def is_multi_assignment_start(self):
+        depth = 0
+        position = self.position
+
+        while position < len(self.tokens):
+            token_type = self.tokens[position].type
+
+            if token_type == TokenType.LBRACKET:
+                depth += 1
+            elif token_type == TokenType.RBRACKET:
                 depth -= 1
 
                 if depth == 0:

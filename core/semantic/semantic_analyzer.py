@@ -116,6 +116,13 @@ class SemanticAnalyzer:
             )
 
     def visit_AssignmentNode(self, node):
+        if isinstance(
+            node.target,
+            MultiAssignmentTargetNode,
+        ):
+            self.visit_MultiAssignmentNode(node)
+            return
+
         name = node.target.name
 
         if name in IMMUTABLE_CONSTANTS:
@@ -148,6 +155,18 @@ class SemanticAnalyzer:
         raise SemanticError(
             "Invalid assignment target"
         )
+
+    def visit_MultiAssignmentNode(self, node):
+        self.analyze(node.value)
+
+        for target in node.target.targets:
+            if target.name in IMMUTABLE_CONSTANTS:
+                raise SemanticError(
+                    f"Cannot assign to constant "
+                    f"'{target.name}'"
+                )
+
+            self.current_scope.define(target.name)
 
     # ---------------------------------
     # Expressions
@@ -292,10 +311,8 @@ class SemanticAnalyzer:
             for param in node.parameters:
                 function_scope.define(param)
 
-            if node.return_variable:
-                function_scope.define(
-                    node.return_variable
-                )
+            for return_variable in node.return_variables:
+                function_scope.define(return_variable)
 
             self.define_file_functions(node.body)
 

@@ -9,6 +9,7 @@ from core.ast.nodes import (
     FunctionDeclarationNode,
     IfNode,
     MatrixNode,
+    MultiAssignmentTargetNode,
     RangeNode,
     ReturnNode,
     SymsNode,
@@ -60,6 +61,37 @@ end
     assert len(body_statement.then_branch) == 1
     assert len(body_statement.elseif_branches) == 1
     assert len(body_statement.else_branch) == 1
+
+
+def test_parser_builds_multi_output_function_declaration_and_assignment(parse):
+    program = parse(
+        """
+function [m, s] = stat(x)
+    m = x;
+    s = x + 1;
+end
+
+[ave stdev] = stat(values);
+"""
+    )
+
+    function = program.statements[0]
+    assignment = program.statements[1]
+
+    assert isinstance(function, FunctionDeclarationNode)
+    assert function.name == "stat"
+    assert function.return_variable == "m"
+    assert function.return_variables == ["m", "s"]
+
+    assert isinstance(assignment, AssignmentNode)
+    assert isinstance(
+        assignment.target,
+        MultiAssignmentTargetNode,
+    )
+    assert [
+        target.name
+        for target in assignment.target.targets
+    ] == ["ave", "stdev"]
 
 
 def test_parser_builds_range_and_matrix_literals(parse):

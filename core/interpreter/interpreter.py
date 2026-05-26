@@ -8,6 +8,7 @@ from core.ast.nodes import (
     BinaryOpNode,
     UnaryOpNode,
     AssignmentNode,
+    MultiAssignmentTargetNode,
     IfNode,
     WhileNode,
     RangeNode,
@@ -156,6 +157,12 @@ class Interpreter:
         )
 
     def visit_AssignmentNode(self, node):
+        if isinstance(
+            node.target,
+            MultiAssignmentTargetNode,
+        ):
+            return self.assign_multiple(node)
+
         value = self.evaluate(node.value)
 
         if isinstance(node.target, IdentifierNode):
@@ -199,6 +206,34 @@ class Interpreter:
             node.line,
             node.column
         )
+
+    def assign_multiple(self, node):
+        expected_count = len(node.target.targets)
+
+        if isinstance(node.value, FunctionCallNode):
+            value = self.evaluate_function_call(
+                node.value,
+                expected_count,
+            )
+        else:
+            value = self.evaluate(node.value)
+
+        values = self.values_for_multi_assignment(
+            value,
+            expected_count,
+            node,
+        )
+
+        for target, assigned_value in zip(
+            node.target.targets,
+            values,
+        ):
+            self.context.set_variable(
+                target.name,
+                assigned_value,
+            )
+
+        return tuple(values)
 
     def visit_UnaryOpNode(self, node):
         value = self.evaluate(node.operand)
@@ -438,6 +473,13 @@ class Interpreter:
 #        return function(self.context, *arguments)
 
     def visit_FunctionCallNode(self, node):
+        return self.evaluate_function_call(node)
+
+    def evaluate_function_call(
+        self,
+        node,
+        expected_output_count=None,
+    ):
         arguments = [
             self.evaluate(arg)
             for arg in node.arguments
@@ -459,6 +501,7 @@ class Interpreter:
                     node,
                     function,
                     arguments,
+                    expected_output_count,
                 )
 
             raise RuntimeError(
@@ -481,6 +524,17 @@ class Interpreter:
 
         indices = self.coerce_indices(arguments)
 
+        if (
+            expected_output_count is not None
+            and expected_output_count > 1
+        ):
+            raise RuntimeError(
+                "Indexed expressions do not support "
+                "multiple outputs",
+                node.line,
+                node.column,
+            )
+
         return target[self.index_key(indices)]
 
     def call_user_function(
@@ -488,6 +542,7 @@ class Interpreter:
         node,
         function,
         arguments,
+        expected_output_count=None,
     ):
         declaration = function.declaration
 
@@ -543,9 +598,12 @@ class Interpreter:
             if ret.has_value:
                 return ret.value
 
-            if declaration.return_variable:
-                return local_context.get_variable(
-                    declaration.return_variable
+            if declaration.return_variables:
+                return self.user_function_outputs(
+                    declaration,
+                    local_context,
+                    expected_output_count,
+                    node,
                 )
 
             return None
@@ -562,12 +620,85 @@ class Interpreter:
 
             self.context.pop_file_functions()
 
-        if declaration.return_variable:
-            return local_context.get_variable(
-                declaration.return_variable
+        if declaration.return_variables:
+            return self.user_function_outputs(
+                declaration,
+                local_context,
+                expected_output_count,
+                node,
             )
 
         return result
+
+    def user_function_outputs(
+        self,
+        declaration,
+        local_context,
+        expected_output_count,
+        node,
+    ):
+        output_names = declaration.return_variables
+
+        if expected_output_count is None:
+            expected_output_count = 1
+
+        if expected_output_count > len(output_names):
+            raise RuntimeError(
+                f"Function '{node.name}' returns "
+                f"{len(output_names)} value(s), but "
+                f"{expected_output_count} were requested",
+                node.line,
+                node.column,
+            )
+
+        values = [
+            local_context.get_variable(name)
+            for name in output_names[:expected_output_count]
+        ]
+
+        if expected_output_count == 1:
+            return values[0]
+
+        return tuple(values)
+
+    def values_for_multi_assignment(
+        self,
+        value,
+        expected_count,
+        node,
+    ):
+        if expected_count == 1:
+            return [value]
+
+        if isinstance(value, np.ndarray):
+            values = value.tolist()
+        elif isinstance(value, (list, tuple)):
+            values = list(value)
+        else:
+            raise RuntimeError(
+                "Right-hand side does not provide "
+                "multiple values",
+                node.line,
+                node.column,
+            )
+
+        if len(values) < expected_count:
+            raise RuntimeError(
+                f"Expected {expected_count} values, "
+                f"got {len(values)}",
+                node.line,
+                node.column,
+            )
+
+        if len(values) > expected_count:
+            raise RuntimeError(
+                f"Expected {expected_count} values, "
+                f"got {len(values)}",
+                node.line,
+                node.column,
+            )
+
+        return values
     
     def visit_IndexNode(self, node):
         target = self.evaluate(node.target)
