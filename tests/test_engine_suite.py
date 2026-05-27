@@ -29,8 +29,8 @@ def test_session_routes_output_and_restores_existing_callback():
         output_callback=routed_output.append,
     )
 
-    assert result.output == ["hello\n"]
-    assert routed_output == ["hello\n"]
+    assert result.output == ["hello\n\n"]
+    assert routed_output == ["hello\n\n"]
     assert original_output == []
     assert context.output_callback is original_callback
 

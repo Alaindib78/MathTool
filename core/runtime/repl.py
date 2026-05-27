@@ -2,6 +2,7 @@ from pathlib import Path
 
 from core.engine import MathToolSession
 from core.runtime.formatting import format_value
+from core.runtime.formatting import output_suffix
 from core.runtime.script_command import (
     script_command_name,
 )
@@ -31,10 +32,12 @@ class REPL:
                 "help",
                 "doc",
                 "cwd",
+                "format",
             }
             or first_line_command.startswith("help ")
             or first_line_command.startswith("doc ")
             or first_line_command.startswith("lookfor ")
+            or first_line_command.startswith("format ")
         ):
             return first_line
 
@@ -150,7 +153,13 @@ class REPL:
             print(text, end="")
 
         if result.value is not None:
-            print(format_value(result.value))
+            print(
+                format_value(
+                    result.value,
+                    self.context.display_format,
+                ),
+                end=output_suffix(self.context.display_format),
+            )
 
     def is_script_command(self, source):
         name = script_command_name(source)

@@ -157,6 +157,25 @@ class MathToolSession:
                 clear_output=True,
             )
 
+        if lowered == "format" or lowered.startswith("format "):
+            argument = self.command_argument(
+                command,
+                "format",
+            )
+
+            styles = (
+                []
+                if lowered == "format"
+                else argument.split()
+            )
+
+            self.context.display_format.apply(*styles)
+
+            return ExecutionResult(
+                command="format",
+                workspace_changed=True,
+            )
+
         if lowered == "cwd":
             return ExecutionResult(
                 value=self.context.current_working_directory,

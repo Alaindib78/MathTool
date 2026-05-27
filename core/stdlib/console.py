@@ -2,7 +2,11 @@ import sys
 
 import numpy as np
 
-from core.runtime.formatting import format_value
+from core.runtime.formatting import (
+    format_number as format_display_number,
+    format_value,
+    output_suffix,
+)
 
 
 class ConsoleFormatError(ValueError):
@@ -15,9 +19,16 @@ class ConsoleAbortError(Exception):
         self.already_reported = already_reported
 
 
-def disp(value=None, *, output_callback=None):
-    text = format_console_value(value)
-    write_console(text + "\n", output_callback, sys.stdout)
+def disp(value=None, *, output_callback=None, display_format=None):
+    text = format_console_value(
+        value,
+        display_format=display_format,
+    )
+    write_console(
+        text + output_suffix(display_format),
+        output_callback,
+        sys.stdout,
+    )
 
 
 def fprintf(format_string, *args, output_callback=None):
@@ -53,12 +64,15 @@ def write_console(text, output_callback, stream):
     stream.flush()
 
 
-def format_message(message, args):
+def format_message(message, args, *, display_format=None):
     if args:
         return format_format_string(message, args)
 
     if not isinstance(message, str):
-        return format_console_value(message)
+        return format_console_value(
+            message,
+            display_format=display_format,
+        )
 
     return decode_format_escapes(message)
 
@@ -190,7 +204,7 @@ def decode_format_escapes(value):
     return "".join(result)
 
 
-def format_console_value(value):
+def format_console_value(value, *, display_format=None):
     if value is None:
         return ""
 
@@ -203,24 +217,36 @@ def format_console_value(value):
     if isinstance(value, np.generic):
         value = value.item()
 
-    if isinstance(value, float):
-        return format_number(value)
+    if isinstance(value, (int, float, np.number)) and not isinstance(
+        value,
+        (bool, np.bool_),
+    ):
+        return format_display_number(
+            value,
+            display_format,
+        )
 
     if isinstance(value, (list, tuple, np.ndarray)):
-        return format_console_array(value)
+        return format_console_array(
+            value,
+            display_format=display_format,
+        )
 
     if isinstance(value, dict):
-        return format_value(value)
+        return format_value(value, display_format)
 
-    return format_value(value)
+    return format_value(value, display_format)
 
 
-def format_console_array(value):
+def format_console_array(value, *, display_format=None):
     try:
         array = np.asarray(value)
     except ValueError:
         return "[" + ", ".join(
-            format_console_value(item)
+            format_console_value(
+                item,
+                display_format=display_format,
+            )
             for item in value
         ) + "]"
 
@@ -228,36 +254,43 @@ def format_console_array(value):
         return "[]"
 
     if array.ndim == 0:
-        return format_console_value(array.item())
+        return format_console_value(
+            array.item(),
+            display_format=display_format,
+        )
 
     if np.iscomplexobj(array):
-        return format_value(array)
+        return format_value(array, display_format)
 
     return np.array2string(
         array,
         separator=" ",
-        formatter={"all": format_array_cell},
+        formatter={
+            "all": lambda cell: format_array_cell(
+                cell,
+                display_format=display_format,
+            )
+        },
     )
 
 
-def format_array_cell(value):
+def format_array_cell(value, *, display_format=None):
     if isinstance(value, np.generic):
         value = value.item()
 
     if isinstance(value, (bool, np.bool_)):
         return "true" if value else "false"
 
-    if isinstance(value, float):
-        return format_number(value)
+    if isinstance(value, (int, float, np.number)) and not isinstance(
+        value,
+        (bool, np.bool_),
+    ):
+        return format_display_number(
+            value,
+            display_format,
+        )
 
     return str(value)
-
-
-def format_number(value):
-    if abs(value) < 1e-12:
-        value = 0.0
-
-    return f"{value:g}"
 
 
 if __name__ == "__main__":

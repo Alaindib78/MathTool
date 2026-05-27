@@ -155,11 +155,20 @@ def serialize_workspace(
         "variables",
         context_or_variables,
     )
+    display_format = getattr(
+        context_or_variables,
+        "display_format",
+        None,
+    )
 
     return {
         "type": "workspace",
         "variables": [
-            serialize_variable(name, value)
+            serialize_variable(
+                name,
+                value,
+                display_format=display_format,
+            )
             for name, value in sorted(
                 variables.items(),
                 key=lambda item: item[0],
@@ -172,13 +181,13 @@ def serialize_workspace(
     }
 
 
-def serialize_variable(name, value):
+def serialize_variable(name, value, *, display_format=None):
     serialized_value = serialize_value(value)
 
     return {
         "name": name,
         "value_type": serialized_value["type"],
-        "preview": format_value(value),
+        "preview": format_value(value, display_format),
         "value": serialized_value,
     }
 

@@ -8,6 +8,7 @@ from core.stdlib.builtins import BUILTIN_FUNCTIONS
 from core.plotting.engine import PlotEngine
 from core.runtime.call_stack import CallStack
 from core.runtime.function_resolver import FileFunctionResolver
+from core.runtime.formatting import DisplayFormatManager
 from core.documentation.database import FunctionHelpDatabase
 import math
 
@@ -38,6 +39,8 @@ class RuntimeContext:
         self.plot_engine = PlotEngine()
 
         self.call_stack = CallStack()
+
+        self.display_format = DisplayFormatManager()
 
         for name, func in BUILTIN_FUNCTIONS.items():
             self.functions.register_builtin(name, func)
@@ -95,6 +98,8 @@ class RuntimeContext:
         child.plot_engine = self.plot_engine
 
         child.call_stack = self.call_stack
+
+        child.display_format = self.display_format
 
         child.output_callback = self.output_callback
 

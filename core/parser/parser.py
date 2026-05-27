@@ -88,6 +88,9 @@ class Parser:
         if self.is_lookfor_statement():
             return self.lookfor_statement()
 
+        if self.is_format_statement():
+            return self.format_statement()
+
         if self.is_cwd_statement():
             return self.cwd_statement()
 
@@ -549,6 +552,62 @@ class Parser:
 
         return FunctionCallNode(
             "lookfor",
+            arguments,
+            command.line,
+            command.column,
+        )
+
+    def format_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+
+        arguments = []
+
+        while (
+            self.peek().line == command.line
+            and not self.check(TokenType.SEMICOLON)
+            and not self.is_at_end()
+        ):
+            token = self.peek()
+
+            if self.match(TokenType.IDENTIFIER):
+                arguments.append(
+                    StringNode(
+                        token.value,
+                        token.line,
+                        token.column,
+                    )
+                )
+                continue
+
+            if self.match(TokenType.STRING):
+                arguments.append(
+                    StringNode(
+                        token.value,
+                        token.line,
+                        token.column,
+                    )
+                )
+                continue
+
+            if self.match(TokenType.PLUS):
+                arguments.append(
+                    StringNode(
+                        "+",
+                        token.line,
+                        token.column,
+                    )
+                )
+                continue
+
+            raise ParserError(
+                "Expected format style",
+                line=token.line,
+                column=token.column,
+                token=token.value,
+            )
+
+        return FunctionCallNode(
+            "format",
             arguments,
             command.line,
             command.column,
@@ -1346,6 +1405,26 @@ class Parser:
             and self.peek().value == "lookfor"
             and self.peek_next().type != TokenType.LPAREN
             and self.peek_next().type != TokenType.EQUAL
+        )
+
+    def is_format_statement(self):
+        next_token = self.peek_next()
+
+        return (
+            self.peek().type == TokenType.IDENTIFIER
+            and self.peek().value == "format"
+            and next_token.type != TokenType.LPAREN
+            and next_token.type != TokenType.EQUAL
+            and (
+                next_token.type in (
+                    TokenType.IDENTIFIER,
+                    TokenType.STRING,
+                    TokenType.PLUS,
+                    TokenType.SEMICOLON,
+                    TokenType.EOF,
+                )
+                or next_token.line != self.peek().line
+            )
         )
 
     def is_cwd_statement(self):

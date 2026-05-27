@@ -19,6 +19,7 @@ class VariableEditor(QWidget):
         variable_name,
         value,
         update_callback=None,
+        display_format=None,
     ):
         super().__init__()
 
@@ -29,6 +30,8 @@ class VariableEditor(QWidget):
         self.update_callback = (
             update_callback
         )
+
+        self.display_format = display_format
 
         layout = QVBoxLayout()
 
@@ -60,6 +63,8 @@ class VariableEditor(QWidget):
 
             self.table.setItem(0, 0, item)
 
+            self.table.blockSignals(False)
+
             return
 
         if isinstance(value, SymbolicValue):
@@ -69,6 +74,8 @@ class VariableEditor(QWidget):
             item = QTableWidgetItem(str(value))
 
             self.table.setItem(0, 0, item)
+
+            self.table.blockSignals(False)
 
             return
 
@@ -91,11 +98,15 @@ class VariableEditor(QWidget):
                     row,
                     1,
                     QTableWidgetItem(
-                        format_value(field_value)
+                        self.format_display_value(
+                            field_value
+                        )
                     ),
                 )
 
             self.table.resizeColumnsToContents()
+
+            self.table.blockSignals(False)
 
             return
 
@@ -107,8 +118,12 @@ class VariableEditor(QWidget):
             self.table.setItem(
                 0,
                 0,
-                QTableWidgetItem(format_value(value)),
+                QTableWidgetItem(
+                    self.format_display_value(value)
+                ),
             )
+
+            self.table.blockSignals(False)
 
             return
 
@@ -133,7 +148,9 @@ class VariableEditor(QWidget):
         for r in range(rows):
             for c in range(cols):
                 item = QTableWidgetItem(
-                    format_value(value[r, c])
+                    self.format_display_value(
+                        value[r, c]
+                    )
                 )
 
                 self.table.setItem(
@@ -158,6 +175,16 @@ class VariableEditor(QWidget):
 
         self.table.resizeColumnsToContents()
         self.table.blockSignals(False)
+
+    def format_display_value(self, value):
+        return format_value(
+            value,
+            self.display_format,
+        )
+
+    def refresh_display_format(self, display_format):
+        self.display_format = display_format
+        self.populate_table()
 
     # ---------------------------------
     # Handle Editing

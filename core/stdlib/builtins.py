@@ -35,6 +35,7 @@ def builtin_disp(context, *args):
     disp(
         args[0],
         output_callback=context.output_callback,
+        display_format=context.display_format,
     )
 
     return None
@@ -66,6 +67,24 @@ def builtin_error(context, message, *args):
         *args,
         output_callback=context.output_callback,
     )
+
+
+def builtin_format(context, *styles):
+    try:
+        context.display_format.apply(*styles)
+    except ValueError as error:
+        raise MathToolRuntimeError(str(error)) from error
+
+    return None
+
+
+def builtin_formatsettings(context):
+    settings = context.display_format.settings
+
+    return {
+        "NumericFormat": settings.numeric_format,
+        "LineSpacing": settings.spacing_mode,
+    }
 
 
 def builtin_help(context, topic=None):
@@ -1574,6 +1593,8 @@ BUILTIN_FUNCTIONS = {
     "fprintf": builtin_fprintf,
     "warning": builtin_warning,
     "error": builtin_error,
+    "format": builtin_format,
+    "formatsettings": builtin_formatsettings,
     "help": builtin_help,
     "lookfor": builtin_lookfor,
     "cwd": builtin_cwd,

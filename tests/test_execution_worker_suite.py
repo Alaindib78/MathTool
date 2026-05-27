@@ -29,7 +29,7 @@ def test_execution_worker_routes_output_through_signal_and_restores_callback():
 
     worker.run()
 
-    assert output == ["hello\n"]
+    assert output == ["hello\n\n"]
     assert original_output == []
     assert finished == [3.0]
     assert errors == []

@@ -1089,7 +1089,7 @@ warning("value %.1f is unusually high", 9.5);
     )
 
     assert output == [
-        "answer\n",
+        "answer\n\n",
         "count=42 pi=3.14\n",
         "Warning: value 9.5 is unusually high\n",
     ]

@@ -19,7 +19,7 @@ def test_disp_formats_matrix_and_appends_newline():
         output_callback=output.append,
     )
 
-    assert output == ["[[1 2]\n [3 4]]\n"]
+    assert output == ["[[1 2]\n [3 4]]\n\n"]
 
 
 def test_fprintf_formats_strings_integers_and_float_precision():

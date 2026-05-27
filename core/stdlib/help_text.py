@@ -140,6 +140,43 @@ add(
     "Matches the Workspace panel contents.",
     ["who"],
 )
+add(
+    "format",
+    "console",
+    "Set MATLAB-style numeric display and line spacing.",
+    [
+        "format",
+        "format style",
+        "format('style')",
+    ],
+    (
+        "style: optional display style such as short, long, shortE, longE, "
+        "shortG, longG, shortEng, longEng, bank, rat, hex, +, compact, "
+        "loose, or default."
+    ),
+    "Changes display formatting for the current session. Returns no value.",
+    (
+        "Formatting affects presentation only. Stored values and arithmetic "
+        "precision are unchanged."
+    ),
+    [
+        "format long",
+        "format shortE",
+        "format compact",
+    ],
+    see_also=["disp", "fprintf", "formatsettings"],
+)
+add(
+    "formatsettings",
+    "console",
+    "Return the active numeric format and line spacing.",
+    "formatsettings()",
+    "No inputs.",
+    "Returns a struct-like value with NumericFormat and LineSpacing fields.",
+    "Use format to change these settings.",
+    ["formatsettings()"],
+    see_also=["format"],
+)
 
 
 # Trigonometry and angles

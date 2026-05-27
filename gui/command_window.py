@@ -13,15 +13,32 @@ from PySide6.QtGui import (
 
 from PySide6.QtCore import Qt
 
-from core.runtime.formatting import format_value
+from core.runtime.formatting import format_value, output_suffix
 
 
 class CommandWindow(QPlainTextEdit):
-    def __init__(self, execute_callback):
+    def __init__(
+        self,
+        execute_callback,
+        format_callback=None,
+        suffix_callback=None,
+    ):
         super().__init__()
 
         self.execute_callback = (
             execute_callback
+        )
+
+        self.format_callback = (
+            format_callback
+            if format_callback is not None
+            else format_value
+        )
+
+        self.suffix_callback = (
+            suffix_callback
+            if suffix_callback is not None
+            else output_suffix
         )
 
         self.history = []
@@ -218,11 +235,11 @@ class CommandWindow(QPlainTextEdit):
 
                 if result is not None:
                     self.insert_normal_text(
-                        format_value(result)
+                        self.format_callback(result)
                     )
 
                     self.insert_normal_text(
-                        "\n"
+                        self.suffix_callback()
                     )
 
             except Exception as e:

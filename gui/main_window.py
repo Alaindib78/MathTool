@@ -52,7 +52,7 @@ from PySide6.QtCore import (
 
 from core.engine import MathToolSession
 from core.runtime.context import RESERVED_CONSTANTS
-from core.runtime.formatting import format_value
+from core.runtime.formatting import format_value, output_suffix
 from core.runtime.function_resolver import (
     top_level_function_declarations,
 )
@@ -1351,13 +1351,23 @@ class MainWindow(QMainWindow):
         self.debugger.stop_session()
 
         if result is not None:
-            self.console.appendPlainText(
-                format_value(result)
+            self.insert_output_text(
+                self.console,
+                format_value(
+                    result,
+                    self.context.display_format,
+                )
+                + output_suffix(
+                    self.context.display_format
+                ),
             )
 
         self.refresh_workspace()
 
         self.update_runtime_path_ui()
+
+        if hasattr(self, "update_display_format_status"):
+            self.update_display_format_status()
 
         self.console.appendPlainText(
             "Execution finished"
@@ -1385,6 +1395,9 @@ class MainWindow(QMainWindow):
 
         self.update_runtime_path_ui()
 
+        if hasattr(self, "update_display_format_status"):
+            self.update_display_format_status()
+
         self.run_button.setEnabled(True)
 
         if hasattr(self, "debug_button"):
@@ -1397,8 +1410,26 @@ class MainWindow(QMainWindow):
 
     def write_output(self, text):
         self.console.appendPlainText(
-            format_value(text)
+            format_value(
+                text,
+                self.context.display_format,
+            )
         )
+
+    def set_display_format(self, style):
+        self.context.display_format.apply(style)
+        self.update_display_format_status()
+
+        if hasattr(self, "refresh_workspace"):
+            self.refresh_workspace()
+
+        self.refresh_variable_editors()
+
+    def refresh_variable_editors(self):
+        for editor in self.findChildren(VariableEditor):
+            editor.refresh_display_format(
+                self.context.display_format
+            )
 
     def debug_continue(self):
         self.debugger.continue_execution()
@@ -1590,6 +1621,56 @@ class MainWindow(QMainWindow):
             self.add_breakpoint_dialog
         )
         debug_menu.addAction(breakpoint_action)
+
+        # Format Menu
+        self.format_menu = menu.addMenu("Format")
+        format_menu = self.format_menu
+
+        for label, style in (
+            ("Short", "short"),
+            ("Long", "long"),
+            ("Short Scientific", "shortE"),
+            ("Long Scientific", "longE"),
+            ("Short General", "shortG"),
+            ("Long General", "longG"),
+            ("Short Engineering", "shortEng"),
+            ("Long Engineering", "longEng"),
+            ("Bank", "bank"),
+            ("Rational", "rat"),
+            ("Hex", "hex"),
+            ("Signs", "+"),
+        ):
+            action = QAction(label, self)
+            action.triggered.connect(
+                lambda checked=False, s=style:
+                self.set_display_format(s)
+            )
+            format_menu.addAction(action)
+
+        format_menu.addSeparator()
+
+        compact_action = QAction("Compact Spacing", self)
+        compact_action.triggered.connect(
+            lambda: self.set_display_format("compact")
+        )
+        format_menu.addAction(compact_action)
+
+        loose_action = QAction("Loose Spacing", self)
+        loose_action.triggered.connect(
+            lambda: self.set_display_format("loose")
+        )
+        format_menu.addAction(loose_action)
+
+        format_menu.addSeparator()
+
+        default_format_action = QAction(
+            "Reset to Default",
+            self,
+        )
+        default_format_action.triggered.connect(
+            lambda: self.set_display_format("default")
+        )
+        format_menu.addAction(default_format_action)
 
         # Tools Menu
         self.tools_menu = menu.addMenu("Tools")
@@ -2460,7 +2541,10 @@ class MainWindow(QMainWindow):
         return "1x1"
 
     def get_preview_text(self, value):
-        text = format_value(value)
+        text = format_value(
+            value,
+            self.context.display_format,
+        )
 
         if len(text) > 40:
             text = text[:40] + "..."
@@ -2490,6 +2574,7 @@ class MainWindow(QMainWindow):
             name,
             value,
             self.update_variable,
+            self.context.display_format,
         )
 
         dock.setWidget(editor)
@@ -2980,7 +3065,18 @@ class MainWindow(QMainWindow):
 
         self.command_window = (
             CommandWindow(
-                self.execute_repl_code
+                self.execute_repl_code,
+                format_callback=(
+                    lambda value: format_value(
+                        value,
+                        self.context.display_format,
+                    )
+                ),
+                suffix_callback=(
+                    lambda: output_suffix(
+                        self.context.display_format
+                    )
+                ),
             )
         )
 
@@ -3035,6 +3131,9 @@ class MainWindow(QMainWindow):
             allow_script_commands=True,
         )
 
+        if hasattr(self, "update_display_format_status"):
+            self.update_display_format_status()
+
         if result.should_exit:
             self.close()
             return None
@@ -3054,6 +3153,9 @@ class MainWindow(QMainWindow):
         if result.workspace_changed:
             if hasattr(self, "refresh_workspace"):
                 self.refresh_workspace()
+
+            if hasattr(self, "refresh_variable_editors"):
+                self.refresh_variable_editors()
 
             if hasattr(self, "update_runtime_path_ui"):
                 self.update_runtime_path_ui()
@@ -3288,7 +3390,25 @@ class MainWindow(QMainWindow):
 
         self.cwd_label = cwd_label
 
+        format_label = QLabel()
+        status_bar.addPermanentWidget(format_label)
+
+        self.format_label = format_label
+
+        self.update_display_format_status()
+
         self.update_working_directory_status()
+
+    def update_display_format_status(self):
+        if not hasattr(self, "format_label"):
+            return
+
+        settings = self.context.display_format.settings
+
+        self.format_label.setText(
+            f"Format: {settings.numeric_format.upper()} / "
+            f"{settings.spacing_mode.upper()}"
+        )
 
     def stop_execution(self):
         self.debugger.stop_session()
