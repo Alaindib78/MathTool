@@ -55,6 +55,33 @@ class GuiPlotEngine(QObject):
     def hold(self, mode=None):
         self.request.emit("hold", (mode,))
 
+    def subplot(self, *arguments):
+        self.request.emit("subplot", arguments)
+
+    def xticks(self, *arguments):
+        self.request.emit("xticks", arguments)
+
+    def xticklabels(self, *arguments):
+        self.request.emit("xticklabels", arguments)
+
+    def yticks(self, *arguments):
+        self.request.emit("yticks", arguments)
+
+    def yticklabels(self, *arguments):
+        self.request.emit("yticklabels", arguments)
+
+    def xline(self, *arguments):
+        self.request.emit("xline", arguments)
+
+    def yline(self, *arguments):
+        self.request.emit("yline", arguments)
+
+    def legend(self, *arguments):
+        self.request.emit("legend", arguments)
+
+    def axis(self, *arguments):
+        self.request.emit("axis", arguments)
+
     @Slot(str, object)
     def handle_request(self, method_name, arguments):
         method = getattr(self.engine, method_name)

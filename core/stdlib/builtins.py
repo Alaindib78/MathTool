@@ -1397,6 +1397,42 @@ def builtin_hold(context, value=None):
     return None
 
 
+def builtin_xticks(context, *arguments):
+    return context.plot_engine.xticks(*arguments)
+
+
+def builtin_xticklabels(context, *arguments):
+    return context.plot_engine.xticklabels(*arguments)
+
+
+def builtin_yticks(context, *arguments):
+    return context.plot_engine.yticks(*arguments)
+
+
+def builtin_yticklabels(context, *arguments):
+    return context.plot_engine.yticklabels(*arguments)
+
+
+def builtin_xline(context, *arguments):
+    return context.plot_engine.xline(*arguments)
+
+
+def builtin_yline(context, *arguments):
+    return context.plot_engine.yline(*arguments)
+
+
+def builtin_legend(context, *arguments):
+    return context.plot_engine.legend(*arguments)
+
+
+def builtin_subplot(context, *arguments):
+    return context.plot_engine.subplot(*arguments)
+
+
+def builtin_axis(context, *arguments):
+    return context.plot_engine.axis(*arguments)
+
+
 def builtin_sym(context, value):
     if isinstance(value, SymbolicValue):
         return value
@@ -1944,6 +1980,15 @@ BUILTIN_FUNCTIONS = {
     "ylabel": builtin_ylabel,
     "grid": builtin_grid,
     "hold": builtin_hold,
+    "xticks": builtin_xticks,
+    "xticklabels": builtin_xticklabels,
+    "yticks": builtin_yticks,
+    "yticklabels": builtin_yticklabels,
+    "xline": builtin_xline,
+    "yline": builtin_yline,
+    "legend": builtin_legend,
+    "subplot": builtin_subplot,
+    "axis": builtin_axis,
     "sym": builtin_sym,
     "class": builtin_class,
     "complex": builtin_complex,

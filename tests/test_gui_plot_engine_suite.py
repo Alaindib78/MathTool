@@ -38,6 +38,33 @@ class FakeEngine:
     def hold(self, mode=None):
         self.calls.append(("hold", mode))
 
+    def xticks(self, *arguments):
+        self.calls.append(("xticks", *arguments))
+
+    def xticklabels(self, *arguments):
+        self.calls.append(("xticklabels", *arguments))
+
+    def yticks(self, *arguments):
+        self.calls.append(("yticks", *arguments))
+
+    def yticklabels(self, *arguments):
+        self.calls.append(("yticklabels", *arguments))
+
+    def xline(self, *arguments):
+        self.calls.append(("xline", *arguments))
+
+    def yline(self, *arguments):
+        self.calls.append(("yline", *arguments))
+
+    def legend(self, *arguments):
+        self.calls.append(("legend", *arguments))
+
+    def subplot(self, *arguments):
+        self.calls.append(("subplot", *arguments))
+
+    def axis(self, *arguments):
+        self.calls.append(("axis", *arguments))
+
 
 def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
     gui_engine = GuiPlotEngine()
@@ -54,6 +81,15 @@ def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
     gui_engine.handle_request("grid_on", ())
     gui_engine.handle_request("grid_off", ())
     gui_engine.handle_request("hold", ("on",))
+    gui_engine.handle_request("xticks", ([0, 1],))
+    gui_engine.handle_request("xticklabels", ("zero", "one"))
+    gui_engine.handle_request("yticks", ([-1, 1],))
+    gui_engine.handle_request("yticklabels", ("low", "high"))
+    gui_engine.handle_request("xline", (0, "--r", "zero"))
+    gui_engine.handle_request("yline", (1, ":k"))
+    gui_engine.handle_request("legend", ("a", "b"))
+    gui_engine.handle_request("subplot", (2, 1, 1))
+    gui_engine.handle_request("axis", ([0, 1, -1, 1],))
     gui_engine.handle_request("close", ("all",))
 
     assert fake_engine.calls == [
@@ -67,5 +103,14 @@ def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
         ("grid_on",),
         ("grid_off",),
         ("hold", "on"),
+        ("xticks", [0, 1]),
+        ("xticklabels", "zero", "one"),
+        ("yticks", [-1, 1]),
+        ("yticklabels", "low", "high"),
+        ("xline", 0, "--r", "zero"),
+        ("yline", 1, ":k"),
+        ("legend", "a", "b"),
+        ("subplot", 2, 1, 1),
+        ("axis", [0, 1, -1, 1]),
         ("close", "all"),
     ]

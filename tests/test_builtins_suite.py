@@ -37,6 +37,33 @@ class FakePlotEngine:
     def hold(self, mode=None):
         self.calls.append(("hold", mode))
 
+    def xticks(self, *arguments):
+        self.calls.append(("xticks", *arguments))
+
+    def xticklabels(self, *arguments):
+        self.calls.append(("xticklabels", *arguments))
+
+    def yticks(self, *arguments):
+        self.calls.append(("yticks", *arguments))
+
+    def yticklabels(self, *arguments):
+        self.calls.append(("yticklabels", *arguments))
+
+    def xline(self, *arguments):
+        self.calls.append(("xline", *arguments))
+
+    def yline(self, *arguments):
+        self.calls.append(("yline", *arguments))
+
+    def legend(self, *arguments):
+        self.calls.append(("legend", *arguments))
+
+    def subplot(self, *arguments):
+        self.calls.append(("subplot", *arguments))
+
+    def axis(self, *arguments):
+        self.calls.append(("axis", *arguments))
+
 
 def test_math_builtins_are_vectorized():
     context = RuntimeContext()
@@ -274,6 +301,15 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
     context.functions.get("grid")(context, True)
     context.functions.get("grid")(context, False)
     context.functions.get("hold")(context, "on")
+    context.functions.get("xticks")(context, [0, 1])
+    context.functions.get("xticklabels")(context, "zero", "one")
+    context.functions.get("yticks")(context, [-1, 1])
+    context.functions.get("yticklabels")(context, ["low", "high"])
+    context.functions.get("xline")(context, 0, "--r", "zero")
+    context.functions.get("yline")(context, 1, ":k")
+    context.functions.get("legend")(context, "a", "b")
+    context.functions.get("subplot")(context, 2, 1, 1)
+    context.functions.get("axis")(context, [0, 1, -1, 1])
     context.functions.get("figure")(context)
     context.functions.get("figure")(context, 2)
     context.functions.get("close")(context)
@@ -288,6 +324,15 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
         ("grid_on",),
         ("grid_off",),
         ("hold", "on"),
+        ("xticks", [0, 1]),
+        ("xticklabels", "zero", "one"),
+        ("yticks", [-1, 1]),
+        ("yticklabels", ["low", "high"]),
+        ("xline", 0, "--r", "zero"),
+        ("yline", 1, ":k"),
+        ("legend", "a", "b"),
+        ("subplot", 2, 1, 1),
+        ("axis", [0, 1, -1, 1]),
         ("figure", None),
         ("figure", 2),
         ("close", None),
@@ -429,3 +474,66 @@ def test_plot_engine_supports_figure_and_close(monkeypatch):
         ("close", 3),
         ("close", "all"),
     ]
+
+
+def test_plot_engine_targets_current_subplot_axes(monkeypatch):
+    import matplotlib.pyplot as plt
+
+    monkeypatch.setattr(PlotEngine, "show", lambda self: None)
+    monkeypatch.setattr(PlotEngine, "refresh", lambda self: None)
+    plt.close("all")
+
+    engine = PlotEngine()
+    engine.subplot(2, 1, 1)
+    engine.plot([0, 1], [0, 1])
+    engine.title("Top")
+    engine.yline(0)
+    engine.xticks([0, 0.5, 1])
+    top_axis = engine.current_axes_by_figure[
+        engine.figure_number(engine.current_figure)
+    ]
+
+    engine.subplot(2, 1, 2)
+    engine.plot([0, 1], [1, 0])
+    engine.title("Bottom")
+    engine.xline(0.5)
+    bottom_axis = engine.current_axes_by_figure[
+        engine.figure_number(engine.current_figure)
+    ]
+
+    assert top_axis is not bottom_axis
+    assert top_axis.get_title() == "Top"
+    assert bottom_axis.get_title() == "Bottom"
+    assert len(top_axis.lines) == 2
+    assert len(bottom_axis.lines) == 2
+    np.testing.assert_allclose(top_axis.get_xticks(), [0, 0.5, 1])
+
+    plt.close("all")
+
+
+def test_plot_engine_supports_axis_limits_styles_and_query(monkeypatch):
+    import matplotlib.pyplot as plt
+
+    monkeypatch.setattr(PlotEngine, "show", lambda self: None)
+    monkeypatch.setattr(PlotEngine, "refresh", lambda self: None)
+    plt.close("all")
+
+    engine = PlotEngine()
+    engine.plot([0, 1, 2], [-1, 0, 1])
+    engine.axis([0, 2, -2, 2])
+
+    np.testing.assert_allclose(engine.axis(), [0, 2, -2, 2])
+
+    axis = engine.ensure_current_axes()
+    engine.axis("ij")
+    assert axis.yaxis_inverted()
+    engine.axis("xy")
+    assert not axis.yaxis_inverted()
+    engine.axis("equal")
+    assert axis.get_aspect() == 1.0
+    engine.axis("off")
+    assert not axis.axison
+    engine.axis("on")
+    assert axis.axison
+
+    plt.close("all")

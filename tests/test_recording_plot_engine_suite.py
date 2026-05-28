@@ -334,3 +334,131 @@ def test_recording_plot_engine_supports_close_all():
     engine.close("all")
 
     assert engine.serialize_plots() == []
+
+
+def test_recording_plot_engine_records_ticks_reference_lines_and_legend():
+    engine = RecordingPlotEngine()
+
+    engine.plot([0, 1], [0, 1])
+    engine.xticks([0, 0.5, 1])
+    engine.xticklabels("zero", "half", "one")
+    engine.yticks([-1, 0, 1])
+    engine.yticklabels(["low", "zero", "high"])
+    engine.xline(0.5, "--r", "mid")
+    engine.yline(0, ":k", "zero")
+    engine.legend("line", "Location", "northeast")
+
+    plot = engine.serialize_plots()[0]
+
+    assert plot["layout"]["xaxis"]["tickvals"] == [0.0, 0.5, 1.0]
+    assert plot["layout"]["xaxis"]["ticktext"] == [
+        "zero",
+        "half",
+        "one",
+    ]
+    assert plot["layout"]["yaxis"]["tickvals"] == [-1.0, 0.0, 1.0]
+    assert plot["layout"]["yaxis"]["ticktext"] == [
+        "low",
+        "zero",
+        "high",
+    ]
+    assert plot["data"][1]["x"] == [0.5, 0.5]
+    assert plot["data"][1]["line"]["dash"] == "dash"
+    assert plot["data"][1]["line"]["color"] == "r"
+    assert plot["data"][2]["y"] == [0.0, 0.0]
+    assert plot["data"][2]["line"]["dash"] == "dot"
+    assert plot["data"][0]["name"] == "line"
+    assert plot["layout"]["showlegend"] is True
+
+
+def test_recording_plot_engine_tracks_current_subplot_axes():
+    engine = RecordingPlotEngine()
+
+    engine.subplot(2, 1, 1)
+    engine.plot([0, 1], [0, 1])
+    engine.title("Top")
+    engine.yline(0)
+    engine.subplot(2, 1, 2)
+    engine.plot([0, 1], [1, 0])
+    engine.title("Bottom")
+    engine.xline(0.5)
+
+    plot = engine.serialize_plots()[0]
+
+    assert plot["data"][0]["y"] == [0, 1]
+    assert plot["data"][1]["y"] == [0.0, 0.0]
+    assert plot["data"][2]["xaxis"] == "x2"
+    assert plot["data"][2]["yaxis"] == "y2"
+    assert plot["data"][3]["xaxis"] == "x2"
+    assert plot["data"][3]["yaxis"] == "y2"
+    assert plot["layout"]["xaxis"]["domain"] == [0.0, 1.0]
+    assert plot["layout"]["yaxis"]["domain"] == [0.5, 1.0]
+    assert plot["layout"]["xaxis2"]["domain"] == [0.0, 1.0]
+    assert plot["layout"]["yaxis2"]["domain"] == [0.0, 0.5]
+
+
+def test_session_executes_plot_helper_commands():
+    engine = RecordingPlotEngine()
+    session = MathToolSession(plot_engine=engine)
+
+    session.execute(
+        """
+x = 0:0.5:1;
+plot(x, x);
+xticks([0 0.5 1]);
+xticklabels("zero", "half", "one");
+yline(0.5, "--r", "mid");
+legend("line", "Location", "northeast");
+"""
+    )
+
+    plot = engine.serialize_plots()[0]
+
+    assert plot["layout"]["xaxis"]["tickvals"] == [0.0, 0.5, 1.0]
+    assert plot["layout"]["xaxis"]["ticktext"] == [
+        "zero",
+        "half",
+        "one",
+    ]
+    assert plot["data"][1]["y"] == [0.5, 0.5]
+    assert plot["data"][0]["name"] == "line"
+
+
+def test_recording_plot_engine_records_axis_commands():
+    engine = RecordingPlotEngine()
+
+    engine.plot([0, 1], [-1, 1])
+    engine.axis([0, 2, -2, 2])
+    engine.axis("equal")
+    engine.axis("ij")
+    engine.axis("off")
+
+    plot = engine.serialize_plots()[0]
+
+    assert plot["layout"]["xaxis"]["range"] == [0.0, 2.0]
+    assert plot["layout"]["yaxis"]["range"] == [-2.0, 2.0]
+    assert plot["layout"]["yaxis"]["scaleanchor"] == "x"
+    assert plot["layout"]["yaxis"]["autorange"] == "reversed"
+    assert plot["layout"]["xaxis"]["visible"] is False
+    assert plot["layout"]["yaxis"]["visible"] is False
+
+
+def test_session_executes_axis_command_syntax():
+    engine = RecordingPlotEngine()
+    session = MathToolSession(plot_engine=engine)
+
+    session.execute(
+        """
+plot([0 1], [0 1]);
+axis([0 2 -1 1]);
+axis tight;
+axis off;
+"""
+    )
+
+    plot = engine.serialize_plots()[0]
+
+    assert plot["layout"]["xaxis"]["range"] == [0.0, 2.0]
+    assert plot["layout"]["yaxis"]["range"] == [-1.0, 1.0]
+    assert plot["layout"]["xaxis"]["rangemode"] == "tight"
+    assert plot["layout"]["xaxis"]["visible"] is False

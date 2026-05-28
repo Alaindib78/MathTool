@@ -270,6 +270,36 @@ close all
     assert close_all_call.arguments[0].value == "all"
 
 
+def test_parser_builds_axis_command_statement(parse):
+    program = parse(
+        """
+axis
+axis tight
+axis auto x
+axis off
+"""
+    )
+
+    axis_query = program.statements[0]
+    axis_tight = program.statements[1]
+    axis_auto_x = program.statements[2]
+    axis_off = program.statements[3]
+
+    assert isinstance(axis_query, FunctionCallNode)
+    assert axis_query.name == "axis"
+    assert axis_query.arguments == []
+    assert [argument.value for argument in axis_tight.arguments] == [
+        "tight",
+    ]
+    assert [argument.value for argument in axis_auto_x.arguments] == [
+        "auto",
+        "x",
+    ]
+    assert [argument.value for argument in axis_off.arguments] == [
+        "off",
+    ]
+
+
 def test_parser_builds_return_break_and_continue_statements(parse):
     program = parse(
         """

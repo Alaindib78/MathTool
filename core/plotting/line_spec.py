@@ -59,6 +59,7 @@ PROPERTY_NAMES = {
     "markeredgecolor": "MarkerEdgeColor",
     "markerfacecolor": "MarkerFaceColor",
     "markerindices": "MarkerIndices",
+    "displayname": "DisplayName",
 }
 
 
@@ -88,10 +89,10 @@ def is_known_property_name(value):
     return isinstance(value, str) and value.lower() in PROPERTY_NAMES
 
 
-def parse_line_spec(spec):
+def parse_line_spec(spec, function_name="plot", *, allow_markers=True):
     if not isinstance(spec, str) or spec == "":
         raise MathToolRuntimeError(
-            f"plot: Invalid LineSpec '{spec}'"
+            f"{function_name}: Invalid LineSpec '{spec}'"
         )
 
     line_style = None
@@ -109,7 +110,7 @@ def parse_line_spec(spec):
 
         if token is not None:
             if line_style is not None:
-                raise invalid_line_spec(spec)
+                raise invalid_line_spec(spec, function_name)
 
             line_style = token
             index += len(token)
@@ -117,9 +118,9 @@ def parse_line_spec(spec):
 
         char = spec[index]
 
-        if char in MARKERS:
+        if allow_markers and char in MARKERS:
             if marker is not None:
-                raise invalid_line_spec(spec)
+                raise invalid_line_spec(spec, function_name)
 
             marker = char
             index += 1
@@ -127,13 +128,13 @@ def parse_line_spec(spec):
 
         if char in SHORT_COLORS:
             if color is not None:
-                raise invalid_line_spec(spec)
+                raise invalid_line_spec(spec, function_name)
 
             color = SHORT_COLORS[char]
             index += 1
             continue
 
-        raise invalid_line_spec(spec)
+        raise invalid_line_spec(spec, function_name)
 
     if line_style is None and marker is not None:
         line_style = "none"
@@ -183,6 +184,9 @@ def normalize_property_value(name, value):
 
     if name == "MarkerIndices":
         return normalize_marker_indices(value)
+
+    if name == "DisplayName":
+        return str(value)
 
     return value
 
@@ -285,6 +289,7 @@ def matplotlib_kwargs(properties):
         "MarkerEdgeColor": "markeredgecolor",
         "MarkerFaceColor": "markerfacecolor",
         "MarkerIndices": "markevery",
+        "DisplayName": "label",
     }
 
     return {
@@ -294,7 +299,7 @@ def matplotlib_kwargs(properties):
     }
 
 
-def invalid_line_spec(spec):
+def invalid_line_spec(spec, function_name="plot"):
     return MathToolRuntimeError(
-        f"plot: Invalid LineSpec '{spec}'"
+        f"{function_name}: Invalid LineSpec '{spec}'"
     )

@@ -109,6 +109,9 @@ class Parser:
         if self.is_hold_statement():
             return self.hold_statement()
 
+        if self.is_axis_statement():
+            return self.axis_statement()
+
         # Assignment
         if self.is_assignment_start():
             return self.assignment()
@@ -719,6 +722,51 @@ class Parser:
 
         return FunctionCallNode(
             "hold",
+            arguments,
+            command.line,
+            command.column,
+        )
+
+    def axis_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+        arguments = []
+
+        while (
+            self.peek().line == command.line
+            and not self.check(TokenType.SEMICOLON)
+            and not self.is_at_end()
+        ):
+            token = self.peek()
+
+            if self.match(TokenType.IDENTIFIER):
+                arguments.append(
+                    StringNode(
+                        token.value,
+                        token.line,
+                        token.column,
+                    )
+                )
+                continue
+
+            if self.match(TokenType.STRING):
+                arguments.append(
+                    StringNode(
+                        token.value,
+                        token.line,
+                        token.column,
+                    )
+                )
+                continue
+
+            raise ParserError(
+                "Expected axis option",
+                line=token.line,
+                column=token.column,
+                token=token.value,
+            )
+
+        return FunctionCallNode(
+            "axis",
             arguments,
             command.line,
             command.column,
@@ -1563,6 +1611,43 @@ class Parser:
 
     def is_hold_statement(self):
         return self.is_on_off_command_statement("hold")
+
+    def is_axis_statement(self):
+        next_token = self.peek_next()
+
+        if (
+            self.peek().type != TokenType.IDENTIFIER
+            or self.peek().value != "axis"
+            or next_token.type == TokenType.LPAREN
+            or next_token.type == TokenType.EQUAL
+        ):
+            return False
+
+        if (
+            next_token.type == TokenType.SEMICOLON
+            or next_token.type == TokenType.EOF
+            or next_token.line != self.peek().line
+        ):
+            return True
+
+        position = 1
+
+        while True:
+            token = self.peek_at(position)
+
+            if token.line != self.peek().line:
+                return True
+
+            if token.type in {TokenType.SEMICOLON, TokenType.EOF}:
+                return True
+
+            if token.type not in {
+                TokenType.IDENTIFIER,
+                TokenType.STRING,
+            }:
+                return False
+
+            position += 1
 
     def is_on_off_command_statement(self, command_name):
         next_token = self.peek_next()
