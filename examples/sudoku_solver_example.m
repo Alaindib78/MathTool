@@ -45,58 +45,28 @@ matchesExpected = allclose(solution, expected);
 fprintf("Matches expected solution: %d\n", matchesExpected);
 
 function solved = solveSudoku(board)
-    row = 0;
-    col = 0;
-    found = false;
+    emptyCells = find(board == 0);
 
-    for r = 1:9
-        for c = 1:9
-            if ~found
-                if board(r, c) == 0
-                    row = r;
-                    col = c;
-                    found = true;
-                end
-            end
-        end
-    end
-
-    if ~found
+    if isempty(emptyCells)
         solved = board;
         return;
     end
 
+    cellIndex = emptyCells(1);
+    row = mod(cellIndex - 1, 9) + 1;
+    col = floor((cellIndex - 1) / 9) + 1;
+
     solved = zeros(9);
 
     for value = 1:9
-        allowed = true;
+        rowValues = board(row, :);
+        colValues = board(:, col);
 
-        for c = 1:9
-            if board(row, c) == value
-                allowed = false;
-            end
-        end
+        firstRow = floor((row - 1) / 3) * 3 + 1;
+        firstCol = floor((col - 1) / 3) * 3 + 1;
+        boxValues = board(firstRow:firstRow + 2, firstCol:firstCol + 2);
 
-        if allowed
-            for r = 1:9
-                if board(r, col) == value
-                    allowed = false;
-                end
-            end
-        end
-
-        if allowed
-            firstRow = floor((row - 1) / 3) * 3 + 1;
-            firstCol = floor((col - 1) / 3) * 3 + 1;
-
-            for r = firstRow:firstRow + 2
-                for c = firstCol:firstCol + 2
-                    if board(r, c) == value
-                        allowed = false;
-                    end
-                end
-            end
-        end
+        allowed = ~any(rowValues == value) & ~any(colValues == value) & ~any(boxValues == value);
 
         if allowed
             candidate = board;
