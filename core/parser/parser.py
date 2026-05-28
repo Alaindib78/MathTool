@@ -103,6 +103,12 @@ class Parser:
         if self.is_close_statement():
             return self.close_statement()
 
+        if self.is_grid_statement():
+            return self.grid_statement()
+
+        if self.is_hold_statement():
+            return self.hold_statement()
+
         # Assignment
         if self.is_assignment_start():
             return self.assignment()
@@ -663,6 +669,56 @@ class Parser:
 
         return FunctionCallNode(
             "close",
+            arguments,
+            command.line,
+            command.column,
+        )
+
+    def grid_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+        arguments = []
+
+        if (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek().line == command.line
+            and self.peek().value in {"on", "off"}
+        ):
+            argument = self.advance()
+            arguments.append(
+                StringNode(
+                    argument.value,
+                    argument.line,
+                    argument.column,
+                )
+            )
+
+        return FunctionCallNode(
+            "grid",
+            arguments,
+            command.line,
+            command.column,
+        )
+
+    def hold_statement(self):
+        command = self.consume(TokenType.IDENTIFIER)
+        arguments = []
+
+        if (
+            self.check(TokenType.IDENTIFIER)
+            and self.peek().line == command.line
+            and self.peek().value in {"on", "off"}
+        ):
+            argument = self.advance()
+            arguments.append(
+                StringNode(
+                    argument.value,
+                    argument.line,
+                    argument.column,
+                )
+            )
+
+        return FunctionCallNode(
+            "hold",
             arguments,
             command.line,
             command.column,
@@ -1495,6 +1551,42 @@ class Parser:
         return (
             next_token.type == TokenType.IDENTIFIER
             and next_token.value == "all"
+            and (
+                after_argument.type == TokenType.SEMICOLON
+                or after_argument.type == TokenType.EOF
+                or after_argument.line != self.peek().line
+            )
+        )
+
+    def is_grid_statement(self):
+        return self.is_on_off_command_statement("grid")
+
+    def is_hold_statement(self):
+        return self.is_on_off_command_statement("hold")
+
+    def is_on_off_command_statement(self, command_name):
+        next_token = self.peek_next()
+
+        if (
+            self.peek().type != TokenType.IDENTIFIER
+            or self.peek().value != command_name
+            or next_token.type == TokenType.LPAREN
+            or next_token.type == TokenType.EQUAL
+        ):
+            return False
+
+        if (
+            next_token.type == TokenType.SEMICOLON
+            or next_token.type == TokenType.EOF
+            or next_token.line != self.peek().line
+        ):
+            return True
+
+        after_argument = self.peek_at(2)
+
+        return (
+            next_token.type == TokenType.IDENTIFIER
+            and next_token.value in {"on", "off"}
             and (
                 after_argument.type == TokenType.SEMICOLON
                 or after_argument.type == TokenType.EOF

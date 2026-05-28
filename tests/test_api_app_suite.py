@@ -135,7 +135,7 @@ def test_api_command_response_includes_doc_help_topic():
     payload = response.json()
     assert payload["command"] == "doc"
     assert payload["help_topic"] == "plot"
-    assert "Plot x-y data" in payload["value"]["value"]
+    assert "MATLAB-style 2-D line plots" in payload["value"]["value"]
 
 
 def test_api_returns_404_for_missing_session():

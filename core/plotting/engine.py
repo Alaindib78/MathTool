@@ -1,9 +1,13 @@
 import matplotlib.pyplot as plt
 
+from core.plotting.line_spec import matplotlib_kwargs
+from core.plotting.plot_parser import parse_plot_arguments
+
 
 class PlotEngine:
     def __init__(self):
         self.current_figure = None
+        self.hold_enabled = False
 
     def figure(self, number=None):
         self.current_figure = plt.figure(
@@ -36,15 +40,68 @@ class PlotEngine:
         ):
             self.current_figure = None
 
-    def plot(self, x, y):
+    def plot(self, *arguments):
+        series = parse_plot_arguments(arguments)
+
         if self.current_figure is None:
             self.current_figure = plt.figure()
         else:
             plt.figure(self.current_figure.number)
 
-        plt.plot(x, y)
+        if not hasattr(self.current_figure, "gca"):
+            lines = []
+
+            for item in series:
+                plotted = plt.plot(
+                    item.x.tolist(),
+                    item.y.tolist(),
+                    **matplotlib_kwargs(item.properties),
+                )
+
+                if plotted is not None:
+                    lines.extend(plotted)
+
+            self.show()
+
+            return lines
+
+        axis = plt.gca()
+
+        if not self.hold_enabled:
+            axis.cla()
+
+        lines = []
+
+        for item in series:
+            plotted = axis.plot(
+                item.x,
+                item.y,
+                **matplotlib_kwargs(item.properties),
+            )
+            lines.extend(plotted)
 
         self.show()
+
+        return lines
+
+    def hold(self, mode=None):
+        if mode is None:
+            self.hold_enabled = not self.hold_enabled
+            return self.hold_enabled
+
+        if isinstance(mode, str):
+            lowered = mode.lower()
+
+            if lowered == "on":
+                self.hold_enabled = True
+                return self.hold_enabled
+
+            if lowered == "off":
+                self.hold_enabled = False
+                return self.hold_enabled
+
+        self.hold_enabled = bool(mode)
+        return self.hold_enabled
 
     def bode(self, frequency, magnitude_db, phase_deg):
         self.current_figure, axes = plt.subplots(

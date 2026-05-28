@@ -1160,8 +1160,8 @@ def builtin_nyquist(context, numerator, denominator, frequency=None):
 
     return None
 
-def builtin_plot(context, x, y):
-    context.plot_engine.plot(x, y)
+def builtin_plot(context, *arguments):
+    return context.plot_engine.plot(*arguments)
 
 def builtin_figure(context, number=None):
     context.plot_engine.figure(number)
@@ -1376,10 +1376,25 @@ def builtin_ylabel(context, text):
 
 
 def builtin_grid(context, value=True):
+    if isinstance(value, str):
+        lowered = value.lower()
+
+        if lowered == "on":
+            value = True
+        elif lowered == "off":
+            value = False
+
     if value:
         context.plot_engine.grid_on()
     else:
         context.plot_engine.grid_off()
+
+
+def builtin_hold(context, value=None):
+    if hasattr(context.plot_engine, "hold"):
+        return context.plot_engine.hold(value)
+
+    return None
 
 
 def builtin_sym(context, value):
@@ -1928,6 +1943,7 @@ BUILTIN_FUNCTIONS = {
     "xlabel": builtin_xlabel,
     "ylabel": builtin_ylabel,
     "grid": builtin_grid,
+    "hold": builtin_hold,
     "sym": builtin_sym,
     "class": builtin_class,
     "complex": builtin_complex,

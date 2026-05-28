@@ -16,8 +16,8 @@ class GuiPlotEngine(QObject):
             Qt.QueuedConnection
         )
 
-    def plot(self, x, y):
-        self.request.emit("plot", (x, y))
+    def plot(self, *arguments):
+        self.request.emit("plot", arguments)
 
     def bode(self, frequency, magnitude_db, phase_deg):
         self.request.emit(
@@ -51,6 +51,9 @@ class GuiPlotEngine(QObject):
 
     def grid_off(self):
         self.request.emit("grid_off", ())
+
+    def hold(self, mode=None):
+        self.request.emit("hold", (mode,))
 
     @Slot(str, object)
     def handle_request(self, method_name, arguments):

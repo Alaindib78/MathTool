@@ -10,8 +10,8 @@ class FakePlotEngine:
     def __init__(self):
         self.calls = []
 
-    def plot(self, x, y):
-        self.calls.append(("plot", x, y))
+    def plot(self, *arguments):
+        self.calls.append(("plot", *arguments))
 
     def figure(self, number=None):
         self.calls.append(("figure", number))
@@ -33,6 +33,9 @@ class FakePlotEngine:
 
     def grid_off(self):
         self.calls.append(("grid_off",))
+
+    def hold(self, mode=None):
+        self.calls.append(("hold", mode))
 
 
 def test_math_builtins_are_vectorized():
@@ -270,6 +273,7 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
     context.functions.get("ylabel")(context, "y")
     context.functions.get("grid")(context, True)
     context.functions.get("grid")(context, False)
+    context.functions.get("hold")(context, "on")
     context.functions.get("figure")(context)
     context.functions.get("figure")(context, 2)
     context.functions.get("close")(context)
@@ -283,6 +287,7 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
         ("ylabel", "y"),
         ("grid_on",),
         ("grid_off",),
+        ("hold", "on"),
         ("figure", None),
         ("figure", 2),
         ("close", None),

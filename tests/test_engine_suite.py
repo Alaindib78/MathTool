@@ -89,7 +89,7 @@ def test_session_handles_doc_command_and_semicolon_help_topic():
 
     assert help_result.command == "help"
     assert help_result.help_topic == "plot"
-    assert "Plot x-y data" in help_result.value
+    assert "MATLAB-style 2-D line plots" in help_result.value
 
     assert doc_result.command == "doc"
     assert doc_result.help_topic == "plotting-guide"

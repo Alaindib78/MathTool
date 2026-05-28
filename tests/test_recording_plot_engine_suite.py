@@ -1,7 +1,10 @@
 import json
 
 import numpy as np
+import pytest
 
+from core.engine import MathToolSession
+from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.plotting.recording import RecordingPlotEngine
 
 
@@ -66,6 +69,168 @@ def test_recording_plot_engine_flattens_column_vectors():
 
     assert trace["x"] == [1, 2, 3]
     assert trace["y"] == [4, 5, 6]
+
+
+def test_recording_plot_engine_supports_implicit_x_and_matrix_columns():
+    engine = RecordingPlotEngine()
+
+    engine.plot(np.array([4, 5, 6]))
+
+    trace = engine.serialize_plots()[0]["data"][0]
+    assert trace["x"] == [1, 2, 3]
+    assert trace["y"] == [4, 5, 6]
+
+    engine.plot(
+        np.array(
+            [
+                [1, 3, 5],
+                [2, 4, 6],
+                [3, 5, 7],
+                [4, 6, 8],
+            ]
+        )
+    )
+
+    traces = engine.serialize_plots()[0]["data"]
+
+    assert len(traces) == 3
+    assert traces[0]["x"] == [1, 2, 3, 4]
+    assert traces[0]["y"] == [1, 2, 3, 4]
+    assert traces[1]["y"] == [3, 4, 5, 6]
+    assert traces[2]["y"] == [5, 6, 7, 8]
+
+
+def test_recording_plot_engine_supports_multiple_pairs_and_line_specs():
+    engine = RecordingPlotEngine()
+    x = np.array([1, 2, 3])
+
+    engine.plot(
+        x,
+        np.array([1, 4, 9]),
+        "r--",
+        x,
+        np.array([1, 8, 27]),
+        "bo",
+        x,
+        np.array([1, 16, 81]),
+        "g-*",
+    )
+
+    traces = engine.serialize_plots()[0]["data"]
+
+    assert len(traces) == 3
+    assert traces[0]["line"]["color"] == "r"
+    assert traces[0]["line"]["dash"] == "dash"
+    assert traces[1]["mode"] == "markers"
+    assert traces[1]["marker"]["symbol"] == "circle"
+    assert traces[1]["marker"]["color"] == "b"
+    assert traces[2]["mode"] == "lines+markers"
+    assert traces[2]["line"]["color"] == "g"
+    assert traces[2]["marker"]["symbol"] == "star"
+
+
+def test_recording_plot_engine_supports_name_value_properties():
+    engine = RecordingPlotEngine()
+
+    engine.plot(
+        [1, 2, 3],
+        [4, 5, 6],
+        "--gs",
+        "LineWidth",
+        2,
+        "MarkerSize",
+        10,
+        "MarkerEdgeColor",
+        "b",
+        "MarkerFaceColor",
+        [0.5, 0.5, 0.5],
+    )
+
+    trace = engine.serialize_plots()[0]["data"][0]
+
+    assert trace["mode"] == "lines+markers"
+    assert trace["line"]["dash"] == "dash"
+    assert trace["line"]["width"] == 2.0
+    assert trace["marker"]["symbol"] == "square"
+    assert trace["marker"]["size"] == 10.0
+    assert trace["marker"]["line"]["color"] == "b"
+    assert trace["marker"]["color"] == "rgb(128,128,128)"
+
+    engine.plot(
+        [1, 2, 3],
+        [4, 5, 6],
+        "Color",
+        [0, 0.7, 0.9],
+    )
+
+    trace = engine.serialize_plots()[0]["data"][0]
+
+    assert trace["line"]["color"] == "rgb(0,178,230)"
+
+
+def test_recording_plot_engine_supports_hold_state():
+    engine = RecordingPlotEngine()
+
+    engine.plot([1, 2], [3, 4])
+    engine.hold("on")
+    engine.plot([1, 2], [5, 6])
+
+    assert len(engine.serialize_plots()[0]["data"]) == 2
+
+    engine.hold("off")
+    engine.plot([1, 2], [7, 8])
+
+    traces = engine.serialize_plots()[0]["data"]
+
+    assert len(traces) == 1
+    assert traces[0]["y"] == [7, 8]
+
+
+def test_recording_plot_engine_reports_plot_argument_errors():
+    engine = RecordingPlotEngine()
+
+    with pytest.raises(MathToolRuntimeError, match="same length"):
+        engine.plot([1, 2], [3, 4, 5])
+
+    with pytest.raises(MathToolRuntimeError, match="Invalid LineSpec"):
+        engine.plot([1, 2], [3, 4], "rq--")
+
+    with pytest.raises(MathToolRuntimeError, match="Unknown property"):
+        engine.plot([1, 2], [3, 4], "Foo", 1)
+
+
+def test_session_supports_hold_and_grid_command_syntax():
+    engine = RecordingPlotEngine()
+    session = MathToolSession(plot_engine=engine)
+
+    session.execute(
+        """
+plot([1 2], [3 4]);
+hold on;
+plot([1 2], [5 6]);
+grid on;
+"""
+    )
+
+    plot = engine.serialize_plots()[0]
+
+    assert len(plot["data"]) == 2
+    assert plot["layout"]["xaxis"]["showgrid"] is True
+    assert plot["layout"]["yaxis"]["showgrid"] is True
+
+    session.execute(
+        """
+hold off;
+plot([1 2], [7 8]);
+grid off;
+"""
+    )
+
+    plot = engine.serialize_plots()[0]
+
+    assert len(plot["data"]) == 1
+    assert plot["data"][0]["y"] == [7, 8]
+    assert plot["layout"]["xaxis"]["showgrid"] is False
 
 
 def test_recording_plot_engine_records_bode_and_nyquist_specs():

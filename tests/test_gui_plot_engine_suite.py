@@ -5,8 +5,8 @@ class FakeEngine:
     def __init__(self):
         self.calls = []
 
-    def plot(self, x, y):
-        self.calls.append(("plot", x, y))
+    def plot(self, *arguments):
+        self.calls.append(("plot", *arguments))
 
     def bode(self, frequency, magnitude_db, phase_deg):
         self.calls.append(("bode", frequency, magnitude_db, phase_deg))
@@ -35,6 +35,9 @@ class FakeEngine:
     def grid_off(self):
         self.calls.append(("grid_off",))
 
+    def hold(self, mode=None):
+        self.calls.append(("hold", mode))
+
 
 def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
     gui_engine = GuiPlotEngine()
@@ -50,6 +53,7 @@ def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
     gui_engine.handle_request("ylabel", ("y",))
     gui_engine.handle_request("grid_on", ())
     gui_engine.handle_request("grid_off", ())
+    gui_engine.handle_request("hold", ("on",))
     gui_engine.handle_request("close", ("all",))
 
     assert fake_engine.calls == [
@@ -62,5 +66,6 @@ def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
         ("ylabel", "y"),
         ("grid_on",),
         ("grid_off",),
+        ("hold", "on"),
         ("close", "all"),
     ]

@@ -1,6 +1,7 @@
 import numpy as np
 
 from core.serialization import json_leaf
+from core.plotting.plot_parser import parse_plot_arguments
 
 
 class RecordingPlotEngine:
@@ -8,6 +9,7 @@ class RecordingPlotEngine:
         self.plots = []
         self.current_plot = None
         self.next_id = 1
+        self.hold_enabled = False
 
     def figure(self, number=None):
         figure_id = (
@@ -31,18 +33,146 @@ class RecordingPlotEngine:
         self.plots.append(plot_spec)
         self.current_plot = plot_spec
 
-    def plot(self, x, y):
+    def plot(self, *arguments):
+        series = parse_plot_arguments(arguments)
+
         if self.current_plot is None:
             self.figure()
 
-        self.current_plot["data"] = [
-            {
-                "type": "scatter",
-                "mode": "lines",
-                "x": self.line_values(x),
-                "y": self.line_values(y),
-            },
-        ]
+        if not self.hold_enabled:
+            self.current_plot["data"] = []
+
+        for item in series:
+            self.current_plot["data"].append(
+                self.trace_for_series(item)
+            )
+
+        return self.current_plot["data"][-len(series):]
+
+    def trace_for_series(self, series):
+        trace = {
+            "type": "scatter",
+            "mode": self.mode_for_series(series),
+            "x": self.line_values(series.x),
+            "y": self.line_values(series.y),
+        }
+
+        line = {}
+        marker = {}
+
+        properties = series.properties
+
+        if "Color" in properties:
+            line["color"] = self.color_value(properties["Color"])
+            marker["color"] = self.color_value(properties["Color"])
+
+        if "LineStyle" in properties:
+            line["dash"] = self.dash_value(
+                properties["LineStyle"]
+            )
+
+        if "LineWidth" in properties:
+            line["width"] = properties["LineWidth"]
+
+        if "Marker" in properties:
+            marker["symbol"] = self.marker_value(
+                properties["Marker"]
+            )
+
+        if "MarkerSize" in properties:
+            marker["size"] = properties["MarkerSize"]
+
+        if "MarkerFaceColor" in properties:
+            marker["color"] = self.color_value(
+                properties["MarkerFaceColor"]
+            )
+
+        if "MarkerEdgeColor" in properties:
+            marker["line"] = {
+                "color": self.color_value(
+                    properties["MarkerEdgeColor"]
+                )
+            }
+
+        if "MarkerIndices" in properties:
+            trace["marker_indices"] = properties[
+                "MarkerIndices"
+            ]
+
+        if line:
+            trace["line"] = line
+
+        if marker:
+            trace["marker"] = marker
+
+        return trace
+
+    def mode_for_series(self, series):
+        line_style = series.properties.get("LineStyle")
+        marker = series.properties.get("Marker")
+
+        has_line = line_style != "none"
+        has_marker = marker is not None and marker != "none"
+
+        if has_line and has_marker:
+            return "lines+markers"
+
+        if has_marker:
+            return "markers"
+
+        return "lines"
+
+    def dash_value(self, line_style):
+        return {
+            "-": "solid",
+            "--": "dash",
+            ":": "dot",
+            "-.": "dashdot",
+            "none": "none",
+        }.get(line_style, "solid")
+
+    def marker_value(self, marker):
+        return {
+            "o": "circle",
+            "+": "cross",
+            "*": "star",
+            ".": "circle",
+            "x": "x",
+            "s": "square",
+            "d": "diamond",
+            "^": "triangle-up",
+            "v": "triangle-down",
+            ">": "triangle-right",
+            "<": "triangle-left",
+            "p": "pentagon",
+            "h": "hexagon",
+        }.get(marker, marker)
+
+    def color_value(self, color):
+        if isinstance(color, tuple):
+            red, green, blue = color
+            return f"rgb({red * 255:.0f},{green * 255:.0f},{blue * 255:.0f})"
+
+        return color
+
+    def hold(self, mode=None):
+        if mode is None:
+            self.hold_enabled = not self.hold_enabled
+            return self.hold_enabled
+
+        if isinstance(mode, str):
+            lowered = mode.lower()
+
+            if lowered == "on":
+                self.hold_enabled = True
+                return self.hold_enabled
+
+            if lowered == "off":
+                self.hold_enabled = False
+                return self.hold_enabled
+
+        self.hold_enabled = bool(mode)
+        return self.hold_enabled
 
     def bode(self, frequency, magnitude_db, phase_deg):
         self.figure()
