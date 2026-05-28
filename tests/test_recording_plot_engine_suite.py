@@ -233,6 +233,26 @@ grid off;
     assert plot["layout"]["xaxis"]["showgrid"] is False
 
 
+def test_session_plots_scalar_times_range_expression():
+    engine = RecordingPlotEngine()
+    session = MathToolSession(plot_engine=engine)
+
+    session.execute(
+        """
+t = 0:0.1:2*pi;
+y = sin(2*t);
+
+plot(t, y);
+"""
+    )
+
+    trace = engine.serialize_plots()[0]["data"][0]
+
+    assert len(trace["x"]) == len(trace["y"])
+    assert trace["x"][0] == 0
+    assert trace["y"][0] == 0
+
+
 def test_recording_plot_engine_records_bode_and_nyquist_specs():
     engine = RecordingPlotEngine()
 

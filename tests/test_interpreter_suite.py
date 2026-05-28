@@ -20,6 +20,60 @@ B;
     assert context.variables["B"] == 7
 
 
+def test_interpreter_applies_scalar_arithmetic_to_range_vectors(execute):
+    _, context = execute(
+        """
+t = 0:0.1:0.2;
+twice_left = 2 * t;
+twice_right = t * 2;
+shifted = t + 1;
+reflected = 1 - t;
+halved = t / 2;
+powers = t ^ 2;
+mask = t >= 0.2;
+negative = -(1:3);
+y = sin(2 * t);
+"""
+    )
+
+    np.testing.assert_allclose(
+        context.variables["twice_left"],
+        np.array([0, 0.2, 0.4]),
+    )
+    np.testing.assert_allclose(
+        context.variables["twice_right"],
+        np.array([0, 0.2, 0.4]),
+    )
+    np.testing.assert_allclose(
+        context.variables["shifted"],
+        np.array([1, 1.1, 1.2]),
+    )
+    np.testing.assert_allclose(
+        context.variables["reflected"],
+        np.array([1, 0.9, 0.8]),
+    )
+    np.testing.assert_allclose(
+        context.variables["halved"],
+        np.array([0, 0.05, 0.1]),
+    )
+    np.testing.assert_allclose(
+        context.variables["powers"],
+        np.array([0, 0.01, 0.04]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["mask"],
+        np.array([False, False, True]),
+    )
+    np.testing.assert_array_equal(
+        context.variables["negative"],
+        np.array([-1, -2, -3]),
+    )
+    np.testing.assert_allclose(
+        context.variables["y"],
+        np.sin(2 * np.array([0, 0.1, 0.2])),
+    )
+
+
 def test_interpreter_evaluates_prefixed_integer_literals(execute):
     _, context = execute(
         """

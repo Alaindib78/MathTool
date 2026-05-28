@@ -255,12 +255,18 @@ class Interpreter:
             return self.symbolic_unary_operation(
                 node.operator,
                 value
-            )
+        )
 
         if node.operator == TokenType.MINUS:
+            if self.is_numeric_array_like(value):
+                return -np.asarray(value)
+
             return -value
 
         if node.operator == TokenType.PLUS:
+            if self.is_numeric_array_like(value):
+                return +np.asarray(value)
+
             return +value
         
         if node.operator == TokenType.NOT:
@@ -290,26 +296,46 @@ class Interpreter:
                 left,
                 operator,
                 right
-            )
+        )
 
         if operator == TokenType.PLUS:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.add,
+                )
+
             return left + right
 
         if operator == TokenType.MINUS:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.subtract,
+                )
+
             return left - right
 
 #        if operator == TokenType.STAR:
 #            return left * right
         if operator == TokenType.STAR:
-            if (
-                isinstance(left, np.ndarray)
-                and isinstance(right, np.ndarray)
-            ):
-                return left @ right
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_multiply(
+                    left,
+                    right,
+                )
 
             return left * right
         
         if operator == TokenType.SLASH:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_divide(
+                    left,
+                    right,
+                )
+
             if right == 0:
                 raise RuntimeError(
                     "Division by zero"
@@ -325,33 +351,102 @@ class Interpreter:
             )
 
         if operator == TokenType.DOTSLASH:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_divide(
+                    left,
+                    right,
+                )
+
             return left / right
 
         if operator == TokenType.DOTCARET:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.power,
+                )
+
             return left ** right
 
         if operator == TokenType.MODULO:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.mod,
+                )
+
             return left % right
 
         if operator == TokenType.CARET:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.power,
+                )
+
             return left ** right
         
         if operator == TokenType.EQEQ:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.equal,
+                )
+
             return left == right
 
         if operator == TokenType.NEQ:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.not_equal,
+                )
+
             return left != right
 
         if operator == TokenType.LT:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.less,
+                )
+
             return left < right
 
         if operator == TokenType.GT:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.greater,
+                )
+
             return left > right
 
         if operator == TokenType.LTE:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.less_equal,
+                )
+
             return left <= right
 
         if operator == TokenType.GTE:
+            if self.has_numeric_array_operand(left, right):
+                return self.numeric_array_binary_operation(
+                    left,
+                    right,
+                    np.greater_equal,
+                )
+
             return left >= right
 
         if operator == TokenType.AND:
@@ -1497,6 +1592,68 @@ class Interpreter:
             return left_array * right_array
 
         return left * right
+
+    def has_numeric_array_operand(self, left, right):
+        return (
+            self.is_numeric_array_like(left)
+            or self.is_numeric_array_like(right)
+        )
+
+    def is_numeric_array_like(self, value):
+        if not isinstance(value, (np.ndarray, list, tuple)):
+            return False
+
+        try:
+            array = np.asarray(value)
+        except (TypeError, ValueError):
+            return False
+
+        return np.issubdtype(array.dtype, np.number)
+
+    def numeric_array_binary_operation(
+        self,
+        left,
+        right,
+        operation,
+    ):
+        result = operation(
+            np.asarray(left),
+            np.asarray(right),
+        )
+
+        return self.normalize_numpy_result(result)
+
+    def numeric_array_multiply(self, left, right):
+        left_array = np.asarray(left)
+        right_array = np.asarray(right)
+
+        if left_array.ndim > 0 and right_array.ndim > 0:
+            result = left_array @ right_array
+        else:
+            result = left_array * right_array
+
+        return self.normalize_numpy_result(result)
+
+    def numeric_array_divide(self, left, right):
+        right_array = np.asarray(right)
+
+        if np.any(right_array == 0):
+            raise RuntimeError(
+                "Division by zero"
+            )
+
+        result = np.asarray(left) / right_array
+
+        return self.normalize_numpy_result(result)
+
+    def normalize_numpy_result(self, value):
+        if isinstance(value, np.generic):
+            return value.item()
+
+        if isinstance(value, np.ndarray) and value.ndim == 0:
+            return value.item()
+
+        return value
 
     def is_array_like(self, value):
         return isinstance(
