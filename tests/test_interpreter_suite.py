@@ -20,6 +20,67 @@ B;
     assert context.variables["B"] == 7
 
 
+def test_interpreter_evaluates_prefixed_integer_literals(execute):
+    _, context = execute(
+        """
+A = 0x2A;
+B = 0b101010;
+C = 0X2A;
+D = 0B101010;
+E = 0xff;
+F = 0x10 + 0b10;
+"""
+    )
+
+    assert context.variables["A"] == 42
+    assert context.variables["B"] == 42
+    assert context.variables["C"] == 42
+    assert context.variables["D"] == 42
+    assert context.variables["E"] == 255
+    assert context.variables["F"] == 18
+    assert isinstance(context.variables["A"], int)
+
+
+def test_interpreter_preserves_typed_integer_literals(execute):
+    _, context = execute(
+        """
+U = 0xFFu8;
+S8 = 0xFFs8;
+S16 = 0xFFFFs16;
+S32 = 0xFFFFFFFFs32;
+BU = 0b101010u16;
+BS = 0b11111111s8;
+uclass = class(U);
+sclass = class(S8);
+"""
+    )
+
+    assert context.variables["U"] == np.uint8(255)
+    assert isinstance(context.variables["U"], np.uint8)
+    assert context.variables["S8"] == np.int8(-1)
+    assert isinstance(context.variables["S8"], np.int8)
+    assert context.variables["S16"] == np.int16(-1)
+    assert context.variables["S32"] == np.int32(-1)
+    assert context.variables["BU"] == np.uint16(42)
+    assert context.variables["BS"] == np.int8(-1)
+    assert context.variables["uclass"] == "uint8"
+    assert context.variables["sclass"] == "int8"
+
+
+def test_interpreter_supports_prefixed_integer_literals_in_arrays(execute):
+    _, context = execute(
+        """
+A = [0x1 0x2;
+     0b11 0b100];
+"""
+    )
+
+    np.testing.assert_array_equal(
+        context.variables["A"],
+        np.array([[1, 2], [3, 4]]),
+    )
+
+
 def test_interpreter_evaluates_conditionals_and_loops(execute):
     _, context = execute(
         """

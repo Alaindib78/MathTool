@@ -1,5 +1,6 @@
 from core.lexer.token import TokenType, Token
 from core.errors.errors import LexerError
+from core.lexer.numeric_literals import parse_numeric_literal
 
 KEYWORDS = {
     "if": TokenType.IF,
@@ -351,6 +352,13 @@ class Lexer:
 
     def number(self):
         start_column = self.column
+
+        if (
+            self.peek() == "0"
+            and self.peek_next() in {"x", "X", "b", "B"}
+        ):
+            return self.prefixed_integer_literal()
+
         number_str = ""
 
         while not self.is_at_end() and (
@@ -377,6 +385,33 @@ class Lexer:
         return Token(
             TokenType.NUMBER,
             number_value,
+            self.line,
+            start_column
+        )
+
+    def prefixed_integer_literal(self):
+        start_column = self.column
+        literal = self.advance()
+        literal += self.advance()
+
+        while (
+            not self.is_at_end()
+            and (
+                self.peek().isalnum()
+                or self.peek() == "_"
+            )
+        ):
+            literal += self.advance()
+
+        value = parse_numeric_literal(
+            literal,
+            self.line,
+            start_column,
+        )
+
+        return Token(
+            TokenType.NUMBER,
+            value,
             self.line,
             start_column
         )

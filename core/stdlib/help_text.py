@@ -501,6 +501,31 @@ for name, summary, signature, inputs, output, options, examples in [
     )
 
 
+# Integer conversions and bit operations
+for name, summary, signature, inputs, output, options, examples in [
+    ("dec2hex", "Convert nonnegative decimal integers to hexadecimal text.", "dec2hex(x)", "x: integer scalar or simple integer array.", "Uppercase hexadecimal string, or a list of strings for array input.", "Negative integer formatting is not currently supported.", ["dec2hex(255)"]),
+    ("dec2bin", "Convert nonnegative decimal integers to binary text.", "dec2bin(x)", "x: integer scalar or simple integer array.", "Binary string, or a list of strings for array input.", "Negative integer formatting is not currently supported.", ["dec2bin(16)"]),
+    ("hex2dec", "Convert hexadecimal text to decimal integers.", "hex2dec(s)", "s: string, or simple string array. Optional 0x prefix is accepted.", "Integer value, or a list of integers for array input.", "Digits may be 0-9, A-F, or a-f.", ["hex2dec('FF')"]),
+    ("bin2dec", "Convert binary text to decimal integers.", "bin2dec(s)", "s: string, or simple string array. Optional 0b prefix is accepted.", "Integer value, or a list of integers for array input.", "Digits must be 0 or 1.", ["bin2dec('1010')"]),
+    ("bitand", "Bitwise AND of integer values.", "bitand(a, b)", "a, b: integer scalars or compatible integer arrays.", "Element-wise bitwise AND result.", "No options.", ["bitand(12, 10)"]),
+    ("bitor", "Bitwise OR of integer values.", "bitor(a, b)", "a, b: integer scalars or compatible integer arrays.", "Element-wise bitwise OR result.", "No options.", ["bitor(12, 10)"]),
+    ("bitxor", "Bitwise XOR of integer values.", "bitxor(a, b)", "a, b: integer scalars or compatible integer arrays.", "Element-wise bitwise XOR result.", "No options.", ["bitxor(12, 10)"]),
+    ("bitshift", "Shift integer bits left or right.", "bitshift(a, k)", "a: integer scalar or array. k: integer shift count.", "Left shift when k is positive; right shift when k is negative.", "No options.", ["bitshift(3, 2)"]),
+    ("bitget", "Get a 1-based bit from integer values.", "bitget(a, bit)", "a: integer scalar or array. bit: positive 1-based bit position.", "0 or 1 for the requested bit.", "Least significant bit is position 1.", ["bitget(10, 2)"]),
+    ("bitset", "Set or clear a 1-based bit in integer values.", "bitset(a, bit, value)", "a: integer scalar or array. bit: positive 1-based bit position. value: optional logical set/clear flag.", "Integer result with the requested bit changed.", "value defaults to true.", ["bitset(8, 2, true)"]),
+]:
+    add(
+        name,
+        "integer conversions and bit operations",
+        summary,
+        signature,
+        inputs,
+        output,
+        options,
+        examples,
+    )
+
+
 # Linear algebra
 for name, summary, signature, output, options in [
     ("det", "Matrix determinant.", "det(A)", "Scalar determinant.", "A must be square."),

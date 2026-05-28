@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from core.errors.errors import LexerError
 from core.lexer.lexer import Lexer
@@ -111,6 +112,61 @@ def test_lexer_tokenizes_imaginary_number_suffixes():
     ]
     assert tokens[4].value == 2j
     assert tokens[8].value == 3j
+
+
+def test_lexer_tokenizes_hexadecimal_and_binary_integer_literals():
+    tokens = Lexer(
+        "A = 0x2A; B = 0X2A; C = 0b101010; D = 0B101010;"
+    ).tokenize()
+
+    values = [
+        token.value
+        for token in tokens
+        if token.type == TokenType.NUMBER
+    ]
+
+    assert values == [42, 42, 42, 42]
+    assert all(isinstance(value, int) for value in values)
+
+
+def test_lexer_tokenizes_typed_integer_literals():
+    tokens = Lexer(
+        "A = 0xFFu8; B = 0xFFs8; C = 0b1111111111111111s16;"
+    ).tokenize()
+
+    values = [
+        token.value
+        for token in tokens
+        if token.type == TokenType.NUMBER
+    ]
+
+    assert values[0] == np.uint8(255)
+    assert isinstance(values[0], np.uint8)
+    assert values[1] == np.int8(-1)
+    assert isinstance(values[1], np.int8)
+    assert values[2] == np.int16(-1)
+    assert isinstance(values[2], np.int16)
+
+
+@pytest.mark.parametrize(
+    "source, token",
+    [
+        ("A = 0x;", "0x"),
+        ("A = 0b;", "0b"),
+        ("A = 0xG1;", "0xG1"),
+        ("A = 0b102;", "0b102"),
+        ("A = 0x2Au128;", "0x2Au128"),
+        ("A = 0x2As7;", "0x2As7"),
+    ],
+)
+def test_lexer_rejects_invalid_prefixed_integer_literals(source, token):
+    with pytest.raises(LexerError) as error:
+        Lexer(source).tokenize()
+
+    assert error.value.line == 1
+    assert error.value.column == 5
+    assert error.value.token == token
+    assert "Invalid" in str(error.value)
 
 
 def test_lexer_tokenizes_dot_access_without_breaking_decimals_or_elementwise_ops():

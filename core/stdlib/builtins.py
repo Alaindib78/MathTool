@@ -1179,6 +1179,190 @@ def builtin_close(context, target=None):
 def builtin_mod(context, a, b):
     return np.mod(a, b)
 
+
+def _as_integer(value, function_name):
+    if isinstance(value, np.generic):
+        value = value.item()
+
+    if isinstance(value, bool):
+        raise Exception(
+            f"{function_name}: input must be an integer"
+        )
+
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise Exception(
+                f"{function_name}: input must be an integer"
+            )
+
+        value = int(value)
+
+    if not isinstance(value, (int, np.integer)):
+        raise Exception(
+            f"{function_name}: input must be an integer"
+        )
+
+    return int(value)
+
+
+def _map_array_or_scalar(value, converter):
+    if isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return converter(value.item())
+
+        return [
+            converter(item)
+            for item in value.reshape(-1, order="C")
+        ]
+
+    if isinstance(value, (list, tuple)):
+        return [
+            converter(item)
+            for item in np.asarray(value).reshape(-1, order="C")
+        ]
+
+    return converter(value)
+
+
+def builtin_dec2hex(context, value):
+    def convert(item):
+        integer = _as_integer(item, "dec2hex")
+
+        if integer < 0:
+            raise Exception(
+                "dec2hex: input must be a nonnegative integer"
+            )
+
+        return format(integer, "X")
+
+    return _map_array_or_scalar(value, convert)
+
+
+def builtin_dec2bin(context, value):
+    def convert(item):
+        integer = _as_integer(item, "dec2bin")
+
+        if integer < 0:
+            raise Exception(
+                "dec2bin: input must be a nonnegative integer"
+            )
+
+        return format(integer, "b")
+
+    return _map_array_or_scalar(value, convert)
+
+
+def _as_text(value, function_name):
+    if isinstance(value, np.generic):
+        value = value.item()
+
+    if not isinstance(value, str):
+        raise Exception(
+            f"{function_name}: input must be a string"
+        )
+
+    return value.strip()
+
+
+def builtin_hex2dec(context, value):
+    def convert(item):
+        text = _as_text(item, "hex2dec")
+
+        if text.lower().startswith("0x"):
+            text = text[2:]
+
+        if (
+            not text
+            or any(char not in "0123456789abcdefABCDEF" for char in text)
+        ):
+            raise Exception(
+                "hex2dec: input must contain hexadecimal digits"
+            )
+
+        return int(text, 16)
+
+    return _map_array_or_scalar(value, convert)
+
+
+def builtin_bin2dec(context, value):
+    def convert(item):
+        text = _as_text(item, "bin2dec")
+
+        if text.lower().startswith("0b"):
+            text = text[2:]
+
+        if not text or any(char not in "01" for char in text):
+            raise Exception(
+                "bin2dec: input must contain binary digits"
+            )
+
+        return int(text, 2)
+
+    return _map_array_or_scalar(value, convert)
+
+
+def builtin_bitand(context, a, b):
+    return _normalize_result(np.bitwise_and(a, b))
+
+
+def builtin_bitor(context, a, b):
+    return _normalize_result(np.bitwise_or(a, b))
+
+
+def builtin_bitxor(context, a, b):
+    return _normalize_result(np.bitwise_xor(a, b))
+
+
+def builtin_bitshift(context, a, k):
+    shift = _as_integer(k, "bitshift")
+
+    if shift >= 0:
+        return _normalize_result(np.left_shift(a, shift))
+
+    return _normalize_result(np.right_shift(a, abs(shift)))
+
+
+def builtin_bitget(context, a, bit):
+    bit_index = _as_integer(bit, "bitget")
+
+    if bit_index < 1:
+        raise Exception(
+            "bitget: bit position must be positive"
+        )
+
+    return _normalize_result(
+        np.bitwise_and(
+            np.right_shift(a, bit_index - 1),
+            1,
+        )
+    )
+
+
+def builtin_bitset(context, a, bit, value=True):
+    bit_index = _as_integer(bit, "bitset")
+
+    if bit_index < 1:
+        raise Exception(
+            "bitset: bit position must be positive"
+        )
+
+    mask = 1 << (bit_index - 1)
+
+    if bool(value):
+        return _normalize_result(np.bitwise_or(a, mask))
+
+    array = np.asarray(a)
+
+    if np.issubdtype(array.dtype, np.integer):
+        clear_mask = np.bitwise_not(
+            np.asarray(mask, dtype=array.dtype)
+        )
+
+        return _normalize_result(np.bitwise_and(a, clear_mask))
+
+    return _normalize_result(np.bitwise_and(a, ~mask))
+
+
 def builtin_title(context, text):
     context.plot_engine.title(text)
 
@@ -1493,7 +1677,19 @@ def builtin_class(context, value):
         if np.issubdtype(value.dtype, np.bool_):
             return "logical"
 
+        if np.issubdtype(value.dtype, np.unsignedinteger):
+            return f"uint{value.dtype.itemsize * 8}"
+
+        if np.issubdtype(value.dtype, np.signedinteger):
+            return f"int{value.dtype.itemsize * 8}"
+
         return "double"
+
+    if isinstance(value, np.unsignedinteger):
+        return f"uint{value.dtype.itemsize * 8}"
+
+    if isinstance(value, np.signedinteger):
+        return f"int{value.dtype.itemsize * 8}"
 
     if isinstance(value, (int, float, complex, np.number, np.ndarray)):
         return "double"
@@ -1718,6 +1914,16 @@ BUILTIN_FUNCTIONS = {
     "figure": builtin_figure,
     "close": builtin_close,
     "mod": builtin_mod,
+    "dec2hex": builtin_dec2hex,
+    "dec2bin": builtin_dec2bin,
+    "hex2dec": builtin_hex2dec,
+    "bin2dec": builtin_bin2dec,
+    "bitand": builtin_bitand,
+    "bitor": builtin_bitor,
+    "bitxor": builtin_bitxor,
+    "bitshift": builtin_bitshift,
+    "bitget": builtin_bitget,
+    "bitset": builtin_bitset,
     "title": builtin_title,
     "xlabel": builtin_xlabel,
     "ylabel": builtin_ylabel,

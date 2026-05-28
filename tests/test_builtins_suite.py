@@ -166,6 +166,40 @@ def test_engineering_statistics_logical_and_signal_builtins():
     ) == 15.0
 
 
+def test_integer_conversion_and_bitwise_builtins():
+    context = RuntimeContext()
+    functions = context.functions
+
+    assert functions.get("dec2hex")(context, 255) == "FF"
+    assert functions.get("dec2bin")(context, 16) == "10000"
+    assert functions.get("hex2dec")(context, "FF") == 255
+    assert functions.get("bin2dec")(context, "1010") == 10
+
+    assert functions.get("dec2hex")(context, np.array([15, 16])) == [
+        "F",
+        "10",
+    ]
+    assert functions.get("hex2dec")(context, np.array(["F", "10"])) == [
+        15,
+        16,
+    ]
+
+    assert functions.get("bitand")(context, 0b1100, 0b1010) == 0b1000
+    assert functions.get("bitor")(context, 0b1100, 0b1010) == 0b1110
+    assert functions.get("bitxor")(context, 0b1100, 0b1010) == 0b0110
+    assert functions.get("bitshift")(context, 0b0011, 2) == 0b1100
+    assert functions.get("bitshift")(context, 0b1100, -2) == 0b0011
+    assert functions.get("bitget")(context, 0b1010, 2) == 1
+    assert functions.get("bitset")(context, 0b1000, 2, True) == 0b1010
+    assert functions.get("bitset")(context, 0b1010, 2, False) == 0b1000
+    assert functions.get("bitset")(
+        context,
+        np.uint8(0b10010110),
+        5,
+        False,
+    ) == np.uint8(0b10000110)
+
+
 def test_engineering_linalg_fft_polynomial_and_random_builtins():
     context = RuntimeContext()
     functions = context.functions
