@@ -310,7 +310,7 @@ class OutputFormatter:
             return format_engineering(value, 15, significant=True)
 
         if numeric_format == "bank":
-            return format_fixed(value, 2)
+            return format_fixed(value, 2, trim=False)
 
         if numeric_format == "rat":
             return format_rational(value)
@@ -400,6 +400,23 @@ def format_value(value, display_format=None):
     return OutputFormatter(settings).format(value)
 
 
+def format_assignment(name, value, display_format=None):
+    manager = display_format or DEFAULT_DISPLAY_FORMAT_MANAGER
+    settings = (
+        manager.settings
+        if isinstance(manager, DisplayFormatManager)
+        else manager
+    )
+
+    formatted = OutputFormatter(settings).format(value)
+    indented = "\n".join(
+        f"    {line}" if line else ""
+        for line in formatted.splitlines()
+    )
+
+    return f"{name} =\n\n{indented}"
+
+
 def format_number(value, display_format=None):
     manager = display_format or DEFAULT_DISPLAY_FORMAT_MANAGER
     settings = (
@@ -434,11 +451,16 @@ def normalize_zero(value):
     return value
 
 
-def format_fixed(value, decimals):
+def format_fixed(value, decimals, *, trim=True):
     if not math.isfinite(value):
         return format_special_float(value)
 
-    return f"{value:.{decimals}f}"
+    text = f"{value:.{decimals}f}"
+
+    if trim and "." in text:
+        text = text.rstrip("0").rstrip(".")
+
+    return text
 
 
 def format_scientific(value, decimals):

@@ -59,4 +59,10 @@ def _evaluate_expression(context, source):
         Lexer(source).tokenize()
     ).parse()
 
-    return Interpreter(context).evaluate(program)
+    previous_output_callback = context.output_callback
+    context.output_callback = None
+
+    try:
+        return Interpreter(context).evaluate(program)
+    finally:
+        context.output_callback = previous_output_callback

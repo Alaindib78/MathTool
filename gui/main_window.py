@@ -1370,18 +1370,6 @@ class MainWindow(QMainWindow):
 
         self.debugger.stop_session()
 
-        if result is not None:
-            self.insert_output_text(
-                self.console,
-                format_value(
-                    result,
-                    self.context.display_format,
-                )
-                + output_suffix(
-                    self.context.display_format
-                ),
-            )
-
         self.refresh_workspace()
 
         self.update_runtime_path_ui()
@@ -3194,7 +3182,10 @@ class MainWindow(QMainWindow):
             if hasattr(self, "update_runtime_path_ui"):
                 self.update_runtime_path_ui()
 
-        return result.value
+        if result.command is not None:
+            return result.value
+
+        return None
 
     def prompt_for_input(self, prompt):
         text, ok = QInputDialog.getText(

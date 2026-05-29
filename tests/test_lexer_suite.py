@@ -143,6 +143,19 @@ def test_lexer_tokenizes_hexadecimal_and_binary_integer_literals():
     assert all(isinstance(value, int) for value in values)
 
 
+def test_lexer_preserves_decimal_integer_and_float_literal_types():
+    tokens = Lexer("A = 5; B = 5.0; C = 1e3; D = 1.0e3;").tokenize()
+    values = [
+        token.value
+        for token in tokens
+        if token.type == TokenType.NUMBER
+    ]
+
+    assert values == [5, 5.0, 1000.0, 1000.0]
+    assert isinstance(values[0], int)
+    assert all(isinstance(value, float) for value in values[1:])
+
+
 def test_lexer_tokenizes_typed_integer_literals():
     tokens = Lexer(
         "A = 0xFFu8; B = 0xFFs8; C = 0b1111111111111111s16;"

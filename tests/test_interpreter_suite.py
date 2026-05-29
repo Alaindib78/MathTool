@@ -760,6 +760,61 @@ retry = input("retry? ");
     )
 
 
+def test_interpreter_automatic_output_semicolon_and_ans_behavior(execute):
+    context = RuntimeContext()
+    output = []
+    context.output_callback = output.append
+
+    _, context = execute(
+        """
+A = 5;
+A
+A + 2;
+ans + 4
+B = A + 2
+C = A + 2.5;
+D = A / 2;
+disp(A);
+""",
+        context=context,
+    )
+
+    assert isinstance(context.variables["A"], int)
+    assert isinstance(context.variables["B"], int)
+    assert isinstance(context.variables["C"], float)
+    assert context.variables["D"] == pytest.approx(2.5)
+    assert context.variables["ans"] == 11
+    assert output == [
+        "5\n\n",
+        "11\n\n",
+        "B =\n\n    7\n\n",
+        "5\n\n",
+    ]
+
+
+def test_interpreter_clean_integer_matrix_display_and_types(execute):
+    context = RuntimeContext()
+    output = []
+    context.output_callback = output.append
+
+    _, context = execute(
+        """
+A = [1 2; 3 4];
+B = A + 1;
+C = A / 2;
+disp(A);
+disp([1.5 2.5; 3.5 4.5]);
+""",
+        context=context,
+    )
+
+    assert np.issubdtype(context.variables["A"].dtype, np.integer)
+    assert np.issubdtype(context.variables["B"].dtype, np.integer)
+    assert np.issubdtype(context.variables["C"].dtype, np.floating)
+    assert output[0] == "[[1 2]\n [3 4]]\n\n"
+    assert output[1] == "[[1.5 2.5]\n [3.5 4.5]]\n\n"
+
+
 def test_interpreter_sym_preserves_exact_text(execute):
     _, context = execute(
         """

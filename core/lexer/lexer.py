@@ -361,13 +361,41 @@ class Lexer:
             return self.prefixed_integer_literal()
 
         number_str = ""
+        is_float = False
 
-        while not self.is_at_end() and (
-            self.peek().isdigit() or self.peek() == "."
-        ):
+        while not self.is_at_end() and self.peek().isdigit():
             number_str += self.advance()
 
-        number_value = float(number_str)
+        if not self.is_at_end() and self.peek() == ".":
+            is_float = True
+            number_str += self.advance()
+
+            while not self.is_at_end() and self.peek().isdigit():
+                number_str += self.advance()
+
+        if not self.is_at_end() and self.peek() in {"e", "E"}:
+            is_float = True
+            number_str += self.advance()
+
+            if not self.is_at_end() and self.peek() in {"+", "-"}:
+                number_str += self.advance()
+
+            if self.is_at_end() or not self.peek().isdigit():
+                raise LexerError(
+                    "Invalid exponent in numeric literal",
+                    self.line,
+                    self.column,
+                    number_str,
+                )
+
+            while not self.is_at_end() and self.peek().isdigit():
+                number_str += self.advance()
+
+        number_value = (
+            float(number_str)
+            if is_float
+            else int(number_str)
+        )
 
         if (
             not self.is_at_end()

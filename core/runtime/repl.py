@@ -152,7 +152,7 @@ class REPL:
         for text in result.output:
             print(text, end="")
 
-        if result.value is not None:
+        if result.command is not None and result.value is not None:
             print(
                 format_value(
                     result.value,

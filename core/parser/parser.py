@@ -50,12 +50,18 @@ class Parser:
 
             stmt = self.statement()
 
-            statements.append(stmt)
-
-            # Optional semicolon
-            self.match(TokenType.SEMICOLON)
+            statements.append(
+                self.with_output_suppression(stmt)
+            )
 
         return ProgramNode(statements)
+
+    def with_output_suppression(self, statement):
+        statement.suppress_output = self.match(
+            TokenType.SEMICOLON
+        )
+
+        return statement
 
     def statement(self):
         # If statement
@@ -140,9 +146,11 @@ class Parser:
             ):
                 break
 
-            then_branch.append(self.statement())
-
-            self.match(TokenType.SEMICOLON)
+            then_branch.append(
+                self.with_output_suppression(
+                    self.statement()
+                )
+            )
 
         elseif_branches = []
 
@@ -167,9 +175,11 @@ class Parser:
                 ):
                     break
 
-                elseif_body.append(self.statement())
-
-                self.match(TokenType.SEMICOLON)
+                elseif_body.append(
+                    self.with_output_suppression(
+                        self.statement()
+                    )
+                )
 
             elseif_branches.append(
                 (elseif_condition, elseif_body)
@@ -190,9 +200,11 @@ class Parser:
                 if self.check(TokenType.END):
                     break
 
-                else_branch.append(self.statement())
-
-                self.match(TokenType.SEMICOLON)
+                else_branch.append(
+                    self.with_output_suppression(
+                        self.statement()
+                    )
+                )
 
         self.consume(TokenType.END)
 
@@ -218,9 +230,11 @@ class Parser:
             if self.check(TokenType.END):
                 break
 
-            body.append(self.statement())
-
-            self.match(TokenType.SEMICOLON)
+            body.append(
+                self.with_output_suppression(
+                    self.statement()
+                )
+            )
 
         self.consume(TokenType.END)
 
@@ -247,9 +261,11 @@ class Parser:
             if self.check(TokenType.END):
                 break
 
-            body.append(self.statement())
-
-            self.match(TokenType.SEMICOLON)
+            body.append(
+                self.with_output_suppression(
+                    self.statement()
+                )
+            )
 
         self.consume(TokenType.END)
 
@@ -843,9 +859,11 @@ class Parser:
             if self.check(TokenType.END):
                 break
 
-            body.append(self.statement())
-
-            self.match(TokenType.SEMICOLON)
+            body.append(
+                self.with_output_suppression(
+                    self.statement()
+                )
+            )
 
         self.consume(TokenType.END)
 

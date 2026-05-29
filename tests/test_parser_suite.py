@@ -32,12 +32,20 @@ def test_parser_preserves_arithmetic_precedence(parse):
     assignment = program.statements[0]
 
     assert isinstance(assignment, AssignmentNode)
+    assert assignment.suppress_output is True
     assert isinstance(assignment.value, BinaryOpNode)
     assert assignment.value.operator == TokenType.PLUS
     assert assignment.value.left.value == 2
     assert assignment.value.right.operator == TokenType.STAR
     assert assignment.value.right.left.value == 3
     assert assignment.value.right.right.value == 4
+
+
+def test_parser_tracks_missing_semicolon_for_automatic_output(parse):
+    program = parse("A = 1\nA + 2;")
+
+    assert program.statements[0].suppress_output is False
+    assert program.statements[1].suppress_output is True
 
 
 def test_parser_builds_anonymous_function_node(parse):

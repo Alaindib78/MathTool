@@ -58,6 +58,11 @@ from core.runtime.struct import (
     is_struct,
     missing_field_message,
 )
+from core.runtime.formatting import (
+    format_assignment,
+    format_value,
+    output_suffix,
+)
 
 class Interpreter:
     def __init__(self, context):
@@ -128,16 +133,7 @@ class Interpreter:
                 )
 
             for statement in node.statements:
-                result = self.evaluate(statement)
-
-                if self.should_store_ans(
-                    statement,
-                    result
-                ):
-                    self.context.set_variable(
-                        "ans",
-                        result
-                    )
+                result = self.statement_result(statement)
 
             return result
         except ReturnException as error:
@@ -229,6 +225,101 @@ class Interpreter:
             node.line,
             node.column
         )
+
+    def statement_result(self, statement):
+        result = self.evaluate(statement)
+
+        if self.should_store_ans(
+            statement,
+            result,
+        ):
+            self.context.set_variable(
+                "ans",
+                result,
+            )
+
+        if self.should_auto_display(
+            statement,
+            result,
+        ):
+            self.display_statement_result(
+                statement,
+                result,
+            )
+
+        return result
+
+    def should_auto_display(self, statement, result):
+        if result is None:
+            return False
+
+        if getattr(statement, "suppress_output", False):
+            return False
+
+        if self.context.output_callback is None:
+            return False
+
+        return not isinstance(
+            statement,
+            (
+                FunctionDeclarationNode,
+                IfNode,
+                WhileNode,
+                ForNode,
+                ReturnNode,
+                BreakNode,
+                ContinueNode,
+                SymsNode,
+            ),
+        )
+
+    def display_statement_result(self, statement, result):
+        if isinstance(statement, AssignmentNode):
+            name = self.assignment_display_name(
+                statement.target,
+            )
+
+            if name is not None:
+                text = format_assignment(
+                    name,
+                    result,
+                    self.context.display_format,
+                )
+            else:
+                text = format_value(
+                    result,
+                    self.context.display_format,
+                )
+        else:
+            text = format_value(
+                result,
+                self.context.display_format,
+            )
+
+        self.context.output_callback(
+            text + output_suffix(
+                self.context.display_format,
+            )
+        )
+
+    def assignment_display_name(self, target):
+        if isinstance(target, IdentifierNode):
+            return target.name
+
+        if isinstance(target, MultiAssignmentTargetNode):
+            return (
+                "["
+                + ", ".join(
+                    item.name
+                    for item in target.targets
+                )
+                + "]"
+            )
+
+        if isinstance(target, FunctionCallNode):
+            return target.name
+
+        return None
 
     def assign_multiple(self, node):
         expected_count = len(node.target.targets)
@@ -486,7 +577,7 @@ class Interpreter:
             result = None
 
             for stmt in node.then_branch:
-                result = self.evaluate(stmt)
+                result = self.statement_result(stmt)
 
             return result
 
@@ -495,7 +586,7 @@ class Interpreter:
                 result = None
 
                 for stmt in body:
-                    result = self.evaluate(stmt)
+                    result = self.statement_result(stmt)
 
                 return result
 
@@ -503,7 +594,7 @@ class Interpreter:
             result = None
 
             for stmt in node.else_branch:
-                result = self.evaluate(stmt)
+                result = self.statement_result(stmt)
 
             return result
 
@@ -568,7 +659,7 @@ class Interpreter:
         while self.evaluate(node.condition):
             try:
                 for stmt in node.body:
-                    result = self.evaluate(stmt)
+                    result = self.statement_result(stmt)
             except ContinueException:
                 continue
             except BreakException:
@@ -594,7 +685,7 @@ class Interpreter:
 
             try:
                 for stmt in node.body:
-                    result = self.evaluate(stmt)
+                    result = self.statement_result(stmt)
             except ContinueException:
                 continue
             except BreakException:
@@ -1455,7 +1546,7 @@ class Interpreter:
             result = None
 
             for stmt in declaration.body:
-                result = local_interpreter.evaluate(
+                result = local_interpreter.statement_result(
                     stmt
                 )
 
@@ -1796,6 +1887,12 @@ class Interpreter:
                 (
                     AssignmentNode,
                     FunctionDeclarationNode,
+                    IfNode,
+                    WhileNode,
+                    ForNode,
+                    ReturnNode,
+                    BreakNode,
+                    ContinueNode,
                     SymsNode,
                 )
             )
