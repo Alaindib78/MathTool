@@ -13,6 +13,9 @@ class FakePlotEngine:
     def plot(self, *arguments):
         self.calls.append(("plot", *arguments))
 
+    def histogram(self, *arguments):
+        self.calls.append(("histogram", *arguments))
+
     def figure(self, number=None):
         self.calls.append(("figure", number))
 
@@ -295,6 +298,7 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
     context.plot_engine = FakePlotEngine()
 
     context.functions.get("plot")(context, [1, 2], [3, 4])
+    context.functions.get("histogram")(context, [1, 2, 2, 3])
     context.functions.get("title")(context, "Title")
     context.functions.get("xlabel")(context, "x")
     context.functions.get("ylabel")(context, "y")
@@ -318,6 +322,7 @@ def test_plot_builtins_delegate_to_plot_engine_without_showing_gui():
 
     assert context.plot_engine.calls == [
         ("plot", [1, 2], [3, 4]),
+        ("histogram", [1, 2, 2, 3]),
         ("title", "Title"),
         ("xlabel", "x"),
         ("ylabel", "y"),

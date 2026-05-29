@@ -2,8 +2,8 @@
 id: plotting-guide
 title: Plotting Guide
 category: Plotting
-summary: Create figures, plot vectors, label axes, and organize plotting workflows.
-keywords: plot, plotting, figure, graph, chart, subplot, axes, title, xlabel, ylabel
+summary: Create figures, plot vectors, draw histograms, label axes, and organize plotting workflows.
+keywords: plot, plotting, histogram, figure, graph, chart, subplot, axes, title, xlabel, ylabel
 aliases: plots, graphing, plotting
 related: plot, figure, title, xlabel, ylabel, grid, close
 ---
@@ -23,6 +23,29 @@ ylabel('sin(x)');
 grid(true);
 ```
 
+## Histograms
+
+Use `histogram` for numeric or logical data. Matrix and array inputs are flattened into one combined distribution.
+
+```mathtool
+x = randn(1000, 1);
+histogram(x, 25);
+title("Normal samples");
+```
+
+You can provide explicit bin edges, precomputed counts, or MATLAB-style name-value options.
+
+```mathtool
+edges = -4:0.5:4;
+histogram(x, edges, "Normalization", "pdf");
+
+histogram("BinEdges", [0 1 2 3], "BinCounts", [10 20 5]);
+```
+
+Supported histogram options include `NumBins`, `BinWidth`, `BinEdges`, `BinLimits`, `BinMethod`, `BinCounts`, `Normalization`, `DisplayStyle`, `Orientation`, `FaceColor`, `EdgeColor`, `FaceAlpha`, `EdgeAlpha`, `LineStyle`, `LineWidth`, and `DisplayName`.
+
+Current limitations: categorical, datetime/duration, table/timetable data, axes-target syntax, `histcounts`, `morebins`, `fewerbins`, and editable histogram object properties are not implemented yet. Automatic binning is NumPy-based, so exact bin edges can differ from MATLAB.
+
 ## Multiple figures
 
 ```mathtool
@@ -40,4 +63,4 @@ close
 close all
 ```
 
-Related: [plot](topic:plot), [figure](topic:figure), [title](topic:title), [xlabel](topic:xlabel), [ylabel](topic:ylabel).
+Related: [plot](topic:plot), [histogram](topic:histogram), [figure](topic:figure), [title](topic:title), [xlabel](topic:xlabel), [ylabel](topic:ylabel).

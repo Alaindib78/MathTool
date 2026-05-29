@@ -1,5 +1,6 @@
 from PySide6.QtCore import QObject, Qt, Signal, Slot
 
+from core.plotting.histogram import compute_histogram_from_arguments
 from core.plotting.engine import PlotEngine
 
 
@@ -18,6 +19,11 @@ class GuiPlotEngine(QObject):
 
     def plot(self, *arguments):
         self.request.emit("plot", arguments)
+
+    def histogram(self, *arguments):
+        histogram_data = compute_histogram_from_arguments(arguments)
+        self.request.emit("draw_histogram", (histogram_data,))
+        return histogram_data.Handle
 
     def bode(self, frequency, magnitude_db, phase_deg):
         self.request.emit(

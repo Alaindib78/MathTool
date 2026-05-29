@@ -1231,11 +1231,14 @@ def builtin_get(context, value):
     if is_lti_model(value):
         return value.properties()
 
+    if hasattr(value, "properties") and callable(value.properties):
+        return value.properties()
+
     if isinstance(value, dict):
         return value
 
     raise MathToolRuntimeError(
-        f"get: expected LTI model or struct, got {type(value).__name__}"
+        f"get: expected object with properties, LTI model, or struct, got {type(value).__name__}"
     )
 
 
@@ -1871,6 +1874,9 @@ def builtin_nyquist(context, *arguments):
 
 def builtin_plot(context, *arguments):
     return context.plot_engine.plot(*arguments)
+
+def builtin_histogram(context, *arguments):
+    return context.plot_engine.histogram(*arguments)
 
 def builtin_figure(context, number=None):
     context.plot_engine.figure(number)
@@ -2761,6 +2767,7 @@ BUILTIN_FUNCTIONS = {
 
     "length": builtin_length,
     "plot": builtin_plot,
+    "histogram": builtin_histogram,
     "figure": builtin_figure,
     "close": builtin_close,
     "mod": builtin_mod,

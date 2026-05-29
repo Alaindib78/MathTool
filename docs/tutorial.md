@@ -1163,6 +1163,47 @@ plot(x, y1, "MarkerFaceColor", [0.5 0.5 0.5]);
 plot(x, y1, "MarkerIndices", 1:5:length(y1));
 ```
 
+### Histograms
+
+`histogram` draws numeric or logical data in the current axes. Matrix
+and N-D inputs are flattened into one combined histogram.
+
+```mathtool
+x = randn(1000, 1);
+histogram(x);
+histogram(x, 25);
+histogram(x, -4:0.5:4);
+```
+
+Common name-value options:
+
+```mathtool
+histogram(x, "BinWidth", 0.25);
+histogram(x, "Normalization", "pdf");
+histogram(x, "DisplayStyle", "stairs");
+histogram(x, "Orientation", "horizontal");
+histogram(x, "FaceColor", "red", "EdgeColor", "black", "FaceAlpha", 0.4);
+```
+
+You can also plot precomputed counts:
+
+```mathtool
+histogram("BinEdges", [0 1 2 3 4], "BinCounts", [10 20 5 8]);
+```
+
+The returned handle exposes read-only properties:
+
+```mathtool
+h = histogram(x, 20);
+disp(h.NumBins);
+disp(get(h));
+```
+
+Limitations: categorical, datetime/duration, table data, `histcounts`,
+`morebins`, `fewerbins`, axes-target syntax, and editable histogram
+properties are planned future work. Automatic bin edges are NumPy-based
+and can differ slightly from MATLAB.
+
 ### Hold Behavior
 
 With hold off, each `plot` call clears the active axes before drawing.

@@ -1,7 +1,10 @@
+import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgba
 
 from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.plotting.axis_manager import apply_matplotlib_axis
+from core.plotting.histogram import compute_histogram_from_arguments
 from core.plotting.legend_manager import (
     apply_legend_text_options,
     legend_kwargs,
@@ -121,6 +124,140 @@ class PlotEngine:
         self.show()
 
         return lines
+
+    def histogram(self, *arguments):
+        histogram_data = compute_histogram_from_arguments(arguments)
+        return self.draw_histogram(histogram_data)
+
+    def draw_histogram(self, histogram_data):
+        self.ensure_current_figure()
+        axis = self.ensure_current_axes()
+
+        if not self.hold_enabled:
+            axis.cla()
+
+        artists = self.draw_histogram_artists(axis, histogram_data)
+        histogram_data.Handle.matplotlib_artists = artists
+        self.show()
+        return histogram_data.Handle
+
+    def draw_histogram_artists(self, axis, histogram_data):
+        options = histogram_data.Options
+
+        if options.DisplayStyle == "stairs":
+            return self.draw_histogram_stairs(axis, histogram_data)
+
+        return self.draw_histogram_bars(axis, histogram_data)
+
+    def draw_histogram_bars(self, axis, histogram_data):
+        options = histogram_data.Options
+        edges = histogram_data.BinEdges
+        values = histogram_data.Values
+        widths = edges[1:] - edges[:-1]
+        kwargs = {
+            "align": "edge",
+            "linewidth": options.LineWidth,
+            "linestyle": options.LineStyle,
+        }
+
+        if options.DisplayName is not None:
+            kwargs["label"] = options.DisplayName
+
+        if options.LineStyle == "none":
+            kwargs["linewidth"] = 0
+
+        face_color = self.matplotlib_face_color(options)
+        edge_color = self.matplotlib_edge_color(options)
+
+        if face_color is not None:
+            kwargs["color"] = face_color
+
+        if edge_color is not None:
+            kwargs["edgecolor"] = edge_color
+
+        if options.Orientation == "horizontal":
+            artists = axis.barh(
+                edges[:-1],
+                values,
+                height=widths,
+                **kwargs,
+            )
+        else:
+            artists = axis.bar(
+                edges[:-1],
+                values,
+                width=widths,
+                **kwargs,
+            )
+
+        self.apply_histogram_patch_alpha(artists, options)
+        return list(artists)
+
+    def draw_histogram_stairs(self, axis, histogram_data):
+        options = histogram_data.Options
+        edges = histogram_data.BinEdges
+        values = histogram_data.Values
+        line_kwargs = {
+            "linewidth": options.LineWidth,
+            "linestyle": options.LineStyle,
+        }
+
+        if options.DisplayName is not None:
+            line_kwargs["label"] = options.DisplayName
+
+        edge_color = self.matplotlib_edge_color(options)
+
+        if edge_color is not None:
+            line_kwargs["color"] = edge_color
+
+        if options.EdgeAlpha != 1.0:
+            line_kwargs["alpha"] = options.EdgeAlpha
+
+        if options.Orientation == "horizontal":
+            x = np.repeat(values, 2)
+            y = np.repeat(edges, 2)[1:-1]
+        else:
+            x = np.repeat(edges, 2)[1:-1]
+            y = np.repeat(values, 2)
+
+        (line,) = axis.plot(x, y, **line_kwargs)
+        return [line]
+
+    def matplotlib_face_color(self, options):
+        if options.FaceColor == "auto":
+            return None
+
+        if options.FaceColor == "none":
+            return "none"
+
+        return options.FaceColor
+
+    def matplotlib_edge_color(self, options):
+        if options.EdgeColor == "auto":
+            return None
+
+        if options.EdgeColor == "none":
+            return "none"
+
+        return options.EdgeColor
+
+    def apply_histogram_patch_alpha(self, artists, options):
+        for artist in artists:
+            if options.FaceColor != "none":
+                artist.set_facecolor(
+                    to_rgba(
+                        artist.get_facecolor(),
+                        options.FaceAlpha,
+                    )
+                )
+
+            if options.EdgeColor != "none":
+                artist.set_edgecolor(
+                    to_rgba(
+                        artist.get_edgecolor(),
+                        options.EdgeAlpha,
+                    )
+                )
 
     def hold(self, mode=None):
         if mode is None:

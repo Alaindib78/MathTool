@@ -709,6 +709,9 @@ class Interpreter:
         if is_lti_model(target):
             return target.get_property(node.field_name)
 
+        if hasattr(target, "get_property") and callable(target.get_property):
+            return target.get_property(node.field_name)
+
         if not is_struct(target):
             raise RuntimeError(
                 f"Cannot access field '{node.field_name}' "

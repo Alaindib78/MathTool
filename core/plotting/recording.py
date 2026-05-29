@@ -3,6 +3,7 @@ import numpy as np
 from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.serialization import json_leaf
 from core.plotting.axis_manager import apply_recording_axis
+from core.plotting.histogram import compute_histogram_from_arguments
 from core.plotting.legend_manager import parse_legend_arguments
 from core.plotting.plot_parser import parse_plot_arguments
 from core.plotting.reference_lines import (
@@ -62,6 +63,106 @@ class RecordingPlotEngine:
             self.current_plot["data"].append(trace)
 
         return self.current_plot["data"][-len(series):]
+
+    def histogram(self, *arguments):
+        histogram_data = compute_histogram_from_arguments(arguments)
+        return self.draw_histogram(histogram_data)
+
+    def draw_histogram(self, histogram_data):
+        if self.current_plot is None:
+            self.figure()
+
+        if not self.hold_enabled:
+            self.clear_current_axis_traces()
+
+        trace = self.histogram_trace(histogram_data)
+        self.apply_axis_reference(trace)
+        self.current_plot["data"].append(trace)
+        return histogram_data.Handle
+
+    def histogram_trace(self, histogram_data):
+        options = histogram_data.Options
+        edges = histogram_data.BinEdges
+        values = histogram_data.Values
+
+        if options.DisplayStyle == "stairs":
+            trace = self.histogram_stairs_trace(edges, values, options)
+        else:
+            trace = self.histogram_bar_trace(edges, values, options)
+
+        if options.DisplayName:
+            trace["name"] = options.DisplayName
+            trace["showlegend"] = True
+
+        return trace
+
+    def histogram_bar_trace(self, edges, values, options):
+        widths = edges[1:] - edges[:-1]
+        centers = edges[:-1] + widths / 2
+        trace = {
+            "type": "bar",
+            "opacity": options.FaceAlpha,
+            "marker": {
+                "line": {
+                    "width": options.LineWidth,
+                },
+            },
+        }
+
+        if options.Orientation == "horizontal":
+            trace["orientation"] = "h"
+            trace["x"] = self.line_values(values)
+            trace["y"] = self.line_values(centers)
+            trace["width"] = self.line_values(widths)
+        else:
+            trace["x"] = self.line_values(centers)
+            trace["y"] = self.line_values(values)
+            trace["width"] = self.line_values(widths)
+
+        face_color = self.histogram_color_value(options.FaceColor)
+        edge_color = self.histogram_color_value(options.EdgeColor)
+
+        if face_color is not None:
+            trace["marker"]["color"] = face_color
+
+        if edge_color is not None:
+            trace["marker"]["line"]["color"] = edge_color
+
+        return trace
+
+    def histogram_stairs_trace(self, edges, values, options):
+        if options.Orientation == "horizontal":
+            x = np.repeat(values, 2)
+            y = np.repeat(edges, 2)[1:-1]
+        else:
+            x = np.repeat(edges, 2)[1:-1]
+            y = np.repeat(values, 2)
+
+        trace = {
+            "type": "scatter",
+            "mode": "lines",
+            "x": self.line_values(x),
+            "y": self.line_values(y),
+            "line": {
+                "width": options.LineWidth,
+                "dash": self.dash_value(options.LineStyle),
+            },
+        }
+        edge_color = self.histogram_color_value(options.EdgeColor)
+
+        if edge_color is not None:
+            trace["line"]["color"] = edge_color
+
+        return trace
+
+    def histogram_color_value(self, color):
+        if color == "auto":
+            return None
+
+        if color == "none":
+            return "rgba(0,0,0,0)"
+
+        return self.color_value(color)
 
     def trace_for_series(self, series):
         trace = {

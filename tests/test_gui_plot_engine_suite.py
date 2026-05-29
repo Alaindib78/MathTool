@@ -1,4 +1,5 @@
 from gui.plot_engine import GuiPlotEngine
+from core.plotting.histogram import compute_histogram_from_arguments
 
 
 class FakeEngine:
@@ -7,6 +8,9 @@ class FakeEngine:
 
     def plot(self, *arguments):
         self.calls.append(("plot", *arguments))
+
+    def draw_histogram(self, histogram_data):
+        self.calls.append(("draw_histogram", histogram_data.Handle.NumBins))
 
     def bode(self, frequency, magnitude_db, phase_deg):
         self.calls.append(("bode", frequency, magnitude_db, phase_deg))
@@ -73,6 +77,10 @@ def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
 
     gui_engine.handle_request("figure", (2,))
     gui_engine.handle_request("plot", ([1], [2]))
+    gui_engine.handle_request(
+        "draw_histogram",
+        (compute_histogram_from_arguments(([1, 2, 2, 3], 2)),),
+    )
     gui_engine.handle_request("bode", ([1], [2], [3]))
     gui_engine.handle_request("nyquist", ([1], [2]))
     gui_engine.handle_request("title", ("Title",))
@@ -95,6 +103,7 @@ def test_gui_plot_engine_forwards_plot_requests_to_core_engine():
     assert fake_engine.calls == [
         ("figure", 2),
         ("plot", [1], [2]),
+        ("draw_histogram", 2),
         ("bode", [1], [2], [3]),
         ("nyquist", [1], [2]),
         ("title", "Title"),
