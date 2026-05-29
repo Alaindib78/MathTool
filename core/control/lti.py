@@ -250,6 +250,8 @@ class LTIModel:
     name: str = ""
     input_name: list[str] = field(default_factory=list)
     output_name: list[str] = field(default_factory=list)
+    input_unit: list[str] = field(default_factory=list)
+    output_unit: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     user_data: object = None
 
@@ -305,6 +307,8 @@ class LTIModel:
             "IODelay": self.io_delay,
             "InputName": list(self.input_name),
             "OutputName": list(self.output_name),
+            "InputUnit": list(self.input_unit),
+            "OutputUnit": list(self.output_unit),
             "Name": self.name,
             "Notes": list(self.notes),
             "UserData": self.user_data,
@@ -341,6 +345,10 @@ class LTIModel:
             self.input_name = list(np.asarray(value).reshape(-1))
         elif key == "outputname":
             self.output_name = list(np.asarray(value).reshape(-1))
+        elif key == "inputunit":
+            self.input_unit = list(np.asarray(value).reshape(-1))
+        elif key == "outputunit":
+            self.output_unit = list(np.asarray(value).reshape(-1))
         elif key == "notes":
             self.notes = list(np.asarray(value).reshape(-1))
         elif key == "userdata":
@@ -353,7 +361,13 @@ class LTIModel:
         return self
 
     def workspace_preview(self):
-        return f"{self.model_type} model"
+        timing = (
+            f"discrete-time, Ts={format_scalar(self.Ts)}"
+            if self.is_discrete
+            else "continuous-time"
+        )
+
+        return f"{self.model_type} model, {timing}"
 
     def __repr__(self):
         return f"<{type(self).__name__} {self.workspace_preview()}>"

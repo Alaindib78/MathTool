@@ -3,13 +3,47 @@ import numpy as np
 import sympy as sp
 
 from core.control import (
+    FrequencyResponseModel,
     StateSpaceModel,
     TransferFunctionModel,
     ZeroPoleGainModel,
+    acker as control_acker,
+    append as control_append,
+    bandwidth as control_bandwidth,
+    bode_magnitude,
     bode_response,
+    c2d as control_c2d,
+    care as control_care,
+    controllability_matrix,
+    d2c as control_d2c,
+    damping as control_damping,
+    dare as control_dare,
+    dc_gain,
+    dlqr as control_dlqr,
+    dlyap as control_dlyap,
+    feedback as control_feedback,
+    frequency_response,
+    gramian,
+    initial_response,
     impulse_response,
+    is_continuous_time,
+    is_discrete_time,
     is_lti_model,
+    is_stable,
+    lqr as control_lqr,
+    lsim_response,
+    lyap as control_lyap,
+    minreal as control_minreal,
+    nyquist_response,
+    observability_matrix,
+    parallel as control_parallel,
+    pid as control_pid,
+    place as control_place,
     poles as control_poles,
+    root_locus_data,
+    series as control_series,
+    stability_margins,
+    step_info,
     step_response,
     to_state_space,
     to_transfer_function,
@@ -948,9 +982,11 @@ def _split_lti_options(arguments):
     option_names = {
         "inputdelay",
         "outputdelay",
-        "iodelay",
-        "io_delay",
-        "name",
+    "iodelay",
+    "io_delay",
+    "name",
+    "inputunit",
+    "outputunit",
     }
     index = 0
 
@@ -990,6 +1026,10 @@ def _split_lti_options(arguments):
             normalized["io_delay"] = value
         elif key == "name":
             normalized["name"] = str(value)
+        elif key == "inputunit":
+            normalized["input_unit"] = value
+        elif key == "outputunit":
+            normalized["output_unit"] = value
         else:
             raise MathToolRuntimeError(
                 f"lti: unsupported option '{name}'"
@@ -1084,6 +1124,23 @@ def builtin_zpk(context, *arguments):
     )
 
 
+def builtin_frd(context, *arguments):
+    positional, options = _split_lti_options(arguments)
+
+    if len(positional) not in {2, 3}:
+        raise MathToolRuntimeError(
+            "frd: expected frd(response, frequencies) or frd(response, frequencies, Ts)"
+        )
+
+    Ts = positional[2] if len(positional) == 3 else 0.0
+    return FrequencyResponseModel(
+        positional[0],
+        positional[1],
+        Ts,
+        **options,
+    )
+
+
 def builtin_get(context, value):
     if is_lti_model(value):
         return value.properties()
@@ -1102,6 +1159,22 @@ def builtin_pole(context, model):
 
 def builtin_zero(context, model):
     return control_zeros(model)
+
+
+def builtin_minreal(context, model, tolerance=1e-6):
+    return control_minreal(model, float(tolerance))
+
+
+def builtin_damp(context, model):
+    return control_damping(model)
+
+
+def builtin_dcgain(context, model):
+    return dc_gain(model)
+
+
+def builtin_isstable(context, model):
+    return is_stable(model)
 
 
 def _warn_if_delayed(context, function_name, model):
@@ -1146,6 +1219,245 @@ def builtin_impulse(context, model, time=None):
         "Amplitude",
     )
     return None
+
+
+def builtin_initial(context, model, x0, time=None):
+    _warn_if_delayed(context, "initial", model)
+    t, y = initial_response(model, x0, time)
+    _plot_time_response(
+        context,
+        t,
+        y,
+        "Initial Condition Response",
+        "Amplitude",
+    )
+    return None
+
+
+def builtin_lsim(context, model, u, time):
+    _warn_if_delayed(context, "lsim", model)
+    t, y = lsim_response(model, u, time)
+    _plot_time_response(
+        context,
+        t,
+        y,
+        "Simulated Response",
+        "Amplitude",
+    )
+    return None
+
+
+def builtin_stepinfo(context, model, time=None):
+    return step_info(model, time)
+
+
+def builtin_freqresp(context, model, frequency):
+    return frequency_response(model, frequency)
+
+
+def builtin_bandwidth(context, model):
+    return control_bandwidth(model)
+
+
+def builtin_bodemag(context, model, frequency=None):
+    w, magnitude_db = bode_magnitude(model, frequency)
+    context.plot_engine.figure()
+    context.plot_engine.plot(w, magnitude_db)
+    context.plot_engine.title("Bode Magnitude")
+    context.plot_engine.xlabel("Frequency (rad/s)")
+    context.plot_engine.ylabel("Magnitude (dB)")
+    context.plot_engine.grid_on()
+    return None
+
+
+def builtin_nichols(context, model, frequency=None):
+    w, magnitude_db, phase_deg = bode_response(model, frequency)
+    context.plot_engine.figure()
+    context.plot_engine.plot(phase_deg, magnitude_db)
+    context.plot_engine.title("Nichols Chart")
+    context.plot_engine.xlabel("Phase (deg)")
+    context.plot_engine.ylabel("Magnitude (dB)")
+    context.plot_engine.grid_on()
+    return None
+
+
+def builtin_sigma(context, model, frequency=None):
+    w, magnitude_db = bode_magnitude(model, frequency)
+    context.plot_engine.figure()
+    context.plot_engine.plot(w, magnitude_db)
+    context.plot_engine.title("Singular Values")
+    context.plot_engine.xlabel("Frequency (rad/s)")
+    context.plot_engine.ylabel("Magnitude (dB)")
+    context.plot_engine.grid_on()
+    return None
+
+
+def builtin_margin(context, model, frequency=None):
+    margins = stability_margins(model, frequency)
+
+    if context.output_callback is not None:
+        context.output_callback(
+            "Stability margins:\n"
+            f"    GainMargin: {margins['GainMargin']}\n"
+            f"    PhaseMargin: {margins['PhaseMargin']}\n"
+            f"    GMFrequency: {margins['GMFrequency']}\n"
+            f"    PMFrequency: {margins['PMFrequency']}\n\n"
+        )
+
+    builtin_bode(context, model, frequency) if frequency is not None else builtin_bode(context, model)
+    return margins
+
+
+def builtin_allmargin(context, model, frequency=None):
+    margins = stability_margins(model, frequency)
+    margins["Stable"] = is_stable(model)
+    return margins
+
+
+def builtin_rlocus(context, model, gains=None):
+    roots, gain_values = root_locus_data(model, gains)
+    context.plot_engine.figure()
+    previous_hold = getattr(context.plot_engine, "hold_enabled", False)
+    if hasattr(context.plot_engine, "hold"):
+        context.plot_engine.hold("on")
+
+    try:
+        if roots.ndim == 2:
+            for column in range(roots.shape[1]):
+                branch = roots[:, column]
+                context.plot_engine.plot(np.real(branch), np.imag(branch))
+
+        open_loop_poles = control_poles(model)
+        open_loop_zeros = control_zeros(model)
+
+        if len(open_loop_poles):
+            context.plot_engine.plot(
+                np.real(open_loop_poles),
+                np.imag(open_loop_poles),
+                "x",
+            )
+
+        if len(open_loop_zeros):
+            context.plot_engine.plot(
+                np.real(open_loop_zeros),
+                np.imag(open_loop_zeros),
+                "o",
+            )
+    finally:
+        if hasattr(context.plot_engine, "hold"):
+            context.plot_engine.hold(previous_hold)
+
+    context.plot_engine.title("Root Locus")
+    context.plot_engine.xlabel("Real Axis")
+    context.plot_engine.ylabel("Imaginary Axis")
+    context.plot_engine.grid_on()
+    return {
+        "roots": roots,
+        "gains": gain_values,
+    }
+
+
+def builtin_series(context, sys1, sys2):
+    return control_series(sys1, sys2)
+
+
+def builtin_parallel(context, sys1, sys2):
+    return control_parallel(sys1, sys2)
+
+
+def builtin_feedback(context, sys1, sys2=1, sign=-1):
+    return control_feedback(sys1, sys2, sign)
+
+
+def builtin_append(context, *systems):
+    return control_append(*systems)
+
+
+def builtin_ctrb(context, A_or_sys, B=None):
+    return controllability_matrix(A_or_sys, B)
+
+
+def builtin_obsv(context, A_or_sys, C=None):
+    return observability_matrix(A_or_sys, C)
+
+
+def builtin_gram(context, sys, kind):
+    return gramian(sys, kind)
+
+
+def builtin_lyap(context, A, Q):
+    return control_lyap(A, Q)
+
+
+def builtin_dlyap(context, A, Q):
+    return control_dlyap(A, Q)
+
+
+def builtin_care(context, A, B, Q, R):
+    return control_care(A, B, Q, R)
+
+
+def builtin_dare(context, A, B, Q, R):
+    return control_dare(A, B, Q, R)
+
+
+def builtin_place(context, A, B, desired_poles):
+    return control_place(A, B, desired_poles)
+
+
+def builtin_acker(context, A, B, desired_poles):
+    return control_acker(A, B, desired_poles)
+
+
+def builtin_lqr(context, A, B, Q, R):
+    return control_lqr(A, B, Q, R)
+
+
+def builtin_dlqr(context, A, B, Q, R):
+    return control_dlqr(A, B, Q, R)
+
+
+def builtin_pid(context, Kp, Ki=0.0, Kd=0.0):
+    return control_pid(Kp, Ki, Kd)
+
+
+def builtin_pidtune(context, model, controller_type="PID"):
+    gain = dc_gain(model)
+    if isinstance(gain, np.ndarray):
+        gain = np.asarray(gain).reshape(-1)[0]
+
+    gain = float(np.real(gain))
+    base = 1.0 if np.isclose(gain, 0) else 1.0 / abs(gain)
+    kind = str(controller_type).lower()
+
+    if kind == "p":
+        return control_pid(base, 0, 0)
+
+    if kind == "pi":
+        return control_pid(base, 0.5 * base, 0)
+
+    if kind == "pid":
+        return control_pid(base, 0.5 * base, 0.1 * base)
+
+    raise MathToolRuntimeError(
+        "pidtune: controller type must be 'P', 'PI', or 'PID'"
+    )
+
+
+def builtin_c2d(context, model, Ts, method="zoh"):
+    return control_c2d(model, Ts, method)
+
+
+def builtin_d2c(context, model, method="zoh"):
+    return control_d2c(model, method)
+
+
+def builtin_isdt(context, model):
+    return is_discrete_time(model)
+
+
+def builtin_isct(context, model):
+    return is_continuous_time(model)
 
 
 def _polynomial_coefficients(function_name, argument_name, value):
@@ -1393,7 +1705,40 @@ def builtin_bode(context, *arguments):
     return None
 
 
-def builtin_nyquist(context, numerator, denominator, frequency=None):
+def builtin_nyquist(context, *arguments):
+    if arguments and is_lti_model(arguments[0]):
+        if len(arguments) > 2:
+            raise MathToolRuntimeError(
+                "nyquist: expected nyquist(sys) or nyquist(sys, w)"
+            )
+
+        model = arguments[0]
+        frequency = arguments[1] if len(arguments) == 2 else None
+        real_values, imag_values = nyquist_response(model, frequency)
+
+        if hasattr(context.plot_engine, "nyquist"):
+            context.plot_engine.nyquist(
+                real_values,
+                imag_values,
+            )
+        else:
+            _plot_nyquist_fallback(
+                context,
+                real_values,
+                imag_values,
+            )
+
+        return None
+
+    if len(arguments) not in {2, 3}:
+        raise MathToolRuntimeError(
+            "nyquist: expected nyquist(sys), nyquist(sys, w), nyquist(num, den), or nyquist(num, den, w)"
+        )
+
+    numerator = arguments[0]
+    denominator = arguments[1]
+    frequency = arguments[2] if len(arguments) == 3 else None
+
     num, den = _validate_transfer_function(
         "nyquist",
         numerator,
@@ -2242,13 +2587,50 @@ BUILTIN_FUNCTIONS = {
     "tf": builtin_tf,
     "ss": builtin_ss,
     "zpk": builtin_zpk,
+    "frd": builtin_frd,
     "get": builtin_get,
+    "minreal": builtin_minreal,
     "pole": builtin_pole,
     "zero": builtin_zero,
+    "damp": builtin_damp,
+    "dcgain": builtin_dcgain,
+    "isstable": builtin_isstable,
     "step": builtin_step,
     "impulse": builtin_impulse,
+    "initial": builtin_initial,
+    "lsim": builtin_lsim,
+    "stepinfo": builtin_stepinfo,
     "bode": builtin_bode,
+    "bodemag": builtin_bodemag,
     "nyquist": builtin_nyquist,
+    "nichols": builtin_nichols,
+    "sigma": builtin_sigma,
+    "freqresp": builtin_freqresp,
+    "bandwidth": builtin_bandwidth,
+    "margin": builtin_margin,
+    "allmargin": builtin_allmargin,
+    "rlocus": builtin_rlocus,
+    "series": builtin_series,
+    "parallel": builtin_parallel,
+    "feedback": builtin_feedback,
+    "append": builtin_append,
+    "ctrb": builtin_ctrb,
+    "obsv": builtin_obsv,
+    "gram": builtin_gram,
+    "lyap": builtin_lyap,
+    "dlyap": builtin_dlyap,
+    "care": builtin_care,
+    "dare": builtin_dare,
+    "place": builtin_place,
+    "acker": builtin_acker,
+    "lqr": builtin_lqr,
+    "dlqr": builtin_dlqr,
+    "pid": builtin_pid,
+    "pidtune": builtin_pidtune,
+    "c2d": builtin_c2d,
+    "d2c": builtin_d2c,
+    "isdt": builtin_isdt,
+    "isct": builtin_isct,
 
     "length": builtin_length,
     "plot": builtin_plot,

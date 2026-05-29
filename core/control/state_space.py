@@ -57,6 +57,8 @@ class StateSpaceModel(LTIModel):
             name=metadata.pop("name", ""),
             input_name=metadata.pop("input_name", []),
             output_name=metadata.pop("output_name", []),
+            input_unit=metadata.pop("input_unit", []),
+            output_unit=metadata.pop("output_unit", []),
             notes=metadata.pop("notes", []),
             user_data=metadata.pop("user_data", None),
         )
@@ -132,3 +134,18 @@ class StateSpaceModel(LTIModel):
         if delays:
             lines.append(delays)
         return "\n".join(lines)
+
+    def workspace_preview(self):
+        timing = (
+            f"discrete-time, Ts={self.Ts:g}"
+            if self.is_discrete
+            else "continuous-time"
+        )
+        states = self.A.shape[0]
+        inputs = self.B.shape[1]
+        outputs = self.C.shape[0]
+
+        return (
+            f"ss model, {states} states, "
+            f"{inputs} input, {outputs} output, {timing}"
+        )

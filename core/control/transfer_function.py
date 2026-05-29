@@ -37,6 +37,8 @@ class TransferFunctionModel(LTIModel):
             name=metadata.pop("name", ""),
             input_name=metadata.pop("input_name", []),
             output_name=metadata.pop("output_name", []),
+            input_unit=metadata.pop("input_unit", []),
+            output_unit=metadata.pop("output_unit", []),
             notes=metadata.pop("notes", []),
             user_data=metadata.pop("user_data", None),
         )

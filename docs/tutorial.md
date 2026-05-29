@@ -1483,6 +1483,7 @@ The `examples/` folder contains runnable scripts. Good starting points:
 examples/matlab_style_plot_example.m
 examples/plot_helpers_example.m
 examples/lti_systems_example.m
+examples/control_advanced_example.m
 examples/hex_binary_integer_literals_example.m
 examples/sudoku_solver_example.m
 examples/figure_close_example.m

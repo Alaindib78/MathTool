@@ -113,5 +113,108 @@ def test_lti_workspace_serialization_uses_short_preview():
 
     serialized = serialize_workspace(context)
 
-    assert serialized["variables"][0]["preview"] == "zpk model"
+    assert serialized["variables"][0]["preview"] == "zpk model, continuous-time"
     assert serialized["variables"][0]["value"]["type"] == "lti"
+
+
+def test_extended_lti_analysis_interconnection_and_synthesis():
+    session = MathToolSession()
+
+    session.execute(
+        """
+s = tf("s");
+G = 1 / (s^2 + 2*s + 1);
+closed_loop = feedback(G, 1);
+simple = minreal((s + 1) / (s + 1));
+stable = isstable(G);
+gain = dcgain(G);
+info = stepinfo(G);
+controller = pid(1, 0.5, 0.1);
+"""
+    )
+
+    assert session.context.variables["stable"] is True
+    assert session.context.variables["gain"] == 1.0
+    np.testing.assert_allclose(
+        session.context.variables["closed_loop"].denominator,
+        np.array([1.0, 2.0, 2.0]),
+    )
+    np.testing.assert_allclose(
+        session.context.variables["simple"].denominator,
+        np.array([1.0]),
+    )
+    assert "RiseTime" in session.context.variables["info"]
+    np.testing.assert_allclose(
+        session.context.variables["controller"].numerator,
+        np.array([0.1, 1.0, 0.5]),
+    )
+
+
+def test_extended_lti_state_space_tools_and_lqr():
+    session = MathToolSession()
+
+    session.execute(
+        """
+A = [0 1; -2 -3];
+B = [0; 1];
+C = [1 0];
+D = [0];
+sys = ss(A, B, C, D);
+Co = ctrb(sys);
+Ob = obsv(sys);
+X = lyap([-1], [1]);
+result = lqr(A, B, [1 0; 0 1], [1]);
+sysd = c2d(sys, 0.1);
+"""
+    )
+
+    np.testing.assert_allclose(
+        session.context.variables["Co"],
+        np.array([[0.0, 1.0], [1.0, -3.0]]),
+    )
+    np.testing.assert_allclose(
+        session.context.variables["Ob"],
+        np.array([[1.0, 0.0], [0.0, 1.0]]),
+    )
+    np.testing.assert_allclose(session.context.variables["X"], np.array([[0.5]]))
+    assert set(session.context.variables["result"].keys()) == {"K", "S", "P"}
+    assert session.context.variables["sysd"].is_discrete is True
+
+
+def test_extended_lti_frequency_plots_margin_and_root_locus():
+    session = MathToolSession(plot_engine=RecordingPlotEngine())
+
+    session.execute(
+        """
+s = tf("s");
+G = 10 / (s * (s + 1) * (s + 5));
+m = margin(G);
+r = rlocus(G, 0:1:10);
+bodemag(G);
+nyquist(G);
+nichols(G);
+sigma(G);
+"""
+    )
+
+    assert "GainMargin" in session.context.variables["m"]
+    assert "roots" in session.context.variables["r"]
+    assert len(session.context.plot_engine.serialize_plots()) >= 6
+
+
+def test_frd_and_transfer_variable_z():
+    session = MathToolSession()
+
+    session.execute(
+        """
+H = frd([1 0.5], [1 10]);
+z = tf("z", 0.01);
+Gd = 1 / (z - 0.8);
+dt = isdt(Gd);
+ct = isct(Gd);
+"""
+    )
+
+    assert session.context.variables["H"].model_type == "frd"
+    assert session.context.variables["dt"] is True
+    assert session.context.variables["ct"] is False
