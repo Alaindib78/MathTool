@@ -1,5 +1,6 @@
 import numpy as np
 
+from core.calculus import FunctionHandle
 from core.control import is_lti_model
 from core.runtime.formatting import format_value
 from core.runtime.symbolic import SymbolicValue
@@ -73,6 +74,24 @@ class VariableEditor(QWidget):
             self.table.setColumnCount(1)
 
             item = QTableWidgetItem(str(value))
+            item.setFlags(
+                item.flags() & ~Qt.ItemIsEditable
+            )
+
+            self.table.setItem(0, 0, item)
+
+            self.table.blockSignals(False)
+
+            return
+
+        if isinstance(value, FunctionHandle):
+            self.table.setRowCount(1)
+            self.table.setColumnCount(1)
+
+            item = QTableWidgetItem(str(value))
+            item.setFlags(
+                item.flags() & ~Qt.ItemIsEditable
+            )
 
             self.table.setItem(0, 0, item)
 

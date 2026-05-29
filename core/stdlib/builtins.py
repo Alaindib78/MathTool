@@ -50,6 +50,15 @@ from core.control import (
     to_zero_pole_gain,
     zeros as control_zeros,
 )
+from core.calculus import (
+    FunctionHandle,
+    numerical_gradient,
+    numerical_integral,
+    numerical_integral2,
+    symbolic_diff,
+    symbolic_integral,
+    trapezoidal_integral,
+)
 from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.runtime.symbolic import (
     NameValueOption,
@@ -204,26 +213,26 @@ def builtin_struct(context, *arguments):
 
 
 def builtin_sin(context,x):
-    return np.sin(x)
+    return _unary_math(x, np.sin, sp.sin)
 
 
 def builtin_cos(context,x):
-    return np.cos(x)
+    return _unary_math(x, np.cos, sp.cos)
 
 
 def builtin_tan(context,x):
-    return np.tan(x)
+    return _unary_math(x, np.tan, sp.tan)
 
 def builtin_asin(context,x):
-    return np.arcsin(x)
+    return _unary_math(x, np.arcsin, sp.asin)
 
 
 def builtin_acos(context,x):
-    return np.arccos(x)
+    return _unary_math(x, np.arccos, sp.acos)
 
 
 def builtin_atan(context,x):
-    return np.arctan(x)
+    return _unary_math(x, np.arctan, sp.atan)
 
 
 def builtin_atan2(context, y, x):
@@ -254,10 +263,14 @@ def builtin_atanh(context, x):
     return np.arctanh(x)
 
 def builtin_log(context,x):
-    return np.log(x)
+    return _unary_math(x, np.log, sp.log)
 
 def builtin_log10(context,x):
-    return np.log10(x)
+    return _unary_math(
+        x,
+        np.log10,
+        lambda expression: sp.log(expression, 10),
+    )
 
 
 def builtin_log2(context, x):
@@ -265,7 +278,7 @@ def builtin_log2(context, x):
 
 
 def builtin_exp(context,x):
-    return np.exp(x)
+    return _unary_math(x, np.exp, sp.exp)
 
 
 def builtin_expm1(context, x):
@@ -273,6 +286,9 @@ def builtin_expm1(context, x):
 
 
 def builtin_sqrt(context,x):
+    if is_symbolic(x):
+        return _unary_math(x, np.sqrt, sp.sqrt)
+
     array = np.asarray(x)
 
     if (
@@ -312,7 +328,7 @@ def builtin_real(context, z):
 
 
 def builtin_abs(context,x):
-    return np.abs(x)
+    return _unary_math(x, np.abs, sp.Abs)
 
 def builtin_floor(context,x):
     return np.floor(x)
@@ -340,7 +356,33 @@ def builtin_rad2deg(context, x):
     return np.rad2deg(x)
 
 def builtin_sign(context,x):
-    return np.sign(x)
+    return _unary_math(x, np.sign, sp.sign)
+
+
+def _unary_math(value, numeric_function, symbolic_function):
+    if is_symbolic(value):
+        def apply(item):
+            return from_sympy_value(
+                symbolic_function(
+                    to_sympy_expression(item)
+                )
+            )
+
+        if isinstance(value, np.ndarray):
+            return np.vectorize(
+                apply,
+                otypes=[object],
+            )(value)
+
+        if isinstance(value, (list, tuple)):
+            return np.array(
+                [apply(item) for item in value],
+                dtype=object,
+            )
+
+        return apply(value)
+
+    return numeric_function(value)
 
 def _as_array(value):
     return np.asarray(value)
@@ -784,7 +826,25 @@ def builtin_allclose(context, a, b, rtol=1e-05, atol=1e-08):
     return bool(np.allclose(a, b, rtol=rtol, atol=atol))
 
 
-def builtin_diff(context, value, n=1, dim=None):
+def builtin_diff(context, value, *arguments):
+    if is_symbolic(value):
+        return symbolic_diff(value, *arguments)
+
+    n = 1
+    dim = None
+
+    if len(arguments) > 2:
+        raise MathToolRuntimeError(
+            "diff: expected diff(A), diff(A,n), "
+            "or diff(A,n,dim)"
+        )
+
+    if len(arguments) >= 1:
+        n = arguments[0]
+
+    if len(arguments) == 2:
+        dim = arguments[1]
+
     array = _as_array(value)
     axis = (
         _first_nonsingleton_axis(array)
@@ -795,13 +855,8 @@ def builtin_diff(context, value, n=1, dim=None):
     return np.diff(array, n=int(n), axis=axis)
 
 
-def builtin_gradient(context, value):
-    result = np.gradient(_as_array(value))
-
-    if isinstance(result, list):
-        return np.array(result)
-
-    return result
+def builtin_gradient(context, value, *spacing):
+    return numerical_gradient(value, *spacing)
 
 
 def builtin_cumsum(context, value, dim=None):
@@ -818,17 +873,39 @@ def builtin_cumprod(context, value, dim=None):
     return _normalize_result(np.cumprod(array, axis=axis))
 
 
-def builtin_trapz(context, x, y=None):
-    if y is None:
-        return _normalize_result(
-            np.trapezoid(_as_array(x))
-        )
+def builtin_trapz(context, *arguments):
+    return trapezoidal_integral(*arguments)
 
-    return _normalize_result(
-        np.trapezoid(
-            _as_array(y),
-            _as_array(x),
-        )
+
+def builtin_int(context, value, *arguments):
+    return symbolic_integral(value, *arguments)
+
+
+def builtin_integral(context, fun, xmin, xmax, *arguments):
+    return numerical_integral(
+        fun,
+        xmin,
+        xmax,
+        *arguments,
+    )
+
+
+def builtin_integral2(
+    context,
+    fun,
+    xmin,
+    xmax,
+    ymin,
+    ymax,
+    *arguments,
+):
+    return numerical_integral2(
+        fun,
+        xmin,
+        xmax,
+        ymin,
+        ymax,
+        *arguments,
     )
 
 
@@ -2063,6 +2140,30 @@ def builtin_sym(context, value):
     return SymbolicValue(value)
 
 
+def builtin_syms(context, *names):
+    if not names:
+        raise MathToolRuntimeError(
+            "syms: expected at least one variable name"
+        )
+
+    created = []
+
+    for name in names:
+        if not isinstance(name, str):
+            raise MathToolRuntimeError(
+                "syms: variable names must be strings"
+            )
+
+        value = SymbolicValue(name)
+        context.set_variable(name, value)
+        created.append(value)
+
+    if len(created) == 1:
+        return created[0]
+
+    return np.array(created, dtype=object)
+
+
 def builtin_complex(context, real, imag=None):
     if imag is None:
         result = np.asarray(real, dtype=complex)
@@ -2088,6 +2189,16 @@ def builtin_symvar(context, value):
         ],
         dtype=object,
     )
+
+
+def builtin_pretty(context, value):
+    text = sp.pretty(to_sympy_expression(value))
+
+    if context.output_callback is not None:
+        context.output_callback(text + "\n")
+        return None
+
+    return text
 
 
 def builtin_solve(context, *arguments):
@@ -2341,6 +2452,9 @@ def integer_prime_factors(value):
 
 
 def builtin_class(context, value):
+    if isinstance(value, FunctionHandle):
+        return "function_handle"
+
     if is_lti_model(value):
         return value.model_type
 
@@ -2571,6 +2685,9 @@ BUILTIN_FUNCTIONS = {
     "find": builtin_find,
     "diff": builtin_diff,
     "gradient": builtin_gradient,
+    "int": builtin_int,
+    "integral": builtin_integral,
+    "integral2": builtin_integral2,
     "cumsum": builtin_cumsum,
     "cumprod": builtin_cumprod,
     "trapz": builtin_trapz,
@@ -2662,10 +2779,12 @@ BUILTIN_FUNCTIONS = {
     "subplot": builtin_subplot,
     "axis": builtin_axis,
     "sym": builtin_sym,
+    "syms": builtin_syms,
     "class": builtin_class,
     "complex": builtin_complex,
     "solve": builtin_solve,
     "symvar": builtin_symvar,
+    "pretty": builtin_pretty,
     "simplify": builtin_simplify,
     "collect": builtin_collect,
     "expand": builtin_expand,

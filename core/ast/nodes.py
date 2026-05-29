@@ -324,6 +324,30 @@ class FunctionCallNode(ASTNode):
         )
 
 
+class AnonymousFunctionNode(ASTNode):
+    def __init__(
+        self,
+        parameters,
+        body,
+        line=None,
+        column=None,
+    ):
+        super().__init__(
+            line,
+            column,
+        )
+
+        self.parameters = parameters
+        self.body = body
+
+    def __repr__(self):
+        return (
+            f"AnonymousFunctionNode("
+            f"parameters={self.parameters}, "
+            f"body={self.body})"
+        )
+
+
 class FieldAccessNode(ASTNode):
     def __init__(
         self,

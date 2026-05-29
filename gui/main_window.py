@@ -51,6 +51,7 @@ from PySide6.QtCore import (
 )
 
 from core.engine import MathToolSession
+from core.calculus import FunctionHandle
 from core.control import is_lti_model
 from core.runtime.context import RESERVED_CONSTANTS
 from core.runtime.formatting import format_value, output_suffix
@@ -2496,6 +2497,9 @@ class MainWindow(QMainWindow):
 
             if isinstance(value, SymbolicValue):
                 type_name = "sym"
+
+            if isinstance(value, FunctionHandle):
+                type_name = "function_handle"
 
             if isinstance(value, dict):
                 type_name = "struct"

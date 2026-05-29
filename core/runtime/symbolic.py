@@ -1,3 +1,4 @@
+import math
 import re
 
 import numpy as np
@@ -149,6 +150,12 @@ def to_sympy_expression(value):
         return sp.Integer(value)
 
     if isinstance(value, float):
+        if math.isclose(value, math.pi, rel_tol=0, abs_tol=1e-15):
+            return sp.pi
+
+        if math.isclose(value, math.e, rel_tol=0, abs_tol=1e-15):
+            return sp.E
+
         if value.is_integer():
             return sp.Integer(int(value))
 

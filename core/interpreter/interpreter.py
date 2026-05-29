@@ -18,6 +18,7 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    AnonymousFunctionNode,
     FieldAccessNode,
     IndexAccessNode,
     NameValueNode,
@@ -41,6 +42,7 @@ from core.interpreter.return_exception import (
 )
 from core.errors.errors import RuntimeError
 from core.control import is_lti_model
+from core.calculus import FunctionHandle
 from core.runtime.call_stack import CallFrame
 from core.runtime.symbolic import (
     NameValueOption,
@@ -166,6 +168,13 @@ class Interpreter:
         return NameValueOption(
             node.name,
             self.evaluate(node.value)
+        )
+
+    def visit_AnonymousFunctionNode(self, node):
+        return FunctionHandle(
+            node.parameters,
+            node.body,
+            self.context,
         )
 
     def visit_AssignmentNode(self, node):
@@ -692,6 +701,21 @@ class Interpreter:
                 node.line,
                 node.column,
             )
+
+        if callable(target):
+            arguments = [
+                self.evaluate(arg)
+                for arg in node.arguments
+            ]
+
+            try:
+                return target(*arguments)
+            except Exception as error:
+                raise RuntimeError(
+                    str(error),
+                    node.line,
+                    node.column,
+                ) from error
 
         return self.evaluate_indexed_target(
             target,

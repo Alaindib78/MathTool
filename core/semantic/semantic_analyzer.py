@@ -12,6 +12,8 @@ from core.stdlib.builtins import BUILTIN_FUNCTIONS
 IMMUTABLE_CONSTANTS = {
     "pi",
     "e",
+    "Inf",
+    "NaN",
     "true",
     "false",
 }
@@ -280,6 +282,14 @@ class SemanticAnalyzer:
     # ---------------------------------
 
     def visit_FunctionCallNode(self, node):
+        if node.name == "syms":
+            for arg in node.arguments:
+                if isinstance(arg, StringNode):
+                    self.current_scope.define(arg.value)
+                else:
+                    self.analyze(arg)
+            return
+
         if (
             not self.current_scope.exists(
                 node.name
@@ -297,6 +307,22 @@ class SemanticAnalyzer:
 
     def visit_NameValueNode(self, node):
         self.analyze(node.value)
+
+    def visit_AnonymousFunctionNode(self, node):
+        function_scope = SymbolTable(
+            self.current_scope
+        )
+
+        previous_scope = self.current_scope
+        self.current_scope = function_scope
+
+        try:
+            for parameter in node.parameters:
+                function_scope.define(parameter)
+
+            self.analyze(node.body)
+        finally:
+            self.current_scope = previous_scope
 
     # ---------------------------------
     # Control Flow

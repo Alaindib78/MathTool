@@ -18,6 +18,7 @@ from core.ast.nodes import (
     MatrixNode,
     ForNode,
     FunctionCallNode,
+    AnonymousFunctionNode,
     FieldAccessNode,
     IndexAccessNode,
     NameValueNode,
@@ -1092,6 +1093,9 @@ class Parser:
         return self.power()
 
     def primary(self):
+        if self.match(TokenType.AT):
+            return self.anonymous_function()
+
         if self.match(TokenType.STRING):
             token = self.previous()
 
@@ -1164,6 +1168,32 @@ class Parser:
             line=token.line,
             column=token.column,
             token=token.value,
+        )
+
+    def anonymous_function(self):
+        token = self.previous()
+
+        self.consume(TokenType.LPAREN)
+
+        parameters = []
+
+        if not self.check(TokenType.RPAREN):
+            first = self.consume(TokenType.IDENTIFIER)
+            parameters.append(first.value)
+
+            while self.match(TokenType.COMMA):
+                parameter = self.consume(TokenType.IDENTIFIER)
+                parameters.append(parameter.value)
+
+        self.consume(TokenType.RPAREN)
+
+        body = self.expression()
+
+        return AnonymousFunctionNode(
+            parameters,
+            body,
+            token.line,
+            token.column,
         )
 
     def function_arguments(self):
@@ -1270,6 +1300,7 @@ class Parser:
                 TokenType.STRING,
                 TokenType.LPAREN,
                 TokenType.END,
+                TokenType.AT,
             ):
                 continue
 

@@ -15,6 +15,8 @@ import math
 RESERVED_CONSTANTS = {
     "pi",
     "e",
+    "Inf",
+    "NaN",
     "true",
     "false",
 }
@@ -281,5 +283,7 @@ class RuntimeContext:
  
         self.variables["pi"] = math.pi
         self.variables["e"] = math.e
+        self.variables["Inf"] = math.inf
+        self.variables["NaN"] = math.nan
         self.variables["true"] = True
         self.variables["false"] = False

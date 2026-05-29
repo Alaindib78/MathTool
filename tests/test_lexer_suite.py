@@ -42,11 +42,25 @@ end
 
 def test_lexer_reports_unexpected_character_location():
     with pytest.raises(LexerError) as error:
-        Lexer("A = @").tokenize()
+        Lexer("A = ?").tokenize()
 
     assert error.value.line == 1
     assert error.value.column == 5
-    assert error.value.token == "@"
+    assert error.value.token == "?"
+
+
+def test_lexer_tokenizes_anonymous_function_marker():
+    tokens = Lexer("f = @(x) x.^2;").tokenize()
+
+    assert [token.type for token in tokens[:7]] == [
+        TokenType.IDENTIFIER,
+        TokenType.EQUAL,
+        TokenType.AT,
+        TokenType.LPAREN,
+        TokenType.IDENTIFIER,
+        TokenType.RPAREN,
+        TokenType.IDENTIFIER,
+    ]
 
 
 def test_lexer_tokenizes_matlab_not_operators():

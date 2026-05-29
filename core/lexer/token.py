@@ -17,6 +17,7 @@ class TokenType(Enum):
     CARET = auto()
     MODULO = auto()
     TRANSPOSE = auto()
+    AT = auto()
 
     DOTSTAR = auto()
     DOTSLASH = auto()

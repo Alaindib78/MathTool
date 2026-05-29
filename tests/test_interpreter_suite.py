@@ -611,6 +611,119 @@ kind = class(x);
     assert context.variables["kind"] == "double"
 
 
+def test_interpreter_supports_symbolic_diff_int_and_math_dispatch(execute):
+    _, context = execute(
+        """
+x = sym("x");
+f = sin(x^2);
+df = diff(f, x);
+d4 = diff(x^6, x, 4);
+F = int(x^2, x);
+q = int(sin(x), x, 0, pi);
+syms("y");
+mixed = diff(x*sin(x*y), x, y);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["df"]) == "2*x*cos(x^2)"
+    assert str(context.variables["d4"]) == "360*x^2"
+    assert str(context.variables["F"]) == "x^3/3"
+    assert str(context.variables["q"]) == "2"
+    assert isinstance(context.variables["y"], SymbolicValue)
+    assert "cos(x*y)" in str(context.variables["mixed"])
+
+
+def test_interpreter_supports_symbolic_matrix_differentiation(execute):
+    _, context = execute(
+        """
+x = sym("x");
+A = [x x^2; sin(x) cos(x)];
+dA = diff(A, x);
+""",
+        analyze=True,
+    )
+
+    assert [
+        [str(value) for value in row]
+        for row in context.variables["dA"]
+    ] == [
+        ["1", "2*x"],
+        ["cos(x)", "-sin(x)"],
+    ]
+
+
+def test_interpreter_supports_function_handles_and_numerical_integrals(execute):
+    _, context = execute(
+        """
+f = @(x) exp(-x.^2);
+q = integral(f, 0, 1);
+c = 5;
+closed = @(x) x + c;
+c = 20;
+closed_value = closed(1);
+g = @(x,y) x.^2 + y.^2;
+q2 = integral2(g, 0, 1, 0, 1);
+ymax = @(x) 1 - x;
+tri = integral2(@(x,y) x + y, 0, 1, 0, ymax);
+kind = class(f);
+direct = f(2);
+""",
+        analyze=True,
+    )
+
+    assert context.variables["q"] == pytest.approx(
+        0.746824,
+        rel=1e-5,
+    )
+    assert context.variables["q2"] == pytest.approx(
+        2 / 3,
+        rel=1e-5,
+    )
+    assert context.variables["tri"] == pytest.approx(
+        1 / 3,
+        rel=1e-5,
+    )
+    assert context.variables["kind"] == "function_handle"
+    assert context.variables["direct"] == pytest.approx(
+        np.exp(-4)
+    )
+    assert context.variables["closed_value"] == 6
+
+
+def test_interpreter_supports_trapz_gradient_and_multi_output(execute):
+    _, context = execute(
+        """
+Y = [1 4 9 16 25];
+Q = trapz(Y);
+x = 1:10;
+gx = gradient(x);
+M = [1 2 3; 4 5 6];
+[FX, FY] = gradient(M);
+row_area = trapz(M, 2);
+""",
+        analyze=True,
+    )
+
+    assert context.variables["Q"] == pytest.approx(42)
+    np.testing.assert_allclose(
+        context.variables["gx"],
+        np.ones(10),
+    )
+    np.testing.assert_allclose(
+        context.variables["FX"],
+        np.ones((2, 3)),
+    )
+    np.testing.assert_allclose(
+        context.variables["FY"],
+        np.full((2, 3), 3),
+    )
+    np.testing.assert_allclose(
+        context.variables["row_area"],
+        np.array([4, 10]),
+    )
+
+
 def test_interpreter_sym_preserves_exact_text(execute):
     _, context = execute(
         """

@@ -251,6 +251,7 @@ class Lexer:
                 "^": TokenType.CARET,
                 "=": TokenType.EQUAL,
                 "'": TokenType.TRANSPOSE,
+                "@": TokenType.AT,
 
                 "<": TokenType.LT,
                 ">": TokenType.GT,

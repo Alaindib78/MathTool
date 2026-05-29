@@ -8,6 +8,7 @@ from core.ast.nodes import (
     ContinueNode,
     EndKeywordNode,
     FunctionCallNode,
+    AnonymousFunctionNode,
     FieldAccessNode,
     IndexAccessNode,
     FunctionDeclarationNode,
@@ -37,6 +38,17 @@ def test_parser_preserves_arithmetic_precedence(parse):
     assert assignment.value.right.operator == TokenType.STAR
     assert assignment.value.right.left.value == 3
     assert assignment.value.right.right.value == 4
+
+
+def test_parser_builds_anonymous_function_node(parse):
+    program = parse("f = @(x, y) x.^2 + y;")
+
+    assignment = program.statements[0]
+
+    assert isinstance(assignment, AssignmentNode)
+    assert isinstance(assignment.value, AnonymousFunctionNode)
+    assert assignment.value.parameters == ["x", "y"]
+    assert isinstance(assignment.value.body, BinaryOpNode)
 
 
 def test_parser_builds_control_flow_and_function_nodes(parse):

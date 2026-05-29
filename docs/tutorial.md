@@ -669,7 +669,13 @@ Differences and gradients:
 y = [1 4 9 16];
 d = diff(y);
 g = gradient(y);
+
+M = [1 2 3; 4 5 6];
+[FX, FY] = gradient(M);
 ```
+
+`gradient` returns MATLAB-style x/y derivative outputs for matrices
+when you use multi-output assignment.
 
 Cumulative operations:
 
@@ -685,7 +691,21 @@ Integration and interpolation:
 x = [0 1 2];
 y = [0 1 0];
 area = trapz(x, y);
+rowArea = trapz([1 2 3; 4 5 6], 2);
 mid = interp1(x, y, 0.5);
+```
+
+Adaptive numerical integration uses MATLAB-style anonymous functions:
+
+```mathtool
+f = @(x) exp(-x.^2);
+q = integral(f, 0, 1);
+
+g = @(x,y) x.^2 + y.^2;
+q2 = integral2(g, 0, 1, 0, 1);
+
+ymax = @(x) 1 - x;
+tri = integral2(@(x,y) x + y, 0, 1, 0, ymax);
 ```
 
 FFT helpers:
@@ -932,6 +952,13 @@ syms x y
 expr = x ^ 2 + 2*x + 1;
 ```
 
+You can also create variables with function-call syntax:
+
+```mathtool
+syms("t", "u");
+x = sym("x");
+```
+
 Create exact symbolic values:
 
 ```mathtool
@@ -955,6 +982,26 @@ Substitute values:
 
 ```mathtool
 value = subs(x^2 + 1, x, 3);
+```
+
+Differentiate and integrate symbolic expressions:
+
+```mathtool
+x = sym("x");
+
+f = sin(x^2);
+df = diff(f, x);
+
+fourth = diff(x^6, x, 4);
+F = int(x^2, x);
+area = int(sin(x), x, 0, pi);
+```
+
+Symbolic arrays are handled element by element:
+
+```mathtool
+A = [x x^2; sin(x) cos(x)];
+dA = diff(A, x);
 ```
 
 Return coefficients:
