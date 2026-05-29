@@ -1,5 +1,6 @@
 import numpy as np
 
+from core.control import is_lti_model
 from core.runtime.formatting import format_value
 from core.runtime.symbolic import SymbolicValue
 
@@ -108,6 +109,36 @@ class VariableEditor(QWidget):
 
             self.table.blockSignals(False)
 
+            return
+
+        if is_lti_model(value):
+            properties = value.properties()
+            self.table.setRowCount(len(properties))
+            self.table.setColumnCount(2)
+            self.table.setHorizontalHeaderLabels(
+                ["Property", "Value"]
+            )
+
+            for row, (key, property_value) in enumerate(
+                properties.items()
+            ):
+                name_item = QTableWidgetItem(str(key))
+                value_item = QTableWidgetItem(
+                    self.format_display_value(
+                        property_value
+                    )
+                )
+                name_item.setFlags(
+                    name_item.flags() & ~Qt.ItemIsEditable
+                )
+                value_item.setFlags(
+                    value_item.flags() & ~Qt.ItemIsEditable
+                )
+                self.table.setItem(row, 0, name_item)
+                self.table.setItem(row, 1, value_item)
+
+            self.table.resizeColumnsToContents()
+            self.table.blockSignals(False)
             return
 
         # Scalar

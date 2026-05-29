@@ -40,6 +40,7 @@ from core.interpreter.return_exception import (
     ReturnException,
 )
 from core.errors.errors import RuntimeError
+from core.control import is_lti_model
 from core.runtime.call_stack import CallFrame
 from core.runtime.symbolic import (
     NameValueOption,
@@ -605,6 +606,9 @@ class Interpreter:
     def visit_FieldAccessNode(self, node):
         target = self.evaluate(node.target)
 
+        if is_lti_model(target):
+            return target.get_property(node.field_name)
+
         if not is_struct(target):
             raise RuntimeError(
                 f"Cannot access field '{node.field_name}' "
@@ -700,6 +704,18 @@ class Interpreter:
         node,
         value,
     ):
+        try:
+            target_value = self.evaluate(node.target)
+        except Exception:
+            target_value = None
+
+        if is_lti_model(target_value):
+            target_value.set_property(
+                node.field_name,
+                value,
+            )
+            return
+
         target = self.struct_for_field_write(
             node.target,
             node.line,

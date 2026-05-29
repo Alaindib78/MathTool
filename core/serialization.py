@@ -3,6 +3,7 @@ from numbers import Integral, Real
 
 import numpy as np
 
+from core.control import is_lti_model
 from core.runtime.context import RESERVED_CONSTANTS
 from core.runtime.formatting import format_value
 from core.runtime.symbolic import (
@@ -75,6 +76,17 @@ def serialize_value(value):
             "type": "option",
             "name": value.name,
             "value": serialize_value(value.value),
+        }
+
+    if is_lti_model(value):
+        return {
+            "type": "lti",
+            "model_type": value.model_type,
+            "class": type(value).__name__,
+            "properties": {
+                str(key): serialize_value(field_value)
+                for key, field_value in value.properties().items()
+            },
         }
 
     if isinstance(value, dict):
@@ -183,11 +195,16 @@ def serialize_workspace(
 
 def serialize_variable(name, value, *, display_format=None):
     serialized_value = serialize_value(value)
+    preview = (
+        value.workspace_preview()
+        if is_lti_model(value)
+        else format_value(value, display_format)
+    )
 
     return {
         "name": name,
         "value_type": serialized_value["type"],
-        "preview": format_value(value, display_format),
+        "preview": preview,
         "value": serialized_value,
     }
 

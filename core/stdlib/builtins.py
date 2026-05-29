@@ -2,6 +2,20 @@ import math
 import numpy as np
 import sympy as sp
 
+from core.control import (
+    StateSpaceModel,
+    TransferFunctionModel,
+    ZeroPoleGainModel,
+    bode_response,
+    impulse_response,
+    is_lti_model,
+    poles as control_poles,
+    step_response,
+    to_state_space,
+    to_transfer_function,
+    to_zero_pole_gain,
+    zeros as control_zeros,
+)
 from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.runtime.symbolic import (
     NameValueOption,
@@ -37,6 +51,25 @@ def builtin_disp(context, *args):
         output_callback=context.output_callback,
         display_format=context.display_format,
     )
+
+    return None
+
+
+def builtin_print(context, *args):
+    if not args:
+        disp(
+            "",
+            output_callback=context.output_callback,
+            display_format=context.display_format,
+        )
+        return None
+
+    for value in args:
+        disp(
+            value,
+            output_callback=context.output_callback,
+            display_format=context.display_format,
+        )
 
     return None
 
@@ -909,6 +942,212 @@ def builtin_conv(context, a, b):
     return np.convolve(_as_array(a), _as_array(b))
 
 
+def _split_lti_options(arguments):
+    positional = []
+    options = {}
+    option_names = {
+        "inputdelay",
+        "outputdelay",
+        "iodelay",
+        "io_delay",
+        "name",
+    }
+    index = 0
+
+    while index < len(arguments):
+        argument = arguments[index]
+
+        if isinstance(argument, NameValueOption):
+            options[argument.name.lower()] = argument.value
+            index += 1
+            continue
+
+        if (
+            isinstance(argument, str)
+            and argument.lower() in option_names
+        ):
+            if index + 1 >= len(arguments):
+                raise MathToolRuntimeError(
+                    f"lti: option '{argument}' requires a value"
+                )
+
+            options[argument.lower()] = arguments[index + 1]
+            index += 2
+            continue
+
+        positional.append(argument)
+        index += 1
+
+    normalized = {}
+    for name, value in options.items():
+        key = name.lower()
+
+        if key == "inputdelay":
+            normalized["input_delay"] = value
+        elif key == "outputdelay":
+            normalized["output_delay"] = value
+        elif key in {"iodelay", "io_delay"}:
+            normalized["io_delay"] = value
+        elif key == "name":
+            normalized["name"] = str(value)
+        else:
+            raise MathToolRuntimeError(
+                f"lti: unsupported option '{name}'"
+            )
+
+    return positional, normalized
+
+
+def builtin_tf(context, *arguments):
+    positional, options = _split_lti_options(arguments)
+
+    if len(positional) == 1 and is_lti_model(positional[0]):
+        if options:
+            raise MathToolRuntimeError(
+                "tf: options are not supported when converting an LTI model"
+            )
+        return to_transfer_function(positional[0])
+
+    if len(positional) in {1, 2} and isinstance(positional[0], str):
+        variable = positional[0].lower()
+        Ts = positional[1] if len(positional) == 2 else 0.0
+
+        if options:
+            raise MathToolRuntimeError(
+                "tf: options are not supported for transfer variables"
+            )
+
+        return TransferFunctionModel.variable(variable, Ts)
+
+    if len(positional) not in {2, 3}:
+        raise MathToolRuntimeError(
+            "tf: expected tf(num, den), tf(num, den, Ts), tf(sys), or tf('s')"
+        )
+
+    Ts = positional[2] if len(positional) == 3 else 0.0
+    return TransferFunctionModel(
+        positional[0],
+        positional[1],
+        Ts,
+        **options,
+    )
+
+
+def builtin_ss(context, *arguments):
+    positional, options = _split_lti_options(arguments)
+
+    if len(positional) == 1 and is_lti_model(positional[0]):
+        if options:
+            raise MathToolRuntimeError(
+                "ss: options are not supported when converting an LTI model"
+            )
+        return to_state_space(positional[0])
+
+    if len(positional) not in {4, 5}:
+        raise MathToolRuntimeError(
+            "ss: expected ss(A, B, C, D), ss(A, B, C, D, Ts), or ss(sys)"
+        )
+
+    Ts = positional[4] if len(positional) == 5 else 0.0
+    return StateSpaceModel(
+        positional[0],
+        positional[1],
+        positional[2],
+        positional[3],
+        Ts,
+        **options,
+    )
+
+
+def builtin_zpk(context, *arguments):
+    positional, options = _split_lti_options(arguments)
+
+    if len(positional) == 1 and is_lti_model(positional[0]):
+        if options:
+            raise MathToolRuntimeError(
+                "zpk: options are not supported when converting an LTI model"
+            )
+        return to_zero_pole_gain(positional[0])
+
+    if len(positional) not in {3, 4}:
+        raise MathToolRuntimeError(
+            "zpk: expected zpk(z, p, k), zpk(z, p, k, Ts), or zpk(sys)"
+        )
+
+    Ts = positional[3] if len(positional) == 4 else 0.0
+    return ZeroPoleGainModel(
+        positional[0],
+        positional[1],
+        positional[2],
+        Ts,
+        **options,
+    )
+
+
+def builtin_get(context, value):
+    if is_lti_model(value):
+        return value.properties()
+
+    if isinstance(value, dict):
+        return value
+
+    raise MathToolRuntimeError(
+        f"get: expected LTI model or struct, got {type(value).__name__}"
+    )
+
+
+def builtin_pole(context, model):
+    return control_poles(model)
+
+
+def builtin_zero(context, model):
+    return control_zeros(model)
+
+
+def _warn_if_delayed(context, function_name, model):
+    if is_lti_model(model) and model.has_delay():
+        warning(
+            "%s: model delays are stored but ignored by this analysis",
+            function_name,
+            output_callback=context.output_callback,
+        )
+
+
+def _plot_time_response(context, t, y, title_text, y_label):
+    context.plot_engine.figure()
+    context.plot_engine.plot(t, y)
+    context.plot_engine.title(title_text)
+    context.plot_engine.xlabel("Time (seconds)")
+    context.plot_engine.ylabel(y_label)
+    context.plot_engine.grid_on()
+
+
+def builtin_step(context, model, time=None):
+    _warn_if_delayed(context, "step", model)
+    t, y = step_response(model, time)
+    _plot_time_response(
+        context,
+        t,
+        y,
+        "Step Response",
+        "Amplitude",
+    )
+    return None
+
+
+def builtin_impulse(context, model, time=None):
+    _warn_if_delayed(context, "impulse", model)
+    t, y = impulse_response(model, time)
+    _plot_time_response(
+        context,
+        t,
+        y,
+        "Impulse Response",
+        "Amplitude",
+    )
+    return None
+
+
 def _polynomial_coefficients(function_name, argument_name, value):
     try:
         coefficients = np.asarray(
@@ -1073,7 +1312,46 @@ def _plot_nyquist_fallback(context, real_values, imag_values):
     context.plot_engine.grid_on()
 
 
-def builtin_bode(context, numerator, denominator, frequency=None):
+def builtin_bode(context, *arguments):
+    if arguments and is_lti_model(arguments[0]):
+        if len(arguments) > 2:
+            raise MathToolRuntimeError(
+                "bode: expected bode(sys) or bode(sys, w)"
+            )
+
+        model = arguments[0]
+        frequency = arguments[1] if len(arguments) == 2 else None
+        _warn_if_delayed(context, "bode", model)
+        frequency, magnitude_db, phase_deg = bode_response(
+            model,
+            frequency,
+        )
+
+        if hasattr(context.plot_engine, "bode"):
+            context.plot_engine.bode(
+                frequency,
+                magnitude_db,
+                phase_deg,
+            )
+        else:
+            _plot_bode_fallback(
+                context,
+                frequency,
+                magnitude_db,
+                phase_deg,
+            )
+
+        return None
+
+    if len(arguments) not in {2, 3}:
+        raise MathToolRuntimeError(
+            "bode: expected bode(sys), bode(sys, w), bode(num, den), or bode(num, den, w)"
+        )
+
+    numerator = arguments[0]
+    denominator = arguments[1]
+    frequency = arguments[2] if len(arguments) == 3 else None
+
     num, den = _validate_transfer_function(
         "bode",
         numerator,
@@ -1718,6 +1996,9 @@ def integer_prime_factors(value):
 
 
 def builtin_class(context, value):
+    if is_lti_model(value):
+        return value.model_type
+
     if is_symbolic(value):
         return "sym"
 
@@ -1837,6 +2118,7 @@ def converted_solution_dict(
 
 BUILTIN_FUNCTIONS = {
     "disp": builtin_disp,
+    "print": builtin_print,
     "fprintf": builtin_fprintf,
     "warning": builtin_warning,
     "error": builtin_error,
@@ -1957,6 +2239,14 @@ BUILTIN_FUNCTIONS = {
     "polyval": builtin_polyval,
     "polyfit": builtin_polyfit,
     "conv": builtin_conv,
+    "tf": builtin_tf,
+    "ss": builtin_ss,
+    "zpk": builtin_zpk,
+    "get": builtin_get,
+    "pole": builtin_pole,
+    "zero": builtin_zero,
+    "step": builtin_step,
+    "impulse": builtin_impulse,
     "bode": builtin_bode,
     "nyquist": builtin_nyquist,
 

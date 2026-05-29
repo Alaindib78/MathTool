@@ -51,6 +51,7 @@ from PySide6.QtCore import (
 )
 
 from core.engine import MathToolSession
+from core.control import is_lti_model
 from core.runtime.context import RESERVED_CONSTANTS
 from core.runtime.formatting import format_value, output_suffix
 from core.runtime.function_resolver import (
@@ -2490,6 +2491,9 @@ class MainWindow(QMainWindow):
             # Type
             type_name = type(value).__name__
 
+            if is_lti_model(value):
+                type_name = f"{value.model_type} model"
+
             if isinstance(value, SymbolicValue):
                 type_name = "sym"
 
@@ -2541,6 +2545,9 @@ class MainWindow(QMainWindow):
         return "1x1"
 
     def get_preview_text(self, value):
+        if is_lti_model(value):
+            return value.workspace_preview()
+
         text = format_value(
             value,
             self.context.display_format,

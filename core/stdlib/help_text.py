@@ -70,6 +70,16 @@ add(
     ["disp('Hello')", "disp([1 2; 3 4])"],
 )
 add(
+    "print",
+    "console",
+    "Display one or more values using readable MATLAB-style formatting.",
+    "print(value1, value2, ...)",
+    "valueN: any MathTool value.",
+    "Writes formatted text to the console. Returns no value.",
+    "Each argument is displayed on its own formatted block.",
+    ["print(tf(1.5, [1 14 40.02]))"],
+)
+add(
     "fprintf",
     "console",
     "Format and write text without adding an automatic newline.",
@@ -597,11 +607,98 @@ for name, summary, signature, inputs, output, options in [
     ("legend", "Create, show, hide, or remove the current axes legend.", ["legend()", "legend(label1, label2)", "legend(labels)", "legend('off')", "legend(..., 'Location', loc)"], "labels: optional string labels. Name/value options are optional.", "Returns a matplotlib legend handle when supported.", "Supports common MATLAB locations, horizontal orientation, font size, text color, and box on/off."),
     ("subplot", "Create or select axes in a tiled figure layout.", ["subplot(m, n, p)", "subplot(m, n, p, 'replace')", "subplot('Position', [left bottom width height])"], "m, n: grid size. p: one-based subplot index or rectangular span vector.", "Returns an axes handle when supported.", "Subsequent plot helper commands target the selected axes."),
     ("axis", "Set or query current axes limits, scaling, direction, and visibility.", ["axis()", "axis([xmin xmax ymin ymax])", "axis tight", "axis equal", "axis auto", "axis manual", "axis off"], "limits: numeric vector. option: style, mode, y direction, or visibility.", "Query form returns current limits. Set forms return no value.", "Supports common MATLAB options: auto, manual, auto x/y/xy, tight, padded, tickaligned, equal, image, square, fill, normal, vis3d, ij, xy, on, off."),
-    ("bode", "Plot Bode magnitude and phase diagrams for a transfer function.", ["bode(num, den)", "bode(num, den, w)"], "num, den: descending-power transfer-function coefficient vectors. w: optional frequency vector in rad/s.", "Creates magnitude and phase plots. Returns no value.", "When w is omitted, a logarithmic frequency range is chosen from poles and zeros."),
+    ("bode", "Plot Bode magnitude and phase diagrams for an LTI model or transfer function.", ["bode(sys)", "bode(sys, w)", "bode(num, den)", "bode(num, den, w)"], "sys: LTI model. num, den: descending-power coefficient vectors. w: optional frequency vector in rad/s.", "Creates magnitude and phase plots. Returns no value.", "LTI model analysis uses scipy.signal. Coefficient-vector form is kept for compatibility."),
     ("nyquist", "Plot a Nyquist diagram for a transfer function.", ["nyquist(num, den)", "nyquist(num, den, w)"], "num, den: descending-power transfer-function coefficient vectors. w: optional nonnegative frequency vector in rad/s.", "Creates a Nyquist plot. Returns no value.", "When w is omitted, a logarithmic frequency range is chosen from poles and zeros."),
 ]:
     examples = signature if isinstance(signature, list) else [signature]
     add(name, "plotting", summary, signature, inputs, output, options, examples)
+
+
+# Control systems
+for name, summary, signature, inputs, output, options, examples in [
+    (
+        "tf",
+        "Create or convert a SISO transfer-function LTI model.",
+        ["tf(num, den)", "tf(num, den, Ts)", "tf(sys)", "tf('s')"],
+        "num, den: numeric coefficient vectors or scalars. Ts: optional nonnegative sample time. sys: LTI model.",
+        "TransferFunctionModel object.",
+        "SISO only. tf('s') enables transfer-variable arithmetic.",
+        ["sys = tf(1.5, [1 14 40.02])", "s = tf('s'); G = 1/(s + 1)"],
+    ),
+    (
+        "ss",
+        "Create or convert a state-space LTI model.",
+        ["ss(A, B, C, D)", "ss(A, B, C, D, Ts)", "ss(sys)"],
+        "A, B, C, D: state-space matrices. Ts: optional nonnegative sample time. sys: LTI model.",
+        "StateSpaceModel object.",
+        "A must be square; dimensions must match state-space equations.",
+        ["sys = ss(A, B, C, D)", "tf_sys = tf(sys)"],
+    ),
+    (
+        "zpk",
+        "Create or convert a zero-pole-gain LTI model.",
+        ["zpk(z, p, k)", "zpk(z, p, k, Ts)", "zpk(sys)"],
+        "z: zero vector. p: pole vector. k: scalar gain. Ts: optional nonnegative sample time. sys: LTI model.",
+        "ZeroPoleGainModel object.",
+        "SISO only for conversion to transfer function.",
+        ["sys = zpk([], [-9.996 -4.004], 1.5)"],
+    ),
+    (
+        "get",
+        "Return readable properties for an LTI model or struct.",
+        "get(sys)",
+        "sys: LTI model or struct.",
+        "Struct-like dictionary of properties.",
+        "LTI properties are read-only in the variable editor initially.",
+        ["get(sys)", "sys.A"],
+    ),
+    (
+        "pole",
+        "Return poles of an LTI model.",
+        "pole(sys)",
+        "sys: LTI model.",
+        "Vector of pole locations.",
+        "State-space poles are eigenvalues of A.",
+        ["p = pole(sys)"],
+    ),
+    (
+        "zero",
+        "Return zeros of an LTI model.",
+        "zero(sys)",
+        "sys: LTI model.",
+        "Vector of zero locations.",
+        "State-space zeros are computed by converting to transfer function.",
+        ["z = zero(sys)"],
+    ),
+    (
+        "step",
+        "Plot the step response of an LTI model.",
+        ["step(sys)", "step(sys, t)"],
+        "sys: LTI model. t: optional time vector.",
+        "Creates a time-domain response plot. Returns no value.",
+        "Uses scipy.signal.step or scipy.signal.dstep.",
+        ["step(sys)"],
+    ),
+    (
+        "impulse",
+        "Plot the impulse response of an LTI model.",
+        ["impulse(sys)", "impulse(sys, t)"],
+        "sys: LTI model. t: optional time vector.",
+        "Creates a time-domain response plot. Returns no value.",
+        "Uses scipy.signal.impulse or scipy.signal.dimpulse.",
+        ["impulse(sys)"],
+    ),
+]:
+    add(
+        name,
+        "control systems",
+        summary,
+        signature,
+        inputs,
+        output,
+        options,
+        examples,
+    )
 
 
 # Symbolic and type helpers

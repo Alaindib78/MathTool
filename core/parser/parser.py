@@ -1292,6 +1292,25 @@ class Parser:
     def matrix_expression(self):
         start = self.matrix_atom()
 
+        while self.match(
+            TokenType.STAR,
+            TokenType.SLASH,
+            TokenType.MODULO,
+            TokenType.DOTSTAR,
+            TokenType.DOTSLASH,
+            TokenType.CARET,
+            TokenType.DOTCARET,
+        ):
+            operator = self.previous()
+            right = self.matrix_atom()
+            start = BinaryOpNode(
+                start,
+                operator.type,
+                right,
+                operator.line,
+                operator.column,
+            )
+
         if (
             self.check(TokenType.PLUS)
             or self.check(TokenType.MINUS)

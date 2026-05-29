@@ -2,18 +2,18 @@
 id: tutorial
 title: Tutorial
 category: Getting Started
-summary: A step-by-step, example-heavy tour of MathTool's language, IDE, plotting, functions, workspace, debugging, help system, and API.
-keywords: tutorial, getting started, guide, examples, matlab, ide, plotting, matrices, functions, symbolic, api
+summary: A step-by-step, example-heavy tour of MathTool's language, IDE, plotting, LTI systems, functions, workspace, debugging, help system, and API.
+keywords: tutorial, getting started, guide, examples, matlab, ide, plotting, plot helpers, lti, control systems, matrices, functions, symbolic, api
 aliases: getting started, user guide, full tutorial
-related: language-basics, variables, matrices, functions, plotting-guide, workspace, debugging, repl, help-system
+related: language-basics, variables, matrices, functions, plotting-guide, control-lti, workspace, debugging, repl, help-system
 ---
 
 # MathTool Tutorial
 
 This tutorial walks through MathTool as a MATLAB-like scientific IDE.
-It covers the language, the desktop interface, plotting, the command
-window, scripts, functions, matrices, structs, symbolic math, help,
-debugging, and the API.
+It covers the language, the desktop interface, plotting, LTI control
+systems, the command window, scripts, functions, matrices, structs,
+symbolic math, help, debugging, and the API.
 
 The examples are written in MathTool syntax. You can run them from:
 
@@ -1151,7 +1151,154 @@ close(2);
 close all;
 ```
 
-### Control-System Plots
+### Plot Helpers
+
+MathTool includes MATLAB-style helpers for making plots easier to
+read and compare.
+
+Use custom ticks, labels, reference lines, legends, and axis limits:
+
+```mathtool
+x = 0:0.1:10;
+y1 = sin(x);
+y2 = cos(x);
+
+figure(1);
+plot(x, y1, x, y2);
+title("Ticks, labels, reference lines, and legend");
+xlabel("x");
+ylabel("value");
+
+xticks([0 2 4 6 8 10]);
+xticklabels("zero", "two", "four", "six", "eight", "ten");
+
+yticks([-1 0 1]);
+yticklabels("low", "zero", "high");
+
+xline(3, "--r", "x = 3");
+yline(0, ":k", "zero");
+
+legend("sin(x)", "cos(x)", "Location", "northeast");
+axis([0 10 -1.5 1.5]);
+```
+
+Use `subplot` to build stacked or tiled views:
+
+```mathtool
+figure(2);
+
+subplot(2, 1, 1);
+plot(x, y1);
+title("Sine");
+yline(0);
+axis tight;
+
+subplot(2, 1, 2);
+plot(x, y2);
+title("Cosine");
+xline(5);
+axis equal;
+```
+
+Useful axis commands include:
+
+```mathtool
+axis tight;
+axis equal;
+axis auto;
+axis manual;
+axis off;
+axis on;
+axis([0 10 -1.5 1.5]);
+```
+
+See `examples/plot_helpers_example.m` for a runnable plot-helper
+script.
+
+### LTI Control Systems
+
+MathTool supports a first MATLAB-style subset of Linear
+Time-Invariant (LTI) models using `ss`, `tf`, and `zpk`.
+
+Create a transfer-function model:
+
+```mathtool
+sys = tf(1.5, [1 14 40.02]);
+print(sys);
+
+p = pole(sys);
+z = zero(sys);
+```
+
+Plot time and frequency responses in the embedded plot area:
+
+```mathtool
+step(sys);
+impulse(sys);
+bode(sys);
+```
+
+Create and convert a state-space model:
+
+```mathtool
+R = 2.0;
+L = 0.5;
+Km = 0.015;
+Kb = 0.015;
+Kf = 0.2;
+J = 0.02;
+
+A = [-R/L -Kb/L;
+      Km/J -Kf/J];
+B = [1/L; 0];
+C = [0 1];
+D = [0];
+
+sys_dc = ss(A, B, C, D);
+print(sys_dc);
+
+sys_tf = tf(sys_dc);
+sys_zpk = zpk(sys_dc);
+
+A_matrix = sys_dc.A;
+Ts = sys_dc.Ts;
+props = get(sys_dc);
+```
+
+Create a zero-pole-gain model:
+
+```mathtool
+sys_z = zpk([], [-9.996 -4.004], 1.5);
+tf_sys = tf(sys_z);
+```
+
+Discrete-time systems use a positive sample time:
+
+```mathtool
+sysd = tf(1, [1 1], 0.01);
+print(sysd);
+step(sysd);
+```
+
+You can also use the transfer variable `s` for SISO transfer-function
+arithmetic:
+
+```mathtool
+s = tf("s");
+G = 1.5 / (s^2 + 14*s + 40.02);
+print(G);
+step(G);
+```
+
+Conversions and response calculations use `scipy.signal` internally.
+Current LTI limits are intentionally modest: transfer functions are
+SISO, state-space response/conversion currently requires SISO, and
+delays are stored but not simulated.
+
+See `examples/lti_systems_example.m` and `docs/control-lti.md` for a
+longer runnable walkthrough.
+
+### Coefficient-Vector Control Plots
 
 ```mathtool
 num = [1];
@@ -1334,6 +1481,8 @@ The `examples/` folder contains runnable scripts. Good starting points:
 
 ```text
 examples/matlab_style_plot_example.m
+examples/plot_helpers_example.m
+examples/lti_systems_example.m
 examples/hex_binary_integer_literals_example.m
 examples/sudoku_solver_example.m
 examples/figure_close_example.m
@@ -1531,6 +1680,11 @@ MathTool is MATLAB-like, not a full MATLAB clone. Important limits:
 - Full graphics object handles are not implemented.
 - Table and timetable plotting are not implemented.
 - Advanced axes targeting such as `plot(ax, ...)` is not implemented.
+- LTI transfer-function arithmetic is SISO only.
+- LTI delays can be stored and displayed, but response analysis ignores
+  them with a warning.
+- Advanced control-design tools such as `feedback`, `lsim`, and `damp`
+  are not implemented yet.
 - Struct arrays are focused on one-dimensional field access patterns.
 - Most numeric arrays are backed by Python and NumPy behavior.
 - Symbolic math uses SymPy underneath and may format results differently
@@ -1567,6 +1721,12 @@ lookfor keyword
 7. Add breakpoints to a loop and watch the workspace update as the
    script runs.
 
+8. Run `examples/plot_helpers_example.m`, then change the reference
+   lines, tick labels, and legend location.
+
+9. Create `s = tf("s")`, build `G = 1 / (s + 1)`, and plot its step
+   and Bode responses.
+
 ## 34. Quick Reference
 
 ```mathtool
@@ -1598,6 +1758,20 @@ ylabel("y");
 grid on;
 hold on;
 hold off;
+xline(0, "--k");
+yline(0, ":k");
+legend("signal");
+subplot(2, 1, 1);
+axis tight;
+
+% LTI systems
+sys = tf(1.5, [1 14 40.02]);
+p = pole(sys);
+z = zero(sys);
+step(sys);
+bode(sys);
+s = tf("s");
+G = 1 / (s + 1);
 
 % Functions
 function y = square(x)
