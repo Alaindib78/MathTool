@@ -191,6 +191,16 @@ warning("Temperature %.1f is high", 91.5);
 error("File %s not found", "data.csv");
 ```
 
+Request interactive input:
+
+```mathtool
+x = input("Value? ");
+name = input("Name? ", "s");
+```
+
+`input(prompt)` evaluates the response as a MathTool expression in the
+current workspace. `input(prompt, "s")` returns the text exactly as typed.
+
 ## 5. Numeric Literals
 
 ### Decimal Numbers

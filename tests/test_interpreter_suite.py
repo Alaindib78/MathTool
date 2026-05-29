@@ -724,6 +724,42 @@ row_area = trapz(M, 2);
     )
 
 
+def test_interpreter_supports_matlab_style_input(execute):
+    context = RuntimeContext()
+    responses = iter([
+        "base + 2",
+        "hello there",
+        "",
+        "not valid",
+        "41",
+    ])
+    output = []
+
+    context.input_callback = lambda prompt: next(responses)
+    context.output_callback = output.append
+
+    _, context = execute(
+        """
+base = 40;
+x = input("value? ");
+txt = input("text? ", "s");
+empty = input("empty? ");
+retry = input("retry? ");
+""",
+        context=context,
+        analyze=True,
+    )
+
+    assert context.variables["x"] == 42
+    assert context.variables["txt"] == "hello there"
+    assert context.variables["empty"].size == 0
+    assert context.variables["retry"] == 41
+    assert any(
+        "Undefined" in message
+        for message in output
+    )
+
+
 def test_interpreter_sym_preserves_exact_text(execute):
     _, context = execute(
         """

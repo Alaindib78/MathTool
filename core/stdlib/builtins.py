@@ -75,6 +75,7 @@ from core.runtime.symbolic import (
     to_sympy_expression,
 )
 from core.runtime.struct import MatlabStruct
+from core.runtime.user_input import request_user_input
 from core.stdlib.console import (
     disp,
     error as console_error,
@@ -142,6 +143,14 @@ def builtin_error(context, message, *args):
         message,
         *args,
         output_callback=context.output_callback,
+    )
+
+
+def builtin_input(context, prompt, mode=None):
+    return request_user_input(
+        context,
+        prompt,
+        mode,
     )
 
 
@@ -2581,6 +2590,7 @@ BUILTIN_FUNCTIONS = {
     "fprintf": builtin_fprintf,
     "warning": builtin_warning,
     "error": builtin_error,
+    "input": builtin_input,
     "format": builtin_format,
     "formatsettings": builtin_formatsettings,
     "help": builtin_help,

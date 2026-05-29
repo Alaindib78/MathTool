@@ -110,6 +110,16 @@ add(
     ["error('File %s not found', 'data.csv')"],
 )
 add(
+    "input",
+    "console",
+    "Request user input from the command window.",
+    ["x = input(prompt)", "txt = input(prompt, 's')"],
+    "prompt: string displayed to the user. 's': optional text mode.",
+    "Evaluated value, empty matrix for blank input, or raw text in 's' mode.",
+    "Without 's', the response is evaluated as a MathTool expression in the current workspace and invalid expressions re-prompt.",
+    ["x = input('Value? ')", "txt = input('Name? ', 's')"],
+)
+add(
     "help",
     "console",
     "Show documentation for a function or list available help topics.",

@@ -9,6 +9,7 @@ from core.semantic.semantic_analyzer import SemanticAnalyzer
 
 
 _DEFAULT_OUTPUT_CALLBACK = object()
+_DEFAULT_INPUT_CALLBACK = object()
 
 
 @dataclass
@@ -56,27 +57,29 @@ class MathToolSession:
         *,
         source_path=None,
         output_callback=_DEFAULT_OUTPUT_CALLBACK,
+        input_callback=_DEFAULT_INPUT_CALLBACK,
         allow_commands=False,
         allow_script_commands=False,
     ):
-        with self.output_routing(output_callback) as output:
-            if allow_commands:
-                command_result = self.execute_command(
-                    source
+        with self.input_routing(input_callback):
+            with self.output_routing(output_callback) as output:
+                if allow_commands:
+                    command_result = self.execute_command(
+                        source
+                    )
+
+                    if command_result is not None:
+                        command_result.output = output
+                        return command_result
+
+                result = self.execute_program(
+                    source,
+                    source_path=source_path,
+                    allow_script_commands=allow_script_commands,
                 )
 
-                if command_result is not None:
-                    command_result.output = output
-                    return command_result
-
-            result = self.execute_program(
-                source,
-                source_path=source_path,
-                allow_script_commands=allow_script_commands,
-            )
-
-            result.output = output
-            return result
+                result.output = output
+                return result
 
     def execute_program(
         self,
@@ -264,6 +267,12 @@ class MathToolSession:
             output_callback,
         )
 
+    def input_routing(self, input_callback):
+        return InputRouting(
+            self.context,
+            input_callback,
+        )
+
 
 class OutputRouting:
     def __init__(
@@ -303,6 +312,39 @@ class OutputRouting:
         traceback,
     ):
         self.context.output_callback = (
+            self.previous_callback
+        )
+
+        return False
+
+
+class InputRouting:
+    def __init__(
+        self,
+        context,
+        input_callback,
+    ):
+        self.context = context
+        self.input_callback = input_callback
+        self.previous_callback = None
+
+    def __enter__(self):
+        self.previous_callback = (
+            self.context.input_callback
+        )
+
+        if self.input_callback is not _DEFAULT_INPUT_CALLBACK:
+            self.context.input_callback = self.input_callback
+
+        return self.context.input_callback
+
+    def __exit__(
+        self,
+        exc_type,
+        exc_value,
+        traceback,
+    ):
+        self.context.input_callback = (
             self.previous_callback
         )
 

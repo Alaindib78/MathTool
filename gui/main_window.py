@@ -1313,6 +1313,10 @@ class MainWindow(QMainWindow):
             self.route_output
         )
 
+        self.execution_worker.input_requested.connect(
+            self.on_input_requested
+        )
+
         self.execution_worker.workspace_updated.connect(
             self.refresh_workspace
         )
@@ -1346,6 +1350,20 @@ class MainWindow(QMainWindow):
         # ---------------------------------
 
         self.execution_thread.start()
+
+    def on_input_requested(self, prompt):
+        text, ok = QInputDialog.getText(
+            self,
+            "Input",
+            str(prompt),
+        )
+
+        response = text if ok else ""
+
+        if self.execution_worker is not None:
+            self.execution_worker.submit_input_response(
+                response
+            )
 
     def on_execution_finished(self, result):
         self.clear_debug_highlights()
@@ -3138,6 +3156,11 @@ class MainWindow(QMainWindow):
 
         result = self.session.execute(
             source,
+            input_callback=getattr(
+                self,
+                "prompt_for_input",
+                None,
+            ),
             allow_commands=True,
             allow_script_commands=True,
         )
@@ -3172,6 +3195,18 @@ class MainWindow(QMainWindow):
                 self.update_runtime_path_ui()
 
         return result.value
+
+    def prompt_for_input(self, prompt):
+        text, ok = QInputDialog.getText(
+            self,
+            "Input",
+            str(prompt),
+        )
+
+        if not ok:
+            return ""
+
+        return text
 
     def route_output(self, text):
         text = str(text)

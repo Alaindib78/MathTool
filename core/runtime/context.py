@@ -73,6 +73,8 @@ class RuntimeContext:
 
         self.output_callback = None
 
+        self.input_callback = None
+
         self.debugger = None
 
     def set_variable(self, name, value):
@@ -104,6 +106,8 @@ class RuntimeContext:
         child.display_format = self.display_format
 
         child.output_callback = self.output_callback
+
+        child.input_callback = self.input_callback
 
         child.debugger = self.debugger
 

@@ -54,6 +54,7 @@ class FunctionHandle:
             parent.path_changed_callback
         )
         child.output_callback = parent.output_callback
+        child.input_callback = parent.input_callback
         child.debugger = parent.debugger
 
         return child
