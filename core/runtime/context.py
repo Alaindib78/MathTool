@@ -5,6 +5,7 @@ from pathlib import Path
 
 from core.stdlib.registery import FunctionRegistry
 from core.stdlib.builtins import BUILTIN_FUNCTIONS
+from core.calculus import default_symbolic_preferences
 from core.plotting.engine import PlotEngine
 from core.runtime.call_stack import CallStack
 from core.runtime.function_resolver import FileFunctionResolver
@@ -43,6 +44,8 @@ class RuntimeContext:
         self.call_stack = CallStack()
 
         self.display_format = DisplayFormatManager()
+
+        self.symbolic_preferences = default_symbolic_preferences()
 
         for name, func in BUILTIN_FUNCTIONS.items():
             self.functions.register_builtin(name, func)
@@ -104,6 +107,8 @@ class RuntimeContext:
         child.call_stack = self.call_stack
 
         child.display_format = self.display_format
+
+        child.symbolic_preferences = self.symbolic_preferences
 
         child.output_callback = self.output_callback
 

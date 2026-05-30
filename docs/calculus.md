@@ -54,6 +54,59 @@ M = [sin(x)/x 1/x; x^2 cos(x)];
 LM = limit(M, x, 0, "right");
 ```
 
+## Symbolic Transforms
+
+MathTool supports MATLAB-style symbolic transform helpers:
+
+```mathtool
+syms t s x w n z
+
+F = laplace(sin(t), t, s);
+f = ilaplace(1/s^2, s, t);
+
+G = fourier(exp(-x^2), x, w);
+g = ifourier(exp(-w^2/4), w, x);
+
+Z = ztrans(2^n, n, z);
+seq = iztrans(2*z/(z - 2)^2, z, n);
+```
+
+Default variables follow MATLAB conventions: `laplace` uses `t` to `s`,
+`ilaplace` uses `s` to `t`, `fourier` uses the first symbolic variable
+to `w`, `ifourier` uses `w` to `x`, `ztrans` uses `n` to `z`, and
+`iztrans` uses `z` to `n`.
+
+All transform helpers support scalar expansion and element-wise symbolic
+arrays:
+
+```mathtool
+syms x y a b c d w z
+M = [exp(x) 1; sin(y) 1i*z];
+vars = [w x; y z];
+transVars = [a b; c d];
+
+L = laplace(M, vars, transVars);
+```
+
+Distribution helpers are available for symbolic transform workflows:
+
+```mathtool
+dirac(t)
+heaviside(t)
+kroneckerDelta(n, 0)
+```
+
+Fourier preferences can be stored with `sympref`:
+
+```mathtool
+sympref("FourierParameters", [1 1]);
+sympref("FourierParameters", "default");
+```
+
+The default Fourier parameters `[1 -1]` are the most thoroughly
+supported. Difficult transforms return an unevaluated symbolic call such
+as `laplace(f(t), t, s)` instead of aborting execution.
+
 Symbolic math is powered by SymPy, so simplification and formatting can
 differ from MATLAB.
 
@@ -108,6 +161,11 @@ M = [1 2 3; 4 5 6];
 - Symbolic assumptions are limited.
 - Multivariable limits are not full path-independent limits; apply
   iterated single-variable limits explicitly.
+- Some symbolic transforms remain unevaluated when SymPy cannot solve
+  them. Fourier preference support beyond the default parameters is
+  best-effort.
+- `ztrans` uses unilateral symbolic summation. `iztrans` supports common
+  rational forms using residues and may leave harder inputs unevaluated.
 - `Name=Value` parser syntax is supported where MathTool already parses
   it; string/value pairs such as `"AbsTol", 1e-12` are also supported.
 - `integral2("Method","tiled")` maps to the current SciPy-backed

@@ -55,9 +55,20 @@ from core.calculus import (
     numerical_gradient,
     numerical_integral,
     numerical_integral2,
+    symbolic_dirac,
     symbolic_diff,
+    symbolic_fourier,
+    symbolic_heaviside,
+    symbolic_ifourier,
+    symbolic_ilaplace,
     symbolic_integral,
+    symbolic_iztrans,
+    symbolic_kronecker_delta,
+    symbolic_laplace,
     symbolic_limit,
+    symbolic_rectangular_pulse,
+    symbolic_triangular_pulse,
+    symbolic_ztrans,
     trapezoidal_integral,
 )
 from core.errors.errors import RuntimeError as MathToolRuntimeError
@@ -893,6 +904,54 @@ def builtin_int(context, value, *arguments):
 
 def builtin_limit(context, value, *arguments):
     return symbolic_limit(value, *arguments)
+
+
+def builtin_laplace(context, value, *arguments):
+    return symbolic_laplace(
+        value,
+        *arguments,
+        preferences=context.symbolic_preferences,
+    )
+
+
+def builtin_ilaplace(context, value, *arguments):
+    return symbolic_ilaplace(
+        value,
+        *arguments,
+        preferences=context.symbolic_preferences,
+    )
+
+
+def builtin_fourier(context, value, *arguments):
+    return symbolic_fourier(
+        value,
+        *arguments,
+        preferences=context.symbolic_preferences,
+    )
+
+
+def builtin_ifourier(context, value, *arguments):
+    return symbolic_ifourier(
+        value,
+        *arguments,
+        preferences=context.symbolic_preferences,
+    )
+
+
+def builtin_ztrans(context, value, *arguments):
+    return symbolic_ztrans(
+        value,
+        *arguments,
+        preferences=context.symbolic_preferences,
+    )
+
+
+def builtin_iztrans(context, value, *arguments):
+    return symbolic_iztrans(
+        value,
+        *arguments,
+        preferences=context.symbolic_preferences,
+    )
 
 
 def builtin_integral(context, fun, xmin, xmax, *arguments):
@@ -2211,6 +2270,87 @@ def builtin_symvar(context, value):
     )
 
 
+def builtin_dirac(context, value):
+    return symbolic_dirac(value)
+
+
+def builtin_heaviside(context, value):
+    return symbolic_heaviside(value)
+
+
+def builtin_kroneckerdelta(context, left, right):
+    return symbolic_kronecker_delta(left, right)
+
+
+def builtin_rectangularpulse(context, *arguments):
+    return symbolic_rectangular_pulse(*arguments)
+
+
+def builtin_triangularpulse(context, *arguments):
+    return symbolic_triangular_pulse(*arguments)
+
+
+def builtin_sympref(context, name=None, value=None):
+    if name is None:
+        return {
+            key: np.array(values, dtype=object)
+            if isinstance(values, tuple)
+            else values
+            for key, values in context.symbolic_preferences.items()
+        }
+
+    normalized = str(name).strip().lower()
+
+    if normalized == "default":
+        context.symbolic_preferences.clear()
+        context.symbolic_preferences.update(
+            {
+                "FourierParameters": (
+                    sp.Integer(1),
+                    sp.Integer(-1),
+                )
+            }
+        )
+        return None
+
+    if normalized != "fourierparameters":
+        raise MathToolRuntimeError(
+            f"sympref: unsupported preference '{name}'"
+        )
+
+    if value is None:
+        return np.array(
+            context.symbolic_preferences["FourierParameters"],
+            dtype=object,
+        )
+
+    if isinstance(value, str):
+        if value.strip().lower() != "default":
+            raise MathToolRuntimeError(
+                'sympref: FourierParameters must be a two-element vector or "default"'
+            )
+
+        context.symbolic_preferences["FourierParameters"] = (
+            sp.Integer(1),
+            sp.Integer(-1),
+        )
+        return None
+
+    values = as_sequence(value)
+
+    if len(values) != 2:
+        raise MathToolRuntimeError(
+            'sympref: FourierParameters must be a two-element vector or "default"'
+        )
+
+    context.symbolic_preferences["FourierParameters"] = (
+        to_sympy_expression(values[0]),
+        to_sympy_expression(values[1]),
+    )
+
+    return None
+
+
 def builtin_pretty(context, value):
     text = sp.pretty(to_sympy_expression(value))
 
@@ -2708,6 +2848,12 @@ BUILTIN_FUNCTIONS = {
     "gradient": builtin_gradient,
     "int": builtin_int,
     "limit": builtin_limit,
+    "laplace": builtin_laplace,
+    "ilaplace": builtin_ilaplace,
+    "fourier": builtin_fourier,
+    "ifourier": builtin_ifourier,
+    "ztrans": builtin_ztrans,
+    "iztrans": builtin_iztrans,
     "integral": builtin_integral,
     "integral2": builtin_integral2,
     "cumsum": builtin_cumsum,
@@ -2807,6 +2953,12 @@ BUILTIN_FUNCTIONS = {
     "complex": builtin_complex,
     "solve": builtin_solve,
     "symvar": builtin_symvar,
+    "dirac": builtin_dirac,
+    "heaviside": builtin_heaviside,
+    "kroneckerDelta": builtin_kroneckerdelta,
+    "rectangularPulse": builtin_rectangularpulse,
+    "triangularPulse": builtin_triangularpulse,
+    "sympref": builtin_sympref,
     "pretty": builtin_pretty,
     "simplify": builtin_simplify,
     "collect": builtin_collect,

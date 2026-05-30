@@ -946,8 +946,20 @@ for symbolic_entry in [
     ("class", "Return MathTool type/class name.", "class(value)", "value: any MathTool value.", "Class string such as double, char, logical, sym, or struct.", "No options.", ["class([1 2])"]),
     ("int", "Integrate symbolic expressions.", ["int(expr)", "int(expr,var)", "int(expr,a,b)", "int(expr,var,a,b)"], "expr: symbolic expression or symbolic array. var: optional symbolic variable. a,b: optional bounds.", "Symbolic antiderivative or definite integral.", "Hold=true returns an unevaluated symbolic integral. MATLAB analytic-constraint flags are accepted as best-effort options.", ["int(x^2, x)", "int(sin(x), x, 0, pi)"]),
     ("limit", "Compute MATLAB-style symbolic limits.", ["limit(expr)", "limit(expr,a)", "limit(expr,var,a)", "limit(expr,var,a,'left')", "limit(expr,var,a,'right')"], "expr: symbolic expression or symbolic array. var: optional symbolic variable. a: limit point such as 0, Inf, -Inf, or a symbolic expression.", "Symbolic limit result, or symbolic array with limits applied element-wise.", "Two-sided limits compare left and right limits and return NaN when they differ. Assumptions and full multivariable path limits are limited by SymPy support.", ["limit(sin(x)/x)", "limit(1/x, x, 0, 'right')", "limit(x/abs(x), x, 0)", "limit([(1+a/x)^x exp(-x)], x, Inf)"], ["diff", "int", "sym", "syms", "symvar", "simplify"]),
+    ("laplace", "Compute the symbolic Laplace transform.", ["laplace(f)", "laplace(f,transVar)", "laplace(f,var,transVar)"], "f: symbolic-compatible expression or array. var: optional independent variable. transVar: optional transform variable.", "Symbolic transform, element-wise array of transforms, or an unevaluated laplace call.", "Defaults are t to s; if t is absent MathTool uses symvar-style variable selection. SymPy may leave difficult transforms unevaluated.", ["laplace(sin(t), t, s)", "laplace(exp(-2*t))"], ["ilaplace", "fourier", "ztrans", "diff", "int", "limit", "sympref"]),
+    ("ilaplace", "Compute the inverse symbolic Laplace transform.", ["ilaplace(F)", "ilaplace(F,transVar)", "ilaplace(F,var,transVar)"], "F: symbolic-compatible expression or array. var: optional transform-domain variable. transVar: optional output variable.", "Symbolic inverse transform, element-wise array, or an unevaluated ilaplace call.", "Defaults are s to t; unilateral Laplace behavior follows SymPy and may differ from MATLAB for assumptions.", ["ilaplace(1/s^2, s, t)", "ilaplace(1/(s + 2))"], ["laplace", "fourier", "ifourier", "simplify"]),
+    ("fourier", "Compute the symbolic Fourier transform.", ["fourier(f)", "fourier(f,transVar)", "fourier(f,var,transVar)"], "f: symbolic-compatible expression or array. var: optional independent variable. transVar: optional frequency variable.", "Symbolic Fourier transform, element-wise array, or an unevaluated fourier call.", "Uses MATLAB-like default Fourier parameters [1 -1]. sympref can store alternate parameters, but some results depend on SymPy support.", ["fourier(exp(-x^2), x, w)", "fourier(f, w)"], ["ifourier", "laplace", "sympref", "simplify"]),
+    ("ifourier", "Compute the inverse symbolic Fourier transform.", ["ifourier(F)", "ifourier(F,transVar)", "ifourier(F,var,transVar)"], "F: symbolic-compatible expression or array. var: optional frequency variable. transVar: optional output variable.", "Symbolic inverse Fourier transform, element-wise array, or an unevaluated ifourier call.", "Defaults are w to x. Parameterized Fourier preferences are best-effort.", ["ifourier(exp(-w^2/4), w, x)"], ["fourier", "laplace", "sympref", "simplify"]),
+    ("ztrans", "Compute the unilateral symbolic Z-transform.", ["ztrans(f)", "ztrans(f,transVar)", "ztrans(f,var,transVar)"], "f: symbolic-compatible sequence expression or array. var: optional sequence variable. transVar: optional transform variable.", "Symbolic Z-transform, element-wise array, or an unevaluated ztrans call.", "Defaults are n to z. Implemented with symbolic summation, so difficult sequences may remain unevaluated.", ["ztrans(2^n, n, z)", "ztrans(n, n, z)"], ["iztrans", "laplace", "fourier", "simplify"]),
+    ("iztrans", "Compute the inverse symbolic Z-transform.", ["iztrans(F)", "iztrans(F,transVar)", "iztrans(F,var,transVar)"], "F: symbolic-compatible transform expression or array. var: optional transform-domain variable. transVar: optional sequence variable.", "Symbolic inverse Z-transform, element-wise array, or an unevaluated iztrans call.", "Defaults are z to n. Common rational forms are handled by residues; unsupported forms stay unevaluated.", ["iztrans(z/(z-2), z, n)", "iztrans(2*z/(z-2)^2, z, n)"], ["ztrans", "simplify", "symvar"]),
     ("solve", "Solve symbolic equations.", "solve(equations, variables, Name=Value)", "equations: symbolic equation(s). variables: optional symbolic variable(s).", "Symbolic solution, vector of solutions, or struct mapping variable names to solutions.", "Supports Real=true to filter real-valued solutions.", ["solve(x^2 - 1 == 0, x)", "solve(eqns, [u v], Real=true)"]),
     ("symvar", "List symbolic variables present in an expression.", "symvar(value)", "value: symbolic expression, equation, or array of either.", "Vector of symbolic variables.", "Variables are sorted with x, y, z, t preferred first.", ["symvar(x + y)"]),
+    ("dirac", "Create a symbolic Dirac delta expression.", "dirac(x)", "x: symbolic-compatible scalar or array.", "Symbolic Dirac delta expression.", "Maps to SymPy DiracDelta and displays as dirac.", ["dirac(t - a)"], ["laplace", "ilaplace", "heaviside"]),
+    ("heaviside", "Create a symbolic Heaviside step expression.", "heaviside(x)", "x: symbolic-compatible scalar or array.", "Symbolic Heaviside expression.", "Maps to SymPy Heaviside and displays as heaviside.", ["heaviside(t - a)"], ["laplace", "ilaplace", "dirac"]),
+    ("kroneckerDelta", "Create a symbolic Kronecker delta expression.", "kroneckerDelta(n,k)", "n, k: symbolic-compatible scalar or array values.", "Symbolic Kronecker delta expression.", "Nonscalar arguments use scalar expansion when sizes are compatible.", ["kroneckerDelta(n, 0)"], ["ztrans", "iztrans"]),
+    ("rectangularPulse", "Create a symbolic rectangular pulse expression.", ["rectangularPulse(x)", "rectangularPulse(a,b,x)"], "x: symbolic variable or expression. a,b: optional interval endpoints.", "Piecewise symbolic rectangular pulse.", "The one-argument form uses the interval [-1/2, 1/2].", ["rectangularPulse(t)", "rectangularPulse(0, 1, t)"], ["triangularPulse", "heaviside"]),
+    ("triangularPulse", "Create a symbolic triangular pulse expression.", ["triangularPulse(x)", "triangularPulse(a,b,c,x)"], "x: symbolic variable or expression. a,b,c: optional left, center, and right points.", "Piecewise symbolic triangular pulse.", "The one-argument form uses left -1, center 0, and right 1.", ["triangularPulse(t)", "triangularPulse(0, 1, 2, t)"], ["rectangularPulse", "heaviside"]),
+    ("sympref", "Set or query symbolic preferences.", ["sympref()", "sympref('FourierParameters')", "sympref('FourierParameters', value)", "sympref('default')"], "Preference name and optional value. FourierParameters accepts a two-element vector or 'default'.", "Preference value, all preferences, or no value when setting.", "Fourier parameter support is best-effort; default [1 -1] is fully supported for common transforms.", ["sympref('FourierParameters', [1 1])", "sympref('FourierParameters', 'default')"], ["fourier", "ifourier", "sym"]),
     ("simplify", "Simplify a symbolic expression.", "simplify(expr)", "expr: symbolic expression or equation.", "Simplified symbolic expression or equation.", "Combines like terms and removes trivial operations.", ["simplify(x + x + 0)"]),
     ("collect", "Collect polynomial terms by a variable.", "collect(expr, var)", "expr: symbolic expression. var: symbolic variable.", "Symbolic expression grouped by powers of var.", "The expression must be algebraic in the selected variable.", ["collect(expand((x + 1)^2), x)"]),
     ("expand", "Expand symbolic products and powers.", "expand(expr)", "expr: symbolic expression or equation.", "Expanded symbolic expression or equation.", "Use develop(expr) as an alias.", ["expand((x + 1)^2)"]),
@@ -1015,8 +1027,17 @@ def format_help(topic=None):
     if topic is None or str(topic).strip() == "":
         return help_overview()
 
-    name = str(topic).strip().lower()
-    topic_entry = HELP_TOPICS.get(name)
+    requested_name = str(topic).strip()
+    name = requested_name.lower()
+    topic_name = requested_name if requested_name in HELP_TOPICS else name
+    topic_entry = HELP_TOPICS.get(topic_name)
+
+    if topic_entry is None:
+        for candidate in HELP_TOPICS:
+            if candidate.lower() == name:
+                topic_name = candidate
+                topic_entry = HELP_TOPICS[candidate]
+                break
 
     if topic_entry is None:
         return (
@@ -1025,8 +1046,8 @@ def format_help(topic=None):
         )
 
     lines = [
-        name,
-        "-" * len(name),
+        topic_name,
+        "-" * len(topic_name),
         f"Definition: {topic_entry['summary']}",
         "",
         "Syntax:",

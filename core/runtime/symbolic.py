@@ -233,6 +233,9 @@ def sympy_text(value):
     text = sp.sstr(expression)
     text = text.replace("**", "^")
     text = text.replace("I", "1i")
+    text = text.replace("DiracDelta", "dirac")
+    text = text.replace("Heaviside", "heaviside")
+    text = text.replace("KroneckerDelta", "kroneckerDelta")
 
     return text
 

@@ -714,6 +714,120 @@ limit(1/x, x, 0, "up");
     assert 'limit: direction must be "left" or "right"' in str(error.value)
 
 
+def test_interpreter_supports_symbolic_laplace_transforms(execute):
+    _, context = execute(
+        """
+syms t s y
+F = laplace(sin(t), t, s);
+F_default = laplace(exp(-2*t));
+F_custom = laplace(exp(-2*t), y);
+f = ilaplace(1/s^2, s, t);
+roundtrip = simplify(ilaplace(laplace(sin(t), t, s), s, t));
+unresolved = laplace(sym("f(t)"), t, s);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["F"]) == "1/(s^2 + 1)"
+    assert str(context.variables["F_default"]) == "1/(s + 2)"
+    assert str(context.variables["F_custom"]) == "1/(y + 2)"
+    assert str(context.variables["f"]) == "t"
+    assert str(context.variables["roundtrip"]) == "sin(t)"
+    assert str(context.variables["unresolved"]) == "laplace(f(t), t, s)"
+
+
+def test_interpreter_supports_symbolic_fourier_transforms(execute):
+    _, context = execute(
+        """
+syms x w
+F = fourier(exp(-x^2), x, w);
+f = ifourier(exp(-w^2/4), w, x);
+roundtrip = simplify(ifourier(fourier(exp(-x^2), x, w), w, x));
+constant = fourier(5, x, w);
+sympref("FourierParameters", [1 1]);
+custom = fourier(exp(-x^2), x, w);
+stored = sympref("FourierParameters");
+sympref("FourierParameters", "default");
+restored = sympref("FourierParameters");
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["F"]) == "sqrt(pi)*exp(-w^2/4)"
+    assert str(context.variables["f"]) == "exp(-x^2)/sqrt(pi)"
+    assert str(context.variables["roundtrip"]) == "exp(-x^2)"
+    assert str(context.variables["constant"]) == "10*pi*dirac(w)"
+    assert str(context.variables["custom"]) == "sqrt(pi)*exp(-w^2/4)"
+    assert [str(value) for value in context.variables["stored"]] == ["1", "1"]
+    assert [str(value) for value in context.variables["restored"]] == ["1", "-1"]
+
+
+def test_interpreter_supports_symbolic_z_transforms(execute):
+    _, context = execute(
+        """
+syms n z
+F = ztrans(2^n, n, z);
+Fn = ztrans(n, n, z);
+f = iztrans(2*z/(z-2)^2, z, n);
+roundtrip = simplify(iztrans(ztrans(n, n, z), z, n));
+unresolved = iztrans(exp(z), z, n);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["F"]) == "z/(z - 2)"
+    assert str(context.variables["Fn"]) == "z/(z - 1)^2"
+    assert str(context.variables["f"]) == "2^n*n"
+    assert str(context.variables["roundtrip"]) == "n"
+    assert str(context.variables["unresolved"]) == "iztrans(exp(z), z, n)"
+
+
+def test_interpreter_applies_symbolic_transforms_to_arrays(execute):
+    _, context = execute(
+        """
+syms x y a b c d w z
+M = [exp(x) 1; sin(y) 1i*z];
+vars = [w x; y z];
+transVars = [a b; c d];
+L = laplace(M, vars, transVars);
+Z = ztrans([1 2^w], w, z);
+""",
+        analyze=True,
+    )
+
+    assert [
+        [str(value) for value in row]
+        for row in context.variables["L"]
+    ] == [
+        ["exp(x)/a", "1/b"],
+        ["1/(c^2 + 1)", "1i/d^2"],
+    ]
+    assert [str(value) for value in context.variables["Z"]] == [
+        "z/(z - 1)",
+        "z/(z - 2)",
+    ]
+
+
+def test_interpreter_supports_symbolic_transform_helpers(execute):
+    _, context = execute(
+        """
+syms t n
+d = dirac(t);
+h = heaviside(t);
+k = kroneckerDelta(n, 0);
+r = rectangularPulse(0, 1, t);
+tri = triangularPulse(-1, 0, 1, t);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["d"]) == "dirac(t)"
+    assert str(context.variables["h"]) == "heaviside(t)"
+    assert str(context.variables["k"]) == "kroneckerDelta(0, n)"
+    assert "Piecewise" in str(context.variables["r"])
+    assert "Piecewise" in str(context.variables["tri"])
+
+
 def test_interpreter_supports_symbolic_matrix_differentiation(execute):
     _, context = execute(
         """

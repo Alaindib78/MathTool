@@ -1019,6 +1019,25 @@ jump = limit(x/abs(x), x, 0);
 One-sided directions use `"left"` and `"right"`. A two-sided limit
 whose sides disagree returns `NaN`.
 
+Use symbolic transforms:
+
+```mathtool
+syms t s x w n z
+
+F = laplace(sin(t), t, s);
+f = ilaplace(1/s^2, s, t);
+
+G = fourier(exp(-x^2), x, w);
+g = ifourier(exp(-w^2/4), w, x);
+
+Z = ztrans(2^n, n, z);
+seq = iztrans(2*z/(z - 2)^2, z, n);
+```
+
+Transform helpers use MATLAB-style defaults and work element by element
+on symbolic arrays. If a transform cannot be found, MathTool returns an
+unevaluated symbolic call instead of stopping the script.
+
 Symbolic arrays are handled element by element:
 
 ```mathtool
