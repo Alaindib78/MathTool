@@ -217,6 +217,19 @@ def sympy_text(value):
         return value.expression
 
     expression = to_sympy_expression(value)
+
+    if expression == sp.oo:
+        return "Inf"
+
+    if expression == -sp.oo:
+        return "-Inf"
+
+    if expression is sp.nan:
+        return "NaN"
+
+    if expression == sp.zoo:
+        return "ComplexInf"
+
     text = sp.sstr(expression)
     text = text.replace("**", "^")
     text = text.replace("I", "1i")

@@ -29,11 +29,29 @@ F = int(x^2, x);
 q = int(sin(x), x, 0, pi);
 ```
 
-Symbolic arrays are differentiated and integrated element by element:
+Compute symbolic limits:
+
+```mathtool
+L1 = limit(sin(x)/x);
+L2 = limit(sin(x)/x, x, 0);
+L3 = limit(1/x, x, 0, "right");
+L4 = limit(x/abs(x), x, 0);
+```
+
+`limit(expr)` uses the default symbolic variable and approaches 0.
+`limit(expr, a)` approaches `a`. Use `"left"` or `"right"` for
+one-sided limits. If the left and right limits differ, MathTool returns
+`NaN` for the two-sided limit.
+
+Symbolic arrays are differentiated, integrated, and limited element by
+element:
 
 ```mathtool
 A = [x x^2; sin(x) cos(x)];
 dA = diff(A, x);
+
+M = [sin(x)/x 1/x; x^2 cos(x)];
+LM = limit(M, x, 0, "right");
 ```
 
 Symbolic math is powered by SymPy, so simplification and formatting can
@@ -88,6 +106,8 @@ M = [1 2 3; 4 5 6];
 ## Limitations
 
 - Symbolic assumptions are limited.
+- Multivariable limits are not full path-independent limits; apply
+  iterated single-variable limits explicitly.
 - `Name=Value` parser syntax is supported where MathTool already parses
   it; string/value pairs such as `"AbsTol", 1e-12` are also supported.
 - `integral2("Method","tiled")` maps to the current SciPy-backed

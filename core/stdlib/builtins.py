@@ -57,6 +57,7 @@ from core.calculus import (
     numerical_integral2,
     symbolic_diff,
     symbolic_integral,
+    symbolic_limit,
     trapezoidal_integral,
 )
 from core.errors.errors import RuntimeError as MathToolRuntimeError
@@ -888,6 +889,10 @@ def builtin_trapz(context, *arguments):
 
 def builtin_int(context, value, *arguments):
     return symbolic_integral(value, *arguments)
+
+
+def builtin_limit(context, value, *arguments):
+    return symbolic_limit(value, *arguments)
 
 
 def builtin_integral(context, fun, xmin, xmax, *arguments):
@@ -2702,6 +2707,7 @@ BUILTIN_FUNCTIONS = {
     "diff": builtin_diff,
     "gradient": builtin_gradient,
     "int": builtin_int,
+    "limit": builtin_limit,
     "integral": builtin_integral,
     "integral2": builtin_integral2,
     "cumsum": builtin_cumsum,

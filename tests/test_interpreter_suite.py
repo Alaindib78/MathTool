@@ -634,6 +634,86 @@ mixed = diff(x*sin(x*y), x, y);
     assert "cos(x*y)" in str(context.variables["mixed"])
 
 
+def test_interpreter_supports_symbolic_limits(execute):
+    _, context = execute(
+        """
+x = sym("x");
+h = sym("h");
+n = sym("n");
+a = sym("a");
+
+f = sin(x)/x;
+L_explicit = limit(f, x, 0);
+L_default_zero = limit(f);
+L_default_point = limit(f, 0);
+L_derivative = limit((sin(x+h) - sin(x)) / h, h, 0);
+L_exponential = limit((1 + x/n)^n, n, Inf);
+L_right = limit(1/x, x, 0, "right");
+L_left = limit(1/x, x, 0, "left");
+L_jump_left = limit(x/abs(x), x, 0, "left");
+L_jump_right = limit(x/abs(x), x, 0, "right");
+L_jump_both = limit(x/abs(x), x, 0);
+L_constant = limit(5);
+L_parameter = limit(a*x, x, 0);
+L_symbolic_point = limit(x^2, x, a);
+""",
+        analyze=True,
+    )
+
+    assert str(context.variables["L_explicit"]) == "1"
+    assert str(context.variables["L_default_zero"]) == "1"
+    assert str(context.variables["L_default_point"]) == "1"
+    assert str(context.variables["L_derivative"]) == "cos(x)"
+    assert str(context.variables["L_exponential"]) == "exp(x)"
+    assert str(context.variables["L_right"]) == "Inf"
+    assert str(context.variables["L_left"]) == "-Inf"
+    assert str(context.variables["L_jump_left"]) == "-1"
+    assert str(context.variables["L_jump_right"]) == "1"
+    assert str(context.variables["L_jump_both"]) == "NaN"
+    assert context.variables["L_constant"] == 5
+    assert str(context.variables["L_parameter"]) == "0"
+    assert str(context.variables["L_symbolic_point"]) == "a^2"
+
+
+def test_interpreter_applies_symbolic_limits_to_arrays(execute):
+    _, context = execute(
+        """
+x = sym("x");
+a = sym("a");
+V = [(1+a/x)^x exp(-x)];
+LV = limit(V, x, Inf);
+M = [sin(x)/x 1/x; x^2 cos(x)];
+LM = limit(M, x, 0, "right");
+""",
+        analyze=True,
+    )
+
+    assert [str(value) for value in context.variables["LV"]] == [
+        "exp(a)",
+        "0",
+    ]
+    assert [
+        [str(value) for value in row]
+        for row in context.variables["LM"]
+    ] == [
+        ["1", "Inf"],
+        ["0", "1"],
+    ]
+
+
+def test_interpreter_reports_invalid_symbolic_limit_direction(execute):
+    with pytest.raises(Exception) as error:
+        execute(
+            """
+x = sym("x");
+limit(1/x, x, 0, "up");
+""",
+            analyze=True,
+        )
+
+    assert 'limit: direction must be "left" or "right"' in str(error.value)
+
+
 def test_interpreter_supports_symbolic_matrix_differentiation(execute):
     _, context = execute(
         """

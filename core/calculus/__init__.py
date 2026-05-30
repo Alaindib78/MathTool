@@ -8,12 +8,14 @@ from core.calculus.numeric_calculus import (
 from core.calculus.symbolic_calculus import (
     symbolic_diff,
     symbolic_integral,
+    symbolic_limit,
 )
 
 __all__ = [
     "FunctionHandle",
     "symbolic_diff",
     "symbolic_integral",
+    "symbolic_limit",
     "numerical_gradient",
     "numerical_integral",
     "numerical_integral2",

@@ -1007,11 +1007,24 @@ F = int(x^2, x);
 area = int(sin(x), x, 0, pi);
 ```
 
+Compute MATLAB-style symbolic limits:
+
+```mathtool
+L = limit(sin(x)/x);
+right = limit(1/x, x, 0, "right");
+jump = limit(x/abs(x), x, 0);
+```
+
+`limit(f)` uses the default symbolic variable and approaches 0.
+One-sided directions use `"left"` and `"right"`. A two-sided limit
+whose sides disagree returns `NaN`.
+
 Symbolic arrays are handled element by element:
 
 ```mathtool
 A = [x x^2; sin(x) cos(x)];
 dA = diff(A, x);
+LM = limit(A, x, 0, "right");
 ```
 
 Return coefficients:

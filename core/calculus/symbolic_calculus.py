@@ -81,6 +81,195 @@ def symbolic_integral(value, *arguments):
     return _map_symbolic(value, integrate)
 
 
+def symbolic_limit(value, *arguments):
+    var, point, direction = _limit_spec(value, arguments)
+
+    return apply_limit_elementwise(value, var, point, direction)
+
+
+def apply_limit_elementwise(value, var=None, point=0, direction=None):
+    if _is_multivariable_limit_request(var, point):
+        raise MathToolRuntimeError(
+            "limit: multivariable limits are not supported yet; "
+            "use iterated limits explicitly"
+        )
+
+    normalized_direction = normalize_limit_direction(direction)
+    converted_point = convert_limit_point(point)
+
+    def limit_item(item):
+        if not is_symbolic(item):
+            return item
+
+        expr = to_sympy_expression(item)
+        symbol = var
+
+        if symbol is None:
+            symbol = resolve_default_symbol(expr)
+
+        if symbol is None:
+            return item
+
+        result = _sympy_limit(expr, symbol, converted_point, normalized_direction)
+        return matlab_limit_result(result)
+
+    if isinstance(value, SymbolicEquation):
+        equation = to_sympy_equation(value)
+        left = limit_item(equation.lhs)
+        right = limit_item(equation.rhs)
+        return from_sympy_equation(
+            to_sympy_expression(left),
+            to_sympy_expression(right),
+        )
+
+    return _map_symbolic(value, limit_item)
+
+
+def resolve_default_symbol(expr):
+    symbols = sorted(
+        sympy_symbols_for(expr),
+        key=symbol_sort_key,
+    )
+
+    if not symbols:
+        return None
+
+    for symbol in symbols:
+        if symbol.name == "x":
+            return symbol
+
+    return symbols[0]
+
+
+def convert_limit_point(value):
+    return to_sympy_expression(value)
+
+
+def normalize_limit_direction(direction):
+    if direction is None:
+        return None
+
+    if not isinstance(direction, str):
+        raise MathToolRuntimeError(
+            'limit: direction must be "left" or "right"'
+        )
+
+    normalized = direction.strip().lower()
+
+    if normalized in {"left", "l", "-"}:
+        return "left"
+
+    if normalized in {"right", "r", "+"}:
+        return "right"
+
+    raise MathToolRuntimeError(
+        'limit: direction must be "left" or "right"'
+    )
+
+
+def matlab_limit_result(sympy_result):
+    return from_sympy_value(sympy_result, simplify=False)
+
+
+def _sympy_limit(expr, var, point, direction):
+    if direction == "left":
+        return sp.limit(expr, var, point, dir="-")
+
+    if direction == "right":
+        return sp.limit(expr, var, point, dir="+")
+
+    left_error = None
+    right_error = None
+
+    try:
+        left = sp.limit(expr, var, point, dir="-")
+    except Exception as error:
+        left_error = error
+        left = None
+
+    try:
+        right = sp.limit(expr, var, point, dir="+")
+    except Exception as error:
+        right_error = error
+        right = None
+
+    if left_error is None and right_error is None:
+        if _limits_equal(left, right):
+            return left
+
+        return sp.nan
+
+    try:
+        return sp.limit(expr, var, point)
+    except Exception:
+        if left_error is not None:
+            raise MathToolRuntimeError(
+                f"limit: unable to compute limit ({left_error})"
+            ) from left_error
+
+        raise MathToolRuntimeError(
+            f"limit: unable to compute limit ({right_error})"
+        ) from right_error
+
+
+def _limits_equal(left, right):
+    if left == right:
+        return True
+
+    try:
+        return sp.simplify(left - right) == 0
+    except Exception:
+        return False
+
+
+def _limit_spec(value, arguments):
+    if len(arguments) == 0:
+        return None, 0, None
+
+    if len(arguments) == 1:
+        return None, arguments[0], None
+
+    if len(arguments) == 2:
+        return _limit_variable(arguments[0]), arguments[1], None
+
+    if len(arguments) == 3:
+        return (
+            _limit_variable(arguments[0]),
+            arguments[1],
+            normalize_limit_direction(arguments[2]),
+        )
+
+    raise MathToolRuntimeError(
+        "limit: invalid number of arguments"
+    )
+
+
+def _limit_variable(value):
+    if _is_multivariable_argument(value):
+        return value
+
+    try:
+        return symbol_from_variable(value)
+    except Exception as error:
+        raise MathToolRuntimeError(
+            "limit: variable argument must be symbolic variable"
+        ) from error
+
+
+def _is_multivariable_limit_request(var, point):
+    return _is_multivariable_argument(var) or _is_multivariable_argument(point)
+
+
+def _is_multivariable_argument(value):
+    if value is None:
+        return False
+
+    if isinstance(value, np.ndarray):
+        return value.ndim > 0 and value.size > 1
+
+    return isinstance(value, (list, tuple)) and len(value) > 1
+
+
 def _map_symbolic(value, operation):
     if isinstance(value, np.ndarray):
         vectorized = np.vectorize(
