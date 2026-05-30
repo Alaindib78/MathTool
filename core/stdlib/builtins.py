@@ -72,6 +72,11 @@ from core.calculus import (
     trapezoidal_integral,
 )
 from core.errors.errors import RuntimeError as MathToolRuntimeError
+from core.numerics import (
+    fzero_solver,
+    newton_solver,
+    secant_solver,
+)
 from core.runtime.symbolic import (
     NameValueOption,
     SymbolicEquation,
@@ -989,6 +994,50 @@ def builtin_interp1(context, x, y, query):
             _as_array(x),
             _as_array(y),
         )
+    )
+
+
+def builtin_fzero(context, fun, x0=None, *arguments):
+    if x0 is None:
+        raise MathToolRuntimeError(
+            "fzero expects fzero(fun, x0)"
+        )
+
+    return fzero_solver(
+        fun,
+        x0,
+        *arguments,
+        output_callback=context.output_callback,
+    )
+
+
+def builtin_newtons_method(context, fun, derivative, x0=None, *arguments):
+    if x0 is None:
+        raise MathToolRuntimeError(
+            "newtons_method expects newtons_method(f, df, x0)"
+        )
+
+    return newton_solver(
+        fun,
+        derivative,
+        x0,
+        *arguments,
+        output_callback=context.output_callback,
+    )
+
+
+def builtin_secant(context, fun, x0=None, x1=None, *arguments):
+    if x0 is None or x1 is None:
+        raise MathToolRuntimeError(
+            "secant expects secant(f, x0, x1)"
+        )
+
+    return secant_solver(
+        fun,
+        x0,
+        x1,
+        *arguments,
+        output_callback=context.output_callback,
     )
 
 
@@ -2856,6 +2905,11 @@ BUILTIN_FUNCTIONS = {
     "iztrans": builtin_iztrans,
     "integral": builtin_integral,
     "integral2": builtin_integral2,
+    "fzero": builtin_fzero,
+    "newtons_method": builtin_newtons_method,
+    "newton": builtin_newtons_method,
+    "newton_raphson": builtin_newtons_method,
+    "secant": builtin_secant,
     "cumsum": builtin_cumsum,
     "cumprod": builtin_cumprod,
     "trapz": builtin_trapz,
