@@ -72,6 +72,16 @@ from core.calculus import (
     trapezoidal_integral,
 )
 from core.errors.errors import RuntimeError as MathToolRuntimeError
+from core.filtering import (
+    bandpass_filter,
+    bandstop_filter,
+    design_filter,
+    filter_signal,
+    filtfilt_signal,
+    fir1 as fir1_design,
+    highpass_filter,
+    lowpass_filter,
+)
 from core.numerics import (
     fzero_solver,
     newton_solver,
@@ -999,6 +1009,97 @@ def builtin_interp1(context, x, y, query):
             _as_array(y),
         )
     )
+
+
+def builtin_filter(context, *arguments):
+    return filter_signal(*arguments)
+
+
+def builtin_filtfilt(context, *arguments):
+    return filtfilt_signal(*arguments)
+
+
+def builtin_fir1(context, order, cutoff, *arguments):
+    positional = []
+    options = {}
+    index = 0
+    option_names = {
+        "window",
+        "scale",
+        "samplerate",
+        "fs",
+    }
+    while index < len(arguments):
+        argument = arguments[index]
+        if isinstance(argument, NameValueOption):
+            options[argument.name] = argument.value
+            index += 1
+            continue
+        if (
+            isinstance(argument, str)
+            and str(argument).replace("_", "").replace(" ", "").lower() in option_names
+            and index + 1 < len(arguments)
+        ):
+            options[argument] = arguments[index + 1]
+            index += 2
+            continue
+        positional.append(argument)
+        index += 1
+
+    ftype = None
+    window = "hamming"
+    scale = True
+    fs = 2.0
+
+    if positional:
+        first = positional[0]
+        if isinstance(first, str):
+            ftype = first
+            positional = positional[1:]
+
+    if positional:
+        window = positional[0]
+        positional = positional[1:]
+
+    if positional:
+        raise MathToolRuntimeError(
+            "fir1: too many positional arguments"
+        )
+
+    normalized_options = {
+        str(key).replace("_", "").replace(" ", "").lower(): value
+        for key, value in options.items()
+    }
+    if "window" in normalized_options:
+        window = normalized_options["window"]
+    if "scale" in normalized_options:
+        scale = bool(normalized_options["scale"])
+    if "samplerate" in normalized_options:
+        fs = normalized_options["samplerate"]
+    if "fs" in normalized_options:
+        fs = normalized_options["fs"]
+
+    return fir1_design(order, cutoff, ftype, window, scale, fs)
+
+
+def builtin_designfilt(context, response, *arguments):
+    return design_filter(response, *arguments)
+
+
+def builtin_lowpass(context, x, cutoff, *arguments):
+    return lowpass_filter(x, cutoff, *arguments)
+
+
+def builtin_highpass(context, x, cutoff, *arguments):
+    return highpass_filter(x, cutoff, *arguments)
+
+
+def builtin_bandpass(context, x, passband, *arguments):
+    return bandpass_filter(x, passband, *arguments)
+
+
+def builtin_bandstop(context, x, stopband, *arguments):
+    return bandstop_filter(x, stopband, *arguments)
 
 
 def builtin_fzero(context, fun, x0=None, *arguments):
@@ -2937,6 +3038,14 @@ BUILTIN_FUNCTIONS = {
     "cumprod": builtin_cumprod,
     "trapz": builtin_trapz,
     "interp1": builtin_interp1,
+    "filter": builtin_filter,
+    "filtfilt": builtin_filtfilt,
+    "fir1": builtin_fir1,
+    "designfilt": builtin_designfilt,
+    "lowpass": builtin_lowpass,
+    "highpass": builtin_highpass,
+    "bandpass": builtin_bandpass,
+    "bandstop": builtin_bandstop,
     "fft": builtin_fft,
     "ifft": builtin_ifft,
     "fftshift": builtin_fftshift,
