@@ -260,6 +260,249 @@ def fir1(order, cutoff, ftype=None, window="hamming", scale=True, fs=2.0):
         ) from error
 
 
+def butter_coefficients(order, cutoff, *arguments):
+    return iir_coefficients("butter", order, cutoff, None, None, *arguments)
+
+
+def cheby1_coefficients(order, ripple, cutoff, *arguments):
+    return iir_coefficients("cheby1", order, cutoff, ripple, None, *arguments)
+
+
+def cheby2_coefficients(order, attenuation, cutoff, *arguments):
+    return iir_coefficients("cheby2", order, cutoff, attenuation, None, *arguments)
+
+
+def ellip_coefficients(order, ripple, attenuation, cutoff, *arguments):
+    return iir_coefficients(
+        "ellip",
+        order,
+        cutoff,
+        ripple,
+        attenuation,
+        *arguments,
+    )
+
+
+def iir_coefficients(design_name, order, cutoff, ripple, attenuation, *arguments):
+    signal_mod = require_scipy_signal(design_name)
+    order = positive_integer(order, f"{design_name}: filter order must be positive")
+    ftype, analog = parse_iir_options(arguments, cutoff)
+    cutoff_values = iir_cutoff_vector(cutoff, analog, design_name)
+    btype = btype_for_iir(ftype, cutoff_values)
+    wn = cutoff_values
+    if cutoff_values.size == 1:
+        wn = float(cutoff_values[0])
+
+    try:
+        if design_name == "butter":
+            b, a = signal_mod.butter(order, wn, btype=btype, analog=analog)
+        elif design_name == "cheby1":
+            ripple = positive_scalar(
+                ripple,
+                "cheby1: passband ripple must be positive",
+            )
+            b, a = signal_mod.cheby1(order, ripple, wn, btype=btype, analog=analog)
+        elif design_name == "cheby2":
+            attenuation = positive_scalar(
+                ripple,
+                "cheby2: stopband attenuation must be positive",
+            )
+            b, a = signal_mod.cheby2(order, attenuation, wn, btype=btype, analog=analog)
+        elif design_name == "ellip":
+            ripple = positive_scalar(
+                ripple,
+                "ellip: passband ripple must be positive",
+            )
+            attenuation = positive_scalar(
+                attenuation,
+                "ellip: stopband attenuation must be positive",
+            )
+            b, a = signal_mod.ellip(
+                order,
+                ripple,
+                attenuation,
+                wn,
+                btype=btype,
+                analog=analog,
+            )
+        else:
+            raise MathToolRuntimeError(
+                f"{design_name}: unsupported filter design"
+            )
+    except ValueError as error:
+        raise MathToolRuntimeError(
+            f"{design_name}: {error}"
+        ) from error
+
+    return np.asarray(b, dtype=float), np.asarray(a, dtype=float)
+
+
+def parse_iir_options(arguments, cutoff):
+    ftype = None
+    analog = False
+
+    for argument in arguments:
+        if not isinstance(argument, str):
+            raise MathToolRuntimeError(
+                "IIR design options must be strings"
+            )
+
+        lowered = argument.lower()
+        if lowered == "s":
+            analog = True
+            continue
+        if lowered in {
+            "low",
+            "lowpass",
+            "high",
+            "highpass",
+            "stop",
+            "bandstop",
+            "bandpass",
+            "pass",
+        }:
+            ftype = lowered
+            continue
+
+        raise MathToolRuntimeError(
+            f"unsupported IIR design option '{argument}'"
+        )
+
+    if ftype is None:
+        cutoff_array = np.asarray(cutoff).reshape(-1)
+        ftype = "bandpass" if cutoff_array.size == 2 else "low"
+
+    return ftype, analog
+
+
+def btype_for_iir(ftype, cutoff_values):
+    lowered = str(ftype).lower()
+    if lowered in {"low", "lowpass"}:
+        return "lowpass"
+    if lowered in {"high", "highpass"}:
+        return "highpass"
+    if lowered in {"stop", "bandstop"}:
+        return "bandstop"
+    if lowered in {"bandpass", "pass"}:
+        return "bandpass"
+
+    if cutoff_values.size == 2:
+        return "bandpass"
+    return "lowpass"
+
+
+def iir_cutoff_vector(value, analog, function_name):
+    try:
+        cutoff = np.asarray(value, dtype=float).reshape(-1)
+    except (TypeError, ValueError) as error:
+        raise MathToolRuntimeError(
+            f"{function_name}: cutoff frequency must be numeric"
+        ) from error
+
+    if cutoff.size not in {1, 2}:
+        raise MathToolRuntimeError(
+            f"{function_name}: cutoff must be a scalar or two-element vector"
+        )
+
+    if not np.all(np.isfinite(cutoff)) or np.any(cutoff <= 0):
+        raise MathToolRuntimeError(
+            f"{function_name}: cutoff frequencies must be positive and finite"
+        )
+
+    if not analog and np.any(cutoff >= 1):
+        raise MathToolRuntimeError(
+            f"{function_name}: digital cutoff frequencies must be between 0 and 1"
+        )
+
+    if cutoff.size == 2 and cutoff[0] >= cutoff[1]:
+        raise MathToolRuntimeError(
+            f"{function_name}: cutoff frequencies must be increasing"
+        )
+
+    return cutoff
+
+
+def hann_window(length, mode="symmetric", type_name=None):
+    return named_window("hann", length, mode, type_name)
+
+
+def hamming_window(length, mode="symmetric", type_name=None):
+    return named_window("hamming", length, mode, type_name)
+
+
+def blackman_window(length, mode="symmetric", type_name=None):
+    return named_window("blackman", length, mode, type_name)
+
+
+def kaiser_window(length, beta=0.5, type_name=None):
+    signal_mod = require_scipy_signal("kaiser")
+    count = nonnegative_integer(length, "kaiser: length must be nonnegative")
+    beta = float(beta)
+    if not math.isfinite(beta):
+        raise MathToolRuntimeError(
+            "kaiser: beta must be finite"
+        )
+
+    dtype = dtype_from_type_name(type_name)
+    return np.asarray(
+        signal_mod.windows.kaiser(count, beta, sym=True),
+        dtype=dtype,
+    ).reshape(-1, 1)
+
+
+def named_window(name, length, mode, type_name):
+    signal_mod = require_scipy_signal(name)
+    count = nonnegative_integer(length, f"{name}: length must be nonnegative")
+    sym = symmetric_window_flag(mode)
+    dtype = dtype_from_type_name(type_name)
+
+    window_function = getattr(signal_mod.windows, name)
+    return np.asarray(
+        window_function(count, sym=sym),
+        dtype=dtype,
+    ).reshape(-1, 1)
+
+
+def symmetric_window_flag(mode):
+    lowered = str(mode).lower()
+    if lowered in {"symmetric", "sym"}:
+        return True
+    if lowered in {"periodic", "per"}:
+        return False
+    raise MathToolRuntimeError(
+        "window option must be 'symmetric' or 'periodic'"
+    )
+
+
+def dtype_from_type_name(type_name):
+    if type_name is None:
+        return float
+
+    lowered = str(type_name).lower()
+    if lowered in {"double", "float64"}:
+        return np.float64
+    if lowered in {"single", "float32"}:
+        return np.float32
+
+    raise MathToolRuntimeError(
+        "window type must be 'double' or 'single'"
+    )
+
+
+def positive_integer(value, message):
+    count = int(value)
+    if count <= 0:
+        raise MathToolRuntimeError(message)
+    return count
+
+
+def nonnegative_integer(value, message):
+    count = int(value)
+    if count < 0:
+        raise MathToolRuntimeError(message)
+    return count
+
+
 def butter_design(kind, order, cutoff, sample_rate):
     signal_mod = require_scipy_signal(kind)
     cutoff_values = cutoff_vector(cutoff, sample_rate, kind)

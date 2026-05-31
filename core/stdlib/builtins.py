@@ -73,13 +73,21 @@ from core.calculus import (
 )
 from core.errors.errors import RuntimeError as MathToolRuntimeError
 from core.filtering import (
+    blackman_window,
     bandpass_filter,
     bandstop_filter,
+    butter_coefficients,
+    cheby1_coefficients,
+    cheby2_coefficients,
     design_filter,
+    ellip_coefficients,
     filter_signal,
     filtfilt_signal,
     fir1 as fir1_design,
+    hamming_window,
+    hann_window,
     highpass_filter,
+    kaiser_window,
     lowpass_filter,
 )
 from core.numerics import (
@@ -1080,6 +1088,68 @@ def builtin_fir1(context, order, cutoff, *arguments):
         fs = normalized_options["fs"]
 
     return fir1_design(order, cutoff, ftype, window, scale, fs)
+
+
+def builtin_butter(context, order, cutoff, *arguments):
+    return butter_coefficients(order, cutoff, *arguments)
+
+
+def builtin_cheby1(context, order, ripple, cutoff, *arguments):
+    return cheby1_coefficients(order, ripple, cutoff, *arguments)
+
+
+def builtin_cheby2(context, order, attenuation, cutoff, *arguments):
+    return cheby2_coefficients(order, attenuation, cutoff, *arguments)
+
+
+def builtin_ellip(context, order, ripple, attenuation, cutoff, *arguments):
+    return ellip_coefficients(order, ripple, attenuation, cutoff, *arguments)
+
+
+def builtin_hann(context, length, *arguments):
+    mode, type_name = window_options(arguments)
+    return hann_window(length, mode, type_name)
+
+
+def builtin_hamming(context, length, *arguments):
+    mode, type_name = window_options(arguments)
+    return hamming_window(length, mode, type_name)
+
+
+def builtin_blackman(context, length, *arguments):
+    mode, type_name = window_options(arguments)
+    return blackman_window(length, mode, type_name)
+
+
+def builtin_kaiser(context, length, beta=0.5, *arguments):
+    type_name = None
+    if len(arguments) > 1:
+        raise MathToolRuntimeError(
+            "kaiser: expected kaiser(L), kaiser(L,beta), or kaiser(L,beta,typeName)"
+        )
+    if arguments:
+        type_name = arguments[0]
+    return kaiser_window(length, beta, type_name)
+
+
+def window_options(arguments):
+    mode = "symmetric"
+    type_name = None
+    for argument in arguments:
+        if not isinstance(argument, str):
+            raise MathToolRuntimeError(
+                "window options must be strings"
+            )
+        lowered = argument.lower()
+        if lowered in {"symmetric", "periodic", "sym", "per"}:
+            mode = argument
+        elif lowered in {"double", "single", "float64", "float32"}:
+            type_name = argument
+        else:
+            raise MathToolRuntimeError(
+                f"unsupported window option '{argument}'"
+            )
+    return mode, type_name
 
 
 def builtin_designfilt(context, response, *arguments):
@@ -3041,6 +3111,14 @@ BUILTIN_FUNCTIONS = {
     "filter": builtin_filter,
     "filtfilt": builtin_filtfilt,
     "fir1": builtin_fir1,
+    "butter": builtin_butter,
+    "cheby1": builtin_cheby1,
+    "cheby2": builtin_cheby2,
+    "ellip": builtin_ellip,
+    "hann": builtin_hann,
+    "hamming": builtin_hamming,
+    "blackman": builtin_blackman,
+    "kaiser": builtin_kaiser,
     "designfilt": builtin_designfilt,
     "lowpass": builtin_lowpass,
     "highpass": builtin_highpass,
