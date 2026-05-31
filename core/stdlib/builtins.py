@@ -77,6 +77,10 @@ from core.numerics import (
     newton_solver,
     secant_solver,
 )
+from core.optimization import (
+    fmincon_solver,
+    optimoptions as optimization_options,
+)
 from core.runtime.symbolic import (
     NameValueOption,
     SymbolicEquation,
@@ -1039,6 +1043,22 @@ def builtin_secant(context, fun, x0=None, x1=None, *arguments):
         *arguments,
         output_callback=context.output_callback,
     )
+
+
+def builtin_fmincon(context, *arguments):
+    return fmincon_solver(
+        *arguments,
+        output_callback=context.output_callback,
+        plot_engine=context.plot_engine,
+    )
+
+
+def builtin_optimoptions(context, *arguments):
+    return optimization_options(*arguments)
+
+
+def builtin_optimset(context, *arguments):
+    return optimization_options("fmincon", *arguments)
 
 
 def builtin_dot(context, a, b):
@@ -2910,6 +2930,9 @@ BUILTIN_FUNCTIONS = {
     "newton": builtin_newtons_method,
     "newton_raphson": builtin_newtons_method,
     "secant": builtin_secant,
+    "fmincon": builtin_fmincon,
+    "optimoptions": builtin_optimoptions,
+    "optimset": builtin_optimset,
     "cumsum": builtin_cumsum,
     "cumprod": builtin_cumprod,
     "trapz": builtin_trapz,
